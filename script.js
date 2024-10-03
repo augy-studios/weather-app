@@ -70,9 +70,10 @@ cityInput.value = (urlParams.get("city") == null) ? "Singapore" : urlParams.get(
 function updateUrl() {
   history.pushState({}, "", "https://" + urlHostname + "/?city=" + cityInput.value)
 }
-window.addEventListener("load", updateUrl)
+window.addEventListener("load", getCityCoordinates)
 
 const getCityCoordinates = () => {
+    updateUrl()
     const cityName = cityInput.value.trim();
     if (cityName === "") return;
     const API_URL = `https://api.openweathermap.org/geo/1.0/direct?q=${cityName}&limit=1&appid=${API_KEY}`;
