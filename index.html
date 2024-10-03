@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FMCYFTFPEL"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+
+        gtag('config', 'G-FMCYFTFPEL');
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9715826188316382"
+        crossorigin="anonymous"></script>
+
+    <link rel="manifest" href="/manifest.json" />
+
+    <meta charset="utf-8">
+    <title>Weather | Augy Studios Labs</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Weather" />
+    <meta property="og:site_name" content="Augy Studios Labs" />
+
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Jua">
+    <link rel="stylesheet" href="/weather/style.css">
+
+    <!-- Embed Image -->
+    <link rel="apple-touch-icon" href="/img/augyexlab.png">
+    <link rel="icon" href="/favicon.ico">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:image:src" content="/img/augyexlab.png">
+    <meta property="og:image" content="/img/augyexlab.png"/>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script defer="" src="https://use.fontawesome.com/releases/v6.5.1/js/all.js"></script>
+
+    <!-- Linking BoxIcon for Icon -->
+    <link href='https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css' rel='stylesheet'>
+
+    <script>
+        function playNggyu() {
+            var audio = document.getElementById("audio");
+            audio.play();
+        }
+    </script>
+    
+    <script src="/weather/script.js" defer></script>
+</head>
+
+<body>
+    <h1>Weather</h1>
+    <div class="container">
+        <div class="weather-input">
+            <h3>Enter a City Name</h3>
+            <input class="city-input" type="text" placeholder="E.g., New York, London, Tokyo">
+            <button class="search-btn">Search</button>
+            <div class="separator"></div>
+            <button class="location-btn">Use Current Location</button>
+        </div>
+        <div class="weather-data">
+            <div class="current-weather">
+                <div class="details">
+                    <h2>City Name (dd/mm/yyyy)</h2>
+                    <h6>Temperature: 00.00 °C</h6>
+                    <h6>Wind: 0.00 m/s</h6>
+                    <h6>Humidity: 00%</h6>
+                </div>
+            </div>
+            <div class="days-forecast">
+                <h2>5-Day Forecast</h2>
+                <ul class="weather-cards">
+                    <li class="card">
+                        <h3>dd/mm/yyyy</h3>
+                        <h6>Temp: 00.00 °C</h6>
+                        <h6>Wind: 0.00 m/s</h6>
+                        <h6>Humidity: 00%</h6>
+                    </li>
+                    <li class="card">
+                        <h3>dd/mm/yyyy</h3>
+                        <h6>Temp: 00.00 °C</h6>
+                        <h6>Wind: 0.00 m/s</h6>
+                        <h6>Humidity: 00%</h6>
+                    </li>
+                    <li class="card">
+                        <h3>dd/mm/yyyy</h3>
+                        <h6>Temp: 00.00 °C</h6>
+                        <h6>Wind: 0.00 m/s</h6>
+                        <h6>Humidity: 00%</h6>
+                    </li>
+                    <li class="card">
+                        <h3>dd/mm/yyyy</h3>
+                        <h6>Temp: 00.00 °C</h6>
+                        <h6>Wind: 0.00 m/s</h6>
+                        <h6>Humidity: 00%</h6>
+                    </li>
+                    <li class="card">
+                        <h3>dd/mm/yyyy</h3>
+                        <h6>Temp: 00.00 °C</h6>
+                        <h6>Wind: 0.00 m/s</h6>
+                        <h6>Humidity: 00%</h6>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>
