@@ -61,17 +61,6 @@ const getWeatherDetails = (cityName, latitude, longitude) => {
     });
 }
 
-// Dynamic Hostname
-let urlHostname = (new URL(document.location)).hostname
-
-// Dynamic URL
-let urlParams = (new URL(document.location)).searchParams
-cityInput.value = (urlParams.get("city") == null) ? "Singapore" : urlParams.get("city").toUpperCase()
-function updateUrl() {
-  history.pushState({}, "", "https://" + urlHostname + "/?city=" + cityInput.value)
-}
-window.addEventListener("load", getCityCoordinates)
-
 const getCityCoordinates = () => {
     updateUrl()
     const cityName = cityInput.value.trim();
@@ -118,6 +107,17 @@ const getUserCoordinates = () => {
             }
         });
 }
+
+// Dynamic Hostname
+let urlHostname = (new URL(document.location)).hostname
+
+// Dynamic URL
+let urlParams = (new URL(document.location)).searchParams
+cityInput.value = (urlParams.get("city") == null) ? "Singapore" : urlParams.get("city").toUpperCase()
+function updateUrl() {
+  history.pushState({}, "", "https://" + urlHostname + "/?city=" + cityInput.value)
+}
+window.addEventListener("load", getCityCoordinates)
 
 locationButton.addEventListener("click", getUserCoordinates);
 searchButton.addEventListener("click", getCityCoordinates);
