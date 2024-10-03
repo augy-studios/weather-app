@@ -1,6 +1,6 @@
 {
-    "name": "Augy Studios Labs",
-    "short_name": "Augy Studios Labs",
+    "name": "Augy Studios",
+    "short_name": "Augy Studios",
     "icons": [{
         "src": "favicon.ico",
         "type": "image/png",
@@ -11,5 +11,5 @@
     "background_color": "#9f9",
     "display": "standalone",
     "display_override": ["fullscreen", "minimal-ui"],
-    "description": "Save this to access the Augy Studios Labs website in your home screen!"
+    "description": "Save this to access the Augy Studios website in your home screen!"
 }
