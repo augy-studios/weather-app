@@ -2,7 +2,7 @@
     "name": "Weather App by Augy Studios",
     "short_name": "Weather App",
     "icons": [{
-        "src": "favicon.ico",
+        "src": "weathericon2.png",
         "type": "image/png",
         "sizes": "256x256"
     }],
