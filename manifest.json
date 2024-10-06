@@ -16,5 +16,6 @@
     "theme_color": "#9f9",
     "background_color": "#9f9",
     "display": "standalone",
-    "display_override": ["fullscreen", "minimal-ui", "window-controls-overlay"]
+    "display_override": ["fullscreen", "minimal-ui", "window-controls-overlay"],
+    "orientation": "portrait-primary"
 }
