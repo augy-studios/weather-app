@@ -5,7 +5,7 @@
     "icons": [{
         "src": "weathericon2.png",
         "type": "image/png",
-        "sizes": "256x256"
+        "sizes": "512x512"
     }],
     "screenshots": [{
         "src": "/images/screenshot_1.png",
