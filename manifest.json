@@ -3,7 +3,7 @@
     "short_name": "Weather",
     "description": "A simple weather app; view today's weather at a glance!",
     "icons": [{
-        "src": "weathericon2.png",
+        "src": "weathericon3.png",
         "type": "image/png",
         "sizes": "512x512"
     }],
