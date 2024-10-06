@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.augystudios.weatherapp",
+        "sha256_cert_fingerprints": ["E5:1E:14:95:4B:32:B9:BD:16:BB:6B:4D:59:E1:32:0C:95:6A:FD:89:C9:91:A7:16:3E:4D:1F:48:4B:74:B5:AB"]
+      }
+    }]
