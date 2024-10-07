@@ -12,6 +12,38 @@
         "type": "image/png",
         "sizes": "1080x2340"
     }],
+    "shortcuts": [
+        {
+            "name": "London",
+            "url": "/?city=London",
+            "description": "Quick Glance at the weather in London"
+        },
+        {
+            "name": "Paris",
+            "url": "/?city=Paris",
+            "description": "Quick Glance at the weather in Paris"
+        },
+        {
+            "name": "Tokyo",
+            "url": "/?city=Tokyo",
+            "description": "Quick Glance at the weather in Tokyo"
+        },
+        {
+            "name": "Ontario",
+            "url": "/?city=Ontario",
+            "description": "Quick Glance at the weather in Ontario"
+        },
+        {
+            "name": "Berlin",
+            "url": "/?city=Berlin",
+            "description": "Quick Glance at the weather in Berlin"
+        },
+        {
+            "name": "Rome",
+            "url": "/?city=Rome",
+            "description": "Quick Glance at the weather in Rome"
+        }
+    ],
     "start_url": ".",
     "theme_color": "#9f9",
     "background_color": "#9f9",
