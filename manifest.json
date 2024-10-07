@@ -10,7 +10,7 @@
     "screenshots": [{
         "src": "/images/screenshot_1.png",
         "type": "image/png",
-        "sizes": "1080x1920"
+        "sizes": "1080x2340"
     }],
     "start_url": ".",
     "theme_color": "#9f9",
