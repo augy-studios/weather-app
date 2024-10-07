@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "com.augystudios.weatherapp",
-        "sha256_cert_fingerprints": ["10:6A:F6:D8:74:32:51:8E:64:42:91:78:2E:8A:62:BB:0A:6E:32:B2:9F:5B:F8:82:67:A3:33:4C:6E:3F:63:F1"]
+        "sha256_cert_fingerprints": ["E4:EB:13:B6:CA:2A:9E:89:E4:8B:3C:AB:68:2B:BF:6A:99:97:09:A5:2A:9A:36:20:8C:8C:A9:94:9B:08:CB:51"]
       }
     }]
