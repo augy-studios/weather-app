@@ -20,7 +20,11 @@ Get the latest weather information based on your current location or the city yo
 3. When you first load into the page, if there is nothing stated in the query, the default query is Singapore. This is not a bug.
 
 ## How to Use: Install PWA on Android/iOS device
-1. 
+> **_NOTE:_** When you're on a compatible browser, you should receive a prompt to install the web app onto your mobile device. If you do not receive the prompt, follow these steps.
+
+1. Tap on your browser's options button
+2. Tap on "install app" or "add to homescreen"
+3. Tap on "Install" in the pop-up
 
 ## Special Thanks
 [Paxriel](https://paxriel.art/) for general coding help
