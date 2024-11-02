@@ -29,6 +29,11 @@ Get the latest weather information based on your current location or the city yo
 - Tap on the app icon in your homescreen, ***OR***
 - Tap and hold on the app icon for shortcuts
 
+## App Version
+Google Play: https://play.google.com/store/apps/details?id=com.augystudios.weatherapp
+
+Install APK: https://cloud.kancil.xyz/s/WFy7YymwLJgRb9a
+
 ## Special Thanks
 [Paxriel](https://paxriel.art/) for general coding help
 
