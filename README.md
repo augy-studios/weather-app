@@ -26,6 +26,10 @@ Get the latest weather information based on your current location or the city yo
 2. Tap on "install app" or "add to homescreen"
 3. Tap on "Install" in the pop-up
 
+## How to Use: Opening from the installed PWA App
+- Tap on the app icon in your homescreen, ***OR***
+- Tap and hold on the app icon for shortcuts
+
 ## Special Thanks
 [Paxriel](https://paxriel.art/) for general coding help
 
