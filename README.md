@@ -21,7 +21,6 @@ Get the latest weather information based on your current location or the city yo
 
 ## How to Use: Install PWA on Android/iOS device
 > **_NOTE:_** When you're on a compatible browser, you should receive a prompt to install the web app onto your mobile device. If you do not receive the prompt, follow these steps.
-
 1. Tap on your browser's options button
 2. Tap on "install app" or "add to homescreen"
 3. Tap on "Install" in the pop-up
