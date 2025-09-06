@@ -8,10 +8,16 @@
         "sizes": "512x512"
     }],
     "screenshots": [{
-        "src": "/images/screenshot_1.png",
-        "type": "image/png",
-        "sizes": "1080x2340"
-    }],
+            "src": "/images/screenshot_1.png",
+            "type": "image/png",
+            "sizes": "1080x2340"
+        },
+        {
+            "src": "/images/screenshot_2.png",
+            "type": "image/png",
+            "sizes": "1920x988"
+        }
+    ],
     "shortcuts": [
         {
             "name": "London",
