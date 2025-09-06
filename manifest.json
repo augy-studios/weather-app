@@ -21,17 +21,17 @@
     "shortcuts": [
         {
             "name": "London",
-            "url": "/?city=London",
+            "url": "/?q=London",
             "description": "Quick Glance at the weather in London"
         },
         {
             "name": "Paris",
-            "url": "/?city=Paris",
+            "url": "/?q=Paris",
             "description": "Quick Glance at the weather in Paris"
         },
         {
             "name": "Tokyo",
-            "url": "/?city=Tokyo",
+            "url": "/?q=Tokyo",
             "description": "Quick Glance at the weather in Tokyo"
         }
     ],
