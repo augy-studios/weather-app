@@ -1,6 +1,6 @@
 {
-    "name": "Weather App by Augy Studios",
-    "short_name": "Weather",
+    "name": "Weather by UwU Apps",
+    "short_name": "UwU Weather",
     "description": "A simple weather app; view today's weather at a glance!",
     "icons": [{
         "src": "weathericon3.png",
@@ -27,21 +27,6 @@
             "name": "Tokyo",
             "url": "/?city=Tokyo",
             "description": "Quick Glance at the weather in Tokyo"
-        },
-        {
-            "name": "Ontario",
-            "url": "/?city=Ontario",
-            "description": "Quick Glance at the weather in Ontario"
-        },
-        {
-            "name": "Berlin",
-            "url": "/?city=Berlin",
-            "description": "Quick Glance at the weather in Berlin"
-        },
-        {
-            "name": "Rome",
-            "url": "/?city=Rome",
-            "description": "Quick Glance at the weather in Rome"
         }
     ],
     "start_url": ".",

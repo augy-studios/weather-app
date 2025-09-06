@@ -20,12 +20,14 @@
     <link rel="manifest" href="/manifest.json" />
 
     <meta charset="utf-8">
-    <title>Weather App | Augy Studios</title>
+    <title>Weather | UwU Apps</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A simple weather app; view today's weather at a glance!">
 
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Weather App" />
-    <meta property="og:site_name" content="Augy Studios" />
+    <meta property="og:title" content="Weather | UwU Apps" />
+    <meta property="og:site_name" content="UwU Apps" />
+    <meta property="og:description" content="A simple weather app; view today's weather at a glance!" />
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Jua">
     <link rel="stylesheet" href="/style.css">
@@ -34,87 +36,189 @@
     <link rel="apple-touch-icon" href="/weathericon3.png">
     <link rel="icon" href="/favicon.ico">
     <link rel="shortcut icon" href="/favicon.ico">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image:src" content="/weatherog2.png">
-    <meta property="og:image" content="/weatherog2.png"/>
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:image:src" content="/weathericon3.png">
+    <meta property="og:image" content="/weathericon3.png"/>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script defer="" src="https://use.fontawesome.com/releases/v6.5.1/js/all.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script defer="" src="https://use.fontawesome.com/releases/v6.5.2/js/all.js"></script>
 
-    <!-- Linking BoxIcon for Icon -->
-    <link href='https://unpkg.com/boxicons@2.0.9/css/boxicons.min.css' rel='stylesheet'>
-
-    <script>
-        function playNggyu() {
-            var audio = document.getElementById("audio");
-            audio.play();
-        }
-    </script>
-    
-    <script src="/script.js" defer></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
 
 <body>
-    <h1>Weather</h1>
-    <div class="container">
-        <div class="weather-input">
-            <h3>Enter a City Name</h3>
-            <input class="city-input" type="text" placeholder="E.g., New York, London, Tokyo">
-            <button class="search-btn">Search</button>
-            <div class="separator"></div>
-            <button class="location-btn">Use Current Location</button>
-        </div>
-        <div class="weather-data">
-            <div class="current-weather">
-                <div class="details">
-                    <h2>City Name (dd/mm/yyyy)</h2>
-                    <h6>Temperature: 00.00 °C</h6>
-                    <h6>Wind: 0.00 m/s</h6>
-                    <h6>Humidity: 00%</h6>
+    <header>
+        <div class="container">
+            <div class="brand">
+                <div class="logo" aria-hidden="true">
+                    <!-- simple sun glyph -->
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+                        aria-hidden="true">
+                        <circle cx="12" cy="12" r="4.5" fill="#fff" stroke="#0a0" stroke-width="1.5" />
+                        <g stroke="#0a0" stroke-width="1.5" stroke-linecap="round">
+                            <path d="M12 2.5v3" />
+                            <path d="M12 18.5v3" />
+                            <path d="M21.5 12h-3" />
+                            <path d="M5.5 12h-3" />
+                            <path d="M18.4 5.6l-2.1 2.1" />
+                            <path d="M7.7 16.3l-2.1 2.1" />
+                            <path d="M18.4 18.4l-2.1-2.1" />
+                            <path d="M7.7 7.7L5.6 5.6" />
+                        </g>
+                    </svg>
+                </div>
+                <div>
+                    <h1>Weather | UwU Apps</h1>
+                    <small>Made with ❤️ by Augy</small>
                 </div>
             </div>
-            <div class="days-forecast">
-                <h2>5-Day Forecast</h2>
-                <ul class="weather-cards">
-                    <li class="card">
-                        <h3>dd/mm/yyyy</h3>
-                        <h6>Temp: 00.00 °C</h6>
-                        <h6>Wind: 0.00 m/s</h6>
-                        <h6>Humidity: 00%</h6>
-                    </li>
-                    <li class="card">
-                        <h3>dd/mm/yyyy</h3>
-                        <h6>Temp: 00.00 °C</h6>
-                        <h6>Wind: 0.00 m/s</h6>
-                        <h6>Humidity: 00%</h6>
-                    </li>
-                    <li class="card">
-                        <h3>dd/mm/yyyy</h3>
-                        <h6>Temp: 00.00 °C</h6>
-                        <h6>Wind: 0.00 m/s</h6>
-                        <h6>Humidity: 00%</h6>
-                    </li>
-                    <li class="card">
-                        <h3>dd/mm/yyyy</h3>
-                        <h6>Temp: 00.00 °C</h6>
-                        <h6>Wind: 0.00 m/s</h6>
-                        <h6>Humidity: 00%</h6>
-                    </li>
-                    <li class="card">
-                        <h3>dd/mm/yyyy</h3>
-                        <h6>Temp: 00.00 °C</h6>
-                        <h6>Wind: 0.00 m/s</h6>
-                        <h6>Humidity: 00%</h6>
-                    </li>
-                </ul>
+            <div class="toolbar">
+                <div class="searchbar">
+                    <input id="query" type="search" placeholder="Search city… (e.g. Singapore, Tokyo)"
+                        autocomplete="off" list="suggestions" />
+                    <datalist id="suggestions"></datalist>
+                </div>
+
+                <div class="search-actions">
+                    <button class="btn icon" id="btn-search" title="Search">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    </button>
+                    <button class="btn icon secondary" id="btn-current" title="Use my location">
+                        <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+                    </button>
+                    <button class="btn icon" id="btn-units" title="Switch °C/°F">
+                        <i class="fa-solid fa-temperature-half" aria-hidden="true"></i>
+                        <span id="units-label">°C</span>
+                    </button>
+                    <button class="btn icon" id="btn-save" title="Save current location">
+                        <i class="fa-solid fa-star" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
+            <div class="chips" id="saved"></div>
         </div>
-    </div>
+    </header>
+
+    <main class="container">
+        <section class="grid">
+            <article class="card" id="card-current">
+                <div class="card-header">
+                    <div class="card-title">Current weather</div>
+                    <div class="muted" id="place-label">—</div>
+                </div>
+                <div class="card-body">
+                    <div class="hero">
+                        <div>
+                            <div class="temp" id="temp">—°</div>
+                            <div class="sub" id="summary">—</div>
+                        </div>
+                        <div class="big" id="icon" aria-label="Weather icon">☀️</div>
+                    </div>
+                    <div class="metrics">
+                        <div class="metric"><span class="muted">Feels like</span><b id="apparent">—</b></div>
+                        <div class="metric"><span class="muted">Humidity</span><b id="humidity">—</b></div>
+                        <div class="metric"><span class="muted">Wind</span><b id="wind">—</b></div>
+                        <div class="metric"><span class="muted">Pressure</span><b id="pressure">—</b></div>
+                    </div>
+                </div>
+            </article>
+
+            <article class="card">
+                <div class="card-header">
+                    <div class="card-title">2‑hour nowcast (15‑min)</div>
+                    <div class="muted" id="nowcast-range">—</div>
+                </div>
+                <div class="card-body">
+                    <div id="nowcastPlot" style="height:160px;width:100%"></div>
+                    <div class="muted" style="margin-top:8px">Bars show precip (mm) in the next ~2 hours. Zero bars =
+                        dry.</div>
+                </div>
+            </article>
+        </section>
+
+        <section class="row" style="margin-top:18px">
+            <article class="card">
+                <div class="card-header">
+                    <div class="card-title">Next 24 hours</div>
+                </div>
+                <div class="card-body scroller" id="hourly"></div>
+            </article>
+            <article class="card">
+                <div class="card-header">
+                    <div class="card-title">Next 5 days</div>
+                </div>
+                <div class="card-body scroller" id="daily"></div>
+            </article>
+        </section>
+
+        <section class="row" style="margin-top:18px">
+            <article class="card">
+                <div class="card-header">
+                    <div class="card-title">Share</div>
+                </div>
+                <div class="card-body">
+                    <div class="chips">
+                        <button class="btn icon" id="share-device" title="Share via device">
+                            <i class="fa-solid fa-share-nodes" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn icon secondary" data-share="tg" title="Share via Telegram">
+                            <i class="fa-brands fa-telegram" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn icon secondary" data-share="x" title="Share via X">
+                            <i class="fa-brands fa-x-twitter" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn icon secondary" data-share="wa" title="Share via WhatsApp">
+                            <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn icon secondary" data-share="fb" title="Share via Facebook">
+                            <i class="fa-brands fa-facebook" aria-hidden="true"></i>
+                        </button>
+                        <button class="btn icon" id="save-image" title="Save image">
+                            <i class="fa-solid fa-image" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </div>
+            </article>
+            <article class="card">
+                <div class="card-header">
+                    <div class="card-title">Share preview</div>
+                </div>
+                <div class="card-body">
+                    <div id="share-card">
+                        <div class="brandline">
+                            <strong>Weather | UwU Apps</strong>
+                            <span class="muted" id="share-place">—</span>
+                        </div>
+                        <div id="share-art" aria-hidden="true"></div>
+                        <div>
+                            <div class="bigtemp" id="share-temp">—°</div>
+                            <div class="meta">
+                                <span id="share-summary">—</span>
+                                <span id="share-extra">—</span>
+                            </div>
+                        </div>
+                        <footer>
+                            <span class="muted" id="share-time">—</span>
+                            <span class="muted">Data: Open‑Meteo</span>
+                        </footer>
+                    </div>
+                </div>
+            </article>
+        </section>
+
+        <p class="muted" style="margin-top:22px">Sources: <a class="link"
+                href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open‑Meteo</a> (current, hourly, daily,
+            15‑min precipitation)</p>
+    </main>
+
+    <!-- libs -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
         if (typeof navigator.serviceWorker !== 'undefined') {
             navigator.serviceWorker.register('sw.js')
         }
     </script>
+    <script src="/script.js" defer></script>
 </body>
 
 </html>
