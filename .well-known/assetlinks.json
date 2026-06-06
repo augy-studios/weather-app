@@ -1,27 +1,8 @@
-[
-  {
-    "relation": [
-      "delegate_permission/common.handle_all_urls"
-    ],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "org.uwuapps.weather",
-      "sha256_cert_fingerprints": [
-        "E4:EB:13:B6:CA:2A:9E:89:E4:8B:3C:AB:68:2B:BF:6A:99:97:09:A5:2A:9A:36:20:8C:8C:A9:94:9B:08:CB:51"
-      ]
-    }
-  },
-  {
-    "relation": [
-      "delegate_permission/common.handle_all_urls",
-      "delegate_permission/common.get_login_creds"
-    ],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.augystudios.weatherapp",
-      "sha256_cert_fingerprints": [
-        "E4:EB:13:B6:CA:2A:9E:89:E4:8B:3C:AB:68:2B:BF:6A:99:97:09:A5:2A:9A:36:20:8C:8C:A9:94:9B:08:CB:51"
-      ]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "org.uwuapps.weather",
+        "sha256_cert_fingerprints": ["B7:4A:CB:D3:A8:17:EC:A7:B1:DD:AD:31:46:0C:E2:F3:58:26:01:CD:EE:23:DF:EF:8F:3F:A0:18:2A:63:2B:E5"]
+      }
+    }]
