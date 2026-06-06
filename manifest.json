@@ -41,6 +41,13 @@
         }
     ],
     "start_url": ".",
+    "id": "org.uwuapps.weather",
+    "related_applications": [{
+        "platform": "play",
+        "url": "https://play.google.com/store/apps/details?id=org.uwuapps.weather",
+        "id": "org.uwuapps.weather"
+    }],
+    "prefer_related_applications": true,
     "theme_color": "#ccffcc",
     "background_color": "#ccffcc",
     "display": "standalone",
