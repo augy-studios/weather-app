@@ -1,13 +1,18 @@
-const CACHE = "template-offline-v1";
+const CACHE = "weather-v1";
 
 const ASSETS = [
   "/",
   "/index.html",
   "/style.css",
   "/script.js",
-  "/weathericon3.png",
+  "/lib/uwu-request-signing.js",
+  "/manifest.json",
   "/favicon.ico",
-  "/manifest.json"
+  "/weathericon3.png",
+  "/weather-192.png",
+  "/weather-512.png",
+  "/images/screenshot_1.png",
+  "/images/screenshot_2.png"
 ];
 
 self.addEventListener("install", (event) => {

@@ -27,30 +27,47 @@
     "shortcuts": [{
             "name": "London",
             "url": "/?q=London",
-            "description": "Quick Glance at the weather in London"
+            "description": "Quick Glance at the weather in London",
+            "icons": [{
+                "src": "weather-192.png",
+                "type": "image/png",
+                "sizes": "192x192"
+            }]
         },
         {
             "name": "Paris",
             "url": "/?q=Paris",
-            "description": "Quick Glance at the weather in Paris"
+            "description": "Quick Glance at the weather in Paris",
+            "icons": [{
+                "src": "weather-192.png",
+                "type": "image/png",
+                "sizes": "192x192"
+            }]
         },
         {
             "name": "Tokyo",
             "url": "/?q=Tokyo",
-            "description": "Quick Glance at the weather in Tokyo"
+            "description": "Quick Glance at the weather in Tokyo",
+            "icons": [{
+                "src": "weather-192.png",
+                "type": "image/png",
+                "sizes": "192x192"
+            }]
         }
     ],
-    "start_url": ".",
-    "id": "org.uwuapps.weather",
-    "related_applications": [{
-        "platform": "play",
-        "url": "https://play.google.com/store/apps/details?id=org.uwuapps.weather",
-        "id": "org.uwuapps.weather"
-    }],
-    "prefer_related_applications": true,
-    "theme_color": "#ccffcc",
-    "background_color": "#ccffcc",
+    "start_url": "/",
+    "theme_color": "#cfc",
+    "background_color": "#cfc",
     "display": "standalone",
     "display_override": ["fullscreen", "minimal-ui", "window-controls-overlay"],
-    "orientation": "portrait-primary"
+    "orientation": "any",
+    "id": "weather-app",
+    "dir": "ltr",
+    "scope": "/",
+    "lang": "en",
+    "categories": [
+        "entertainment",
+        "lifestyle",
+        "utilities"
+    ]
 }

@@ -59,6 +59,8 @@ function parseQuery(q) {
     return { name, admin1, countryCode };
 }
 
+const UWU_APP_ID = 'uwu-weather';
+
 // ===== Geocoding =====
 async function searchCitySmart(q) {
     const { name, admin1, countryCode } = parseQuery(q);
@@ -67,7 +69,8 @@ async function searchCitySmart(q) {
     const params = new URLSearchParams({ name, count: '8', language: 'en', format: 'json' });
     if (countryCode) params.set('countryCode', countryCode);
 
-    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?${params}`);
+    await UwuSigning.initGuestKey(UWU_APP_ID);
+    const res = await UwuSigning.signedFetch(`/api/geocode?${params}`);
     if (!res.ok) return [];
 
     const j = await res.json();
@@ -159,7 +162,8 @@ async function loadWeather(lat, lon, label) {
         wind_speed_unit:  isImperial() ? 'mph' : 'kmh'
     });
 
-    const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+    await UwuSigning.initGuestKey(UWU_APP_ID);
+    const res = await UwuSigning.signedFetch(`/api/forecast?${params}`);
     const j   = await res.json();
     _lastWeatherData = j;
 
