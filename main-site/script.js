@@ -21,6 +21,17 @@ const degToCompass = deg =>
 const pad     = n => String(n).padStart(2, '0');
 const fmtTime = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
+const { hydrateIcons, openModal, closeModal } = window.UwuUI;
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+// Alpha-blend a hex token into rgba, for libraries that cannot read a
+// CSS custom property or resolve color-mix.
+function tokenAlpha(name, alpha) {
+    const hex = cssVar(name).replace('#', '');
+    const n = parseInt(hex, 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
 const wmoText = code => ({
     0:'Clear', 1:'Mainly clear', 2:'Partly cloudy', 3:'Overcast',
     45:'Fog', 48:'Depositing rime fog',
@@ -32,17 +43,19 @@ const wmoText = code => ({
     95:'Thunderstorm', 96:'Thunderstorm w/ hail', 99:'Thunderstorm w/ heavy hail'
 }[code] || '—');
 
-const wmoEmoji = code => {
-    if ([0].includes(code))                              return '☀️';
-    if ([1, 2].includes(code))                           return '🌤️';
-    if ([3].includes(code))                              return '☁️';
-    if ([45, 48].includes(code))                         return '🌫️';
-    if ([51,53,55,61,63,65,80,81,82].includes(code))     return '🌧️';
-    if ([71,73,75,77,85,86].includes(code))              return '🌨️';
-    if ([95, 96, 99].includes(code))                     return '⛈️';
-    return '🌡️';
+const wmoIcon = code => {
+    if ([0].includes(code))                              return 'clear';
+    if ([1, 2].includes(code))                           return 'partly-cloudy';
+    if ([3].includes(code))                              return 'cloudy';
+    if ([45, 48].includes(code))                         return 'fog';
+    if ([51,53,55,61,63,65,80,81,82].includes(code))     return 'rain';
+    if ([71,73,75,77,85,86].includes(code))              return 'snow';
+    if ([95, 96, 99].includes(code))                     return 'thunderstorm';
+    return 'thermometer';
 };
 
+// Country flags stay as emoji by design: they are data-derived, one per
+// country, so they cannot come from the fixed icon set.
 function flagFromLabel(label) {
     const m = label.match(/,\s*([A-Z]{2})$/);
     if (!m) return '';
@@ -116,8 +129,8 @@ function renderSaved() {
     loadSaved().forEach((it, i) => {
         const isMine  = it.name === 'My location';
         const prefix  = isMine
-            ? '<i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>'
-            : (flagFromLabel(it.name) || '<i class="fa-solid fa-location-dot" aria-hidden="true"></i>');
+            ? '<span data-icon="crosshair" aria-hidden="true"></span>'
+            : (flagFromLabel(it.name) || '<span data-icon="pin" aria-hidden="true"></span>');
         const list = loadSaved();
         const chip = h('span', { className: 'chip' }, [
             h('button', {
@@ -127,11 +140,12 @@ function renderSaved() {
             h('button', {
                 title: 'Remove',
                 onclick: () => { list.splice(i, 1); saveSaved(list); },
-                innerHTML: '<i class="fa-solid fa-xmark" aria-hidden="true"></i>'
+                innerHTML: '<span data-icon="close" aria-hidden="true"></span>'
             })
         ]);
         wrap.appendChild(chip);
     });
+    hydrateIcons(wrap);
 }
 
 // ===== Weather =====
@@ -182,7 +196,10 @@ function renderCurrent(j) {
     $('#wind').textContent     = fmtWind(c.wind_speed_10m, c.wind_direction_10m);
     $('#pressure').textContent = c.surface_pressure ? Math.round(c.surface_pressure) + ' hPa' : '—';
     $('#summary').textContent  = wmoText(c.weather_code);
-    $('#icon').textContent     = wmoEmoji(c.weather_code);
+
+    const iconEl = $('#icon');
+    iconEl.setAttribute('data-icon', wmoIcon(c.weather_code));
+    hydrateIcons(iconEl.parentElement);
 }
 
 function renderHourly(j) {
@@ -196,11 +213,16 @@ function renderHourly(j) {
             wrap.appendChild(h('div', { className: 'pill' }, [
                 h('div', { className: 'muted' }, [fmtTime(new Date(ts))]),
                 h('div', { style: 'font-size:22px' }, [fmtTemp(j.hourly.temperature_2m?.[i])]),
-                h('div', {}, [wmoEmoji(j.hourly.weather_code?.[i]) + ' ' + (j.hourly.precipitation_probability?.[i] ?? '—') + '%'])
+                h('div', {
+                    className: 'wx-line',
+                    innerHTML: `<span class="wx-icon" data-icon="${wmoIcon(j.hourly.weather_code?.[i])}" aria-hidden="true"></span>` +
+                        `<span>${j.hourly.precipitation_probability?.[i] ?? '—'}%</span>`
+                })
             ]));
             added++;
         }
     }
+    hydrateIcons(wrap);
 }
 
 function renderDaily(j) {
@@ -214,9 +236,14 @@ function renderDaily(j) {
             h('div', { style: 'font-size:20px' }, [
                 `${Math.round(j.daily.temperature_2m_max?.[i])}° / ${Math.round(j.daily.temperature_2m_min?.[i])}°`
             ]),
-            h('div', {}, [wmoEmoji(j.daily.weather_code?.[i]) + `  ${(j.daily.precipitation_sum?.[i] ?? 0).toFixed(1)} mm`])
+            h('div', {
+                className: 'wx-line',
+                innerHTML: `<span class="wx-icon" data-icon="${wmoIcon(j.daily.weather_code?.[i])}" aria-hidden="true"></span>` +
+                    `<span>${(j.daily.precipitation_sum?.[i] ?? 0).toFixed(1)} mm</span>`
+            })
         ]));
     }
+    hydrateIcons(wrap);
 }
 
 function renderNowcast(j) {
@@ -242,27 +269,30 @@ function renderNowcast(j) {
     const y   = data.map(p => p.v);
     const max = Math.max(1, ...y);
 
+    // Fixed-meaning ramp: hue encodes precipitation intensity, so it does not
+    // track the brand. Lightness follows the mode so the bars stay legible.
+    const isDark = document.documentElement.getAttribute('data-mode') === 'dark';
     const colors = y.map(v => {
         const r   = v / max;
         const hue = Math.max(0, 200 - Math.floor(r * 200));
-        return `hsl(${hue},70%,40%)`;
+        return `hsl(${hue},70%,${isDark ? 62 : 40}%)`;
     });
 
-    const brand = getComputedStyle(document.documentElement).getPropertyValue('--brand-strong').trim() || '#66ff66';
+    const gridColor = tokenAlpha('--ink', isDark ? 0.16 : 0.10);
 
     Plotly.newPlot(el, [{
         type: 'bar', x, y,
-        marker: { color: colors, line: { color: brand, width: 0 } },
+        marker: { color: colors, line: { color: cssVar('--brand-ink'), width: 0 } },
         hovertemplate: '%{x}<br>%{y:.2f} mm<extra></extra>'
     }], {
         margin:      { l: 40, r: 16, t: 6, b: 30 },
-        yaxis:       { title: 'mm', rangemode: 'tozero', zeroline: true, gridcolor: 'rgba(0,0,0,0.06)' },
-        xaxis:       { tickangle: 0, gridcolor: 'rgba(0,0,0,0.04)' },
+        yaxis:       { title: 'mm', rangemode: 'tozero', zeroline: true, gridcolor: gridColor, zerolinecolor: gridColor },
+        xaxis:       { tickangle: 0, gridcolor: gridColor },
         showlegend:  false,
         paper_bgcolor: 'rgba(0,0,0,0)',
         plot_bgcolor:  'rgba(0,0,0,0)',
         height:      160,
-        font:        { family: 'Jua, sans-serif', size: 11 }
+        font:        { family: 'Jua, sans-serif', size: 11, color: cssVar('--muted') }
     }, { displayModeBar: false, responsive: true });
 
     if (data.length) {
@@ -276,11 +306,16 @@ function renderNowcast(j) {
 
 // ===== Share =====
 function weatherSVG(code = 0) {
-    const brand = getComputedStyle(document.documentElement)
-        .getPropertyValue('--brand-strong').trim() || '#66ff66';
+    // html2canvas rasterises this node, so the colours are resolved here
+    // rather than left to inherit from a custom property. The art sits on a
+    // brand tint, so it strokes in --on-brand. The fill is the card's own
+    // colour, purely so overlapping shapes occlude each other.
+    const brand = cssVar('--on-brand');
+    const card  = document.getElementById('share-card');
+    const fill  = card ? getComputedStyle(card).backgroundColor : cssVar('--bg');
 
     const sunCore = `
-    <circle cx="60" cy="60" r="22" fill="#fff" fill-opacity="0.98" stroke="${brand}" stroke-width="3"/>
+    <circle cx="60" cy="60" r="22" fill="${fill}" fill-opacity="0.98" stroke="${brand}" stroke-width="3"/>
     <g stroke="${brand}" stroke-width="3" stroke-linecap="round">
       <line x1="60" y1="20" x2="60" y2="38"/><line x1="60" y1="82" x2="60" y2="100"/>
       <line x1="20" y1="60" x2="38" y2="60"/><line x1="82" y1="60" x2="100" y2="60"/>
@@ -290,7 +325,7 @@ function weatherSVG(code = 0) {
 
     const cloud = `
     <path d="M30 78c-2-10 6-18 16-18 3-9 14-14 24-10 4-6 12-9 20-7 10 3 16 14 13 24 9 2 15 10 14 18-2 12-20 16-45 16s-42-5-42-14c0-4 0-7 0-9z"
-      fill="#fff" fill-opacity="0.98" stroke="${brand}" stroke-width="3"/>`;
+      fill="${fill}" fill-opacity="0.98" stroke="${brand}" stroke-width="3"/>`;
 
     const rain = `${cloud}
     <g stroke="${brand}" stroke-width="3" stroke-linecap="round">
@@ -464,63 +499,88 @@ $('#btn-save').addEventListener('click', () => {
 });
 
 // ===== Theme System =====
-const THEMES = {
-    classic:   { brandSoft: '#ccffcc', brand: '#99ff99', brandStrong: '#66ff66', brandDim: '#b3ffb3', accent: '#1a6b1a', accentLight: 'rgba(0,130,0,0.12)',   ring: '#a3e6a3' },
-    notgreen1: { brandSoft: '#ffcccc', brand: '#ff9999', brandStrong: '#ff6666', brandDim: '#ffb3b3', accent: '#8b1a1a', accentLight: 'rgba(140,0,0,0.10)',   ring: '#e6a3a3' },
-    notgreen2: { brandSoft: '#ccccff', brand: '#9999ff', brandStrong: '#6666ff', brandDim: '#b3b3ff', accent: '#1a1a8b', accentLight: 'rgba(0,0,140,0.10)',   ring: '#a3a3e6' },
-    notgreen3: { brandSoft: '#ffffcc', brand: '#ffff99', brandStrong: '#ffff66', brandDim: '#ffffb3', accent: '#5a5a00', accentLight: 'rgba(100,100,0,0.10)', ring: '#e6e6a3' },
-    notgreen4: { brandSoft: '#ffccff', brand: '#ff99ff', brandStrong: '#ff66ff', brandDim: '#ffb3ff', accent: '#7a1a7a', accentLight: 'rgba(140,0,140,0.10)', ring: '#e6a3e6' },
-    notgreen5: { brandSoft: '#ccffff', brand: '#99ffff', brandStrong: '#66ffff', brandDim: '#b3ffff', accent: '#006b6b', accentLight: 'rgba(0,110,110,0.10)', ring: '#a3e6e6' },
-    rrlight:   { brandSoft: '#ffffff', brand: '#ccffcc', brandStrong: '#99ff99', brandDim: '#e5ffe5', accent: '#1a6b1a', accentLight: 'rgba(0,130,0,0.09)',   ring: '#ccffcc' }
-};
+const { COLOR_THEMES, applyColorTheme, applyMode, getStoredColorTheme, getStoredMode, initTheme } = window.UwuTheme;
 
-function applyTheme(key) {
-    const t    = THEMES[key] || THEMES.classic;
-    const root = document.documentElement;
+function buildThemeModal() {
+    const grid = document.getElementById('swatchGrid');
+    grid.innerHTML = COLOR_THEMES.map(
+        (t) => `
+      <button class="swatch" data-theme-id="${t.id}" style="--swatch-color:${t.hex}" type="button" aria-label="${t.label}">
+        <span class="swatch-dot"></span>
+        <span class="swatch-label">${t.label}</span>
+      </button>`
+    ).join('');
 
-    root.setAttribute('data-theme', key);
-    root.style.setProperty('--brand-soft',   t.brandSoft);
-    root.style.setProperty('--brand',        t.brand);
-    root.style.setProperty('--brand-strong', t.brandStrong);
-    root.style.setProperty('--brand-dim',    t.brandDim);
-    root.style.setProperty('--accent',       t.accent);
-    root.style.setProperty('--accent-light', t.accentLight);
-    root.style.setProperty('--ring',         t.ring);
+    syncThemeModalState();
 
-    const metaTheme = document.getElementById('meta-theme-color');
-    if (metaTheme) metaTheme.setAttribute('content', t.brandSoft);
-
-    document.querySelectorAll('.theme-swatch').forEach(s => {
-        s.classList.toggle('active', s.dataset.theme === key);
+    grid.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-theme-id]');
+        if (!btn) return;
+        applyColorTheme(btn.dataset.themeId);
+        syncThemeModalState();
+        repaintThemedGraphics();
     });
 
-    localStorage.setItem('uwuweather.theme', key);
-
-    if (_lastWeatherData) renderNowcast(_lastWeatherData);
+    document.getElementById('modeToggle').addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-mode]');
+        if (!btn) return;
+        applyMode(btn.dataset.mode);
+        syncThemeModalState();
+        repaintThemedGraphics();
+    });
 }
 
-// Theme modal controls
-const themeModal = document.getElementById('theme-modal');
-const btnTheme   = document.getElementById('btn-theme');
-const modalClose = document.getElementById('modal-close');
-
-btnTheme?.addEventListener('click', () => themeModal.classList.add('open'));
-modalClose?.addEventListener('click', () => themeModal.classList.remove('open'));
-themeModal?.addEventListener('click', e => { if (e.target === themeModal) themeModal.classList.remove('open'); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') themeModal.classList.remove('open'); });
-
-document.querySelectorAll('.theme-swatch').forEach(btn => {
-    btn.addEventListener('click', () => {
-        applyTheme(btn.dataset.theme);
-        setTimeout(() => themeModal.classList.remove('open'), 260);
+function syncThemeModalState() {
+    const activeTheme = getStoredColorTheme();
+    const activeMode  = getStoredMode();
+    document.querySelectorAll('#swatchGrid .swatch').forEach((el) => {
+        el.classList.toggle('active', el.dataset.themeId === activeTheme);
     });
-});
+    document.querySelectorAll('#modeToggle .mode-btn').forEach((el) => {
+        const on = el.dataset.mode === activeMode;
+        el.classList.toggle('active', on);
+        el.setAttribute('aria-pressed', String(on));
+    });
+    updateThemeButtonIcon();
+}
+
+function updateThemeButtonIcon() {
+    const span = document.querySelector('#themeBtn [data-icon]');
+    span.setAttribute('data-icon', getStoredMode() === 'dark' ? 'moon' : 'sun');
+    hydrateIcons(document.getElementById('themeBtn'));
+}
+
+// The chart and the share art bake colours in, so they need a redraw.
+function repaintThemedGraphics() {
+    if (!_lastWeatherData) return;
+    renderNowcast(_lastWeatherData);
+    updateShare(_lastWeatherData);
+}
+
+function wireModals() {
+    document.querySelectorAll('[data-close-modal]').forEach((btn) => {
+        btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
+    });
+    document.querySelectorAll('.modal-backdrop').forEach((backdrop) => {
+        backdrop.addEventListener('click', (e) => {
+            if (e.target === backdrop) closeModal(backdrop.id);
+        });
+    });
+    document.getElementById('themeBtn').addEventListener('click', () => openModal('themeModal'));
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        document.querySelectorAll('.modal-backdrop:not(.hidden)').forEach((b) => closeModal(b.id));
+    });
+}
 
 // ===== Boot =====
-renderSaved();
+initTheme();
+hydrateIcons();
+updateThemeButtonIcon();
+buildThemeModal();
+wireModals();
 
-// Apply stored theme (the inline head script set data-theme; now we also set CSS vars)
-applyTheme(localStorage.getItem('uwuweather.theme') || 'classic');
+renderSaved();
 
 (async () => {
     const params = new URLSearchParams(window.location.search);

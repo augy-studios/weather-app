@@ -2,11 +2,29 @@
 <html lang="en">
 
 <head>
-  <!-- Prevent theme flash: apply saved theme before paint -->
+  <!-- Prevent theme flash: apply saved theme before paint. Keep APP_KEY in
+       sync with js/theme.js. Also migrates the pre-mode theme key. -->
   <script>
     (function () {
-      var t = localStorage.getItem('uwuweather.theme') || 'classic';
-      document.documentElement.setAttribute('data-theme', t);
+      var k = 'uwuweather';
+      var legacy = localStorage.getItem(k + '.theme');
+      if (legacy && !localStorage.getItem(k + '.colorTheme')) {
+        var map = {
+          classic: 'classic',
+          notgreen1: 'not-green-1',
+          notgreen2: 'not-green-2',
+          notgreen3: 'not-green-3',
+          notgreen4: 'not-green-4',
+          notgreen5: 'not-green-5',
+          rrlight: 'really-light-green'
+        };
+        if (map[legacy]) localStorage.setItem(k + '.colorTheme', map[legacy]);
+        localStorage.removeItem(k + '.theme');
+      }
+      var m = localStorage.getItem(k + '.mode') || 'light';
+      var c = localStorage.getItem(k + '.colorTheme') || 'classic';
+      document.documentElement.setAttribute('data-mode', m);
+      document.documentElement.setAttribute('data-color-theme', c);
     })();
   </script>
 
@@ -42,7 +60,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="/style.css">
 
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
@@ -70,13 +87,13 @@
         </div>
         <div class="brand-text">
           <h1>Weather | UwU Apps</h1>
-          <small>Made with ❤️ by Augy</small>
+          <small>Made with <span class="heart" data-icon="heart" aria-label="love" role="img"></span> by Augy</small>
         </div>
         <a class="btn icon coffee-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" title="Buy Augy a Coffee" aria-label="Buy Augy a Coffee">
-          <i class="fa-solid fa-mug-hot" aria-hidden="true"></i>
+          <span data-icon="coffee" aria-hidden="true"></span>
         </a>
-        <button class="btn icon theme-btn" id="btn-theme" title="Change theme" aria-label="Change theme">
-          <i class="fa-solid fa-palette" aria-hidden="true"></i>
+        <button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">
+          <span data-icon="sun"></span>
         </button>
       </div>
 
@@ -88,17 +105,17 @@
         </div>
         <div class="search-actions">
           <button class="btn icon" id="btn-search" title="Search">
-            <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+            <span data-icon="search" aria-hidden="true"></span>
           </button>
           <button class="btn icon secondary" id="btn-current" title="Use my location">
-            <i class="fa-solid fa-location-crosshairs" aria-hidden="true"></i>
+            <span data-icon="crosshair" aria-hidden="true"></span>
           </button>
           <button class="btn icon" id="btn-units" title="Switch °C/°F">
-            <i class="fa-solid fa-temperature-half" aria-hidden="true"></i>
+            <span data-icon="thermometer" aria-hidden="true"></span>
             <span id="units-label">°C</span>
           </button>
           <button class="btn icon" id="btn-save" title="Save current location">
-            <i class="fa-solid fa-star" aria-hidden="true"></i>
+            <span data-icon="star" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -109,7 +126,7 @@
 
   <main class="container">
     <section class="grid">
-      <article class="card" id="card-current">
+      <article class="card glass" id="card-current">
         <div class="card-header">
           <div class="card-title">Current weather</div>
           <div class="muted" id="place-label">—</div>
@@ -120,7 +137,7 @@
               <div class="temp" id="temp">—°</div>
               <div class="sub" id="summary">—</div>
             </div>
-            <div class="big" id="icon" aria-label="Weather icon">☀️</div>
+            <div class="big" id="icon" data-icon="clear" aria-label="Weather icon" role="img"></div>
           </div>
           <div class="metrics">
             <div class="metric"><span class="muted">Feels like</span><b id="apparent">—</b></div>
@@ -131,7 +148,7 @@
         </div>
       </article>
 
-      <article class="card">
+      <article class="card glass">
         <div class="card-header">
           <div class="card-title">2‑hour nowcast (15‑min)</div>
           <div class="muted" id="nowcast-range">—</div>
@@ -144,13 +161,13 @@
     </section>
 
     <section class="row" style="margin-top:18px">
-      <article class="card">
+      <article class="card glass">
         <div class="card-header">
           <div class="card-title">Next 24 hours</div>
         </div>
         <div class="card-body scroller" id="hourly"></div>
       </article>
-      <article class="card">
+      <article class="card glass">
         <div class="card-header">
           <div class="card-title">Next 5 days</div>
         </div>
@@ -159,34 +176,34 @@
     </section>
 
     <section class="row" style="margin-top:18px">
-      <article class="card">
+      <article class="card glass">
         <div class="card-header">
           <div class="card-title">Share</div>
         </div>
         <div class="card-body">
           <div class="chips">
             <button class="btn icon" id="share-device" title="Share via device">
-              <i class="fa-solid fa-share-nodes" aria-hidden="true"></i>
+              <span data-icon="share" aria-hidden="true"></span>
             </button>
             <button class="btn icon secondary" data-share="tg" title="Share via Telegram">
-              <i class="fa-brands fa-telegram" aria-hidden="true"></i>
+              <span data-icon="telegram" aria-hidden="true"></span>
             </button>
             <button class="btn icon secondary" data-share="x" title="Share via X">
-              <i class="fa-brands fa-x-twitter" aria-hidden="true"></i>
+              <span data-icon="x" aria-hidden="true"></span>
             </button>
             <button class="btn icon secondary" data-share="wa" title="Share via WhatsApp">
-              <i class="fa-brands fa-whatsapp" aria-hidden="true"></i>
+              <span data-icon="whatsapp" aria-hidden="true"></span>
             </button>
             <button class="btn icon secondary" data-share="fb" title="Share via Facebook">
-              <i class="fa-brands fa-facebook" aria-hidden="true"></i>
+              <span data-icon="facebook" aria-hidden="true"></span>
             </button>
             <button class="btn icon" id="save-image" title="Save image">
-              <i class="fa-solid fa-image" aria-hidden="true"></i>
+              <span data-icon="image" aria-hidden="true"></span>
             </button>
           </div>
         </div>
       </article>
-      <article class="card">
+      <article class="card glass">
         <div class="card-header">
           <div class="card-title">Share preview</div>
         </div>
@@ -219,49 +236,28 @@
     </p>
   </main>
 
-  <!-- Theme picker modal -->
-  <div class="modal-overlay" id="theme-modal" role="dialog" aria-modal="true" aria-label="Choose theme">
-    <div class="modal-box">
-      <div class="modal-header">
-        <h2 class="modal-title">Choose Theme</h2>
-        <button class="modal-close" id="modal-close" aria-label="Close modal">
-          <i class="fa-solid fa-xmark"></i>
+  <div class="modal-backdrop hidden" id="themeModal">
+    <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="themeModalTitle">
+      <div class="modal-head">
+        <h2 id="themeModalTitle">Theme</h2>
+        <button class="icon-btn small" type="button" data-close-modal="themeModal" aria-label="Close">
+          <span data-icon="close"></span>
         </button>
       </div>
-      <div class="theme-grid">
-        <button class="theme-swatch" data-theme="classic" aria-label="Classic theme">
-          <span class="swatch-color" style="background:#ccffcc"></span>
-          <span class="swatch-label">Classic</span>
-        </button>
-        <button class="theme-swatch" data-theme="notgreen1" aria-label="Not green 1 theme">
-          <span class="swatch-color" style="background:#ffcccc"></span>
-          <span class="swatch-label">Not green 1</span>
-        </button>
-        <button class="theme-swatch" data-theme="notgreen2" aria-label="Not green 2 theme">
-          <span class="swatch-color" style="background:#ccccff"></span>
-          <span class="swatch-label">Not green 2</span>
-        </button>
-        <button class="theme-swatch" data-theme="notgreen3" aria-label="Not green 3 theme">
-          <span class="swatch-color" style="background:#ffffcc"></span>
-          <span class="swatch-label">Not green 3</span>
-        </button>
-        <button class="theme-swatch" data-theme="notgreen4" aria-label="Not green 4 theme">
-          <span class="swatch-color" style="background:#ffccff"></span>
-          <span class="swatch-label">Not green 4</span>
-        </button>
-        <button class="theme-swatch" data-theme="notgreen5" aria-label="Not green 5 theme">
-          <span class="swatch-color" style="background:#ccffff"></span>
-          <span class="swatch-label">Not green 5</span>
-        </button>
-        <button class="theme-swatch" data-theme="rrlight" aria-label="Really really light green theme">
-          <span class="swatch-color" style="background:#ffffff;box-shadow:inset 0 0 0 1px #ddd"></span>
-          <span class="swatch-label">Really really light green</span>
-        </button>
+      <p class="modal-section-label">Mode</p>
+      <div class="mode-toggle" id="modeToggle">
+        <button class="mode-btn" type="button" data-mode="light" aria-pressed="false"><span data-icon="sun"></span>Light</button>
+        <button class="mode-btn" type="button" data-mode="dark" aria-pressed="false"><span data-icon="moon"></span>Dark</button>
       </div>
+      <p class="modal-section-label">Brand colour</p>
+      <div class="swatch-grid" id="swatchGrid"></div>
     </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="/js/icons.js" defer></script>
+  <script src="/js/ui.js" defer></script>
+  <script src="/js/theme.js" defer></script>
   <script src="/lib/uwu-request-signing.js" defer></script>
   <script src="/script.js" defer></script>
 </body>
