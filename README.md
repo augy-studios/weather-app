@@ -29,28 +29,10 @@ main-site/
 ├── index.html, style.css, script.js   # the whole app
 ├── sw.js                              # service worker (cache-first shell)
 ├── manifest.json                      # PWA manifest, icons, shortcuts
-├── api/
-│   ├── forecast.js                    # → api.open-meteo.com/v1/forecast
-│   ├── geocode.js                     # → geocoding-api.open-meteo.com/v1/search
-│   └── auth/guest-key.js              # issues short-lived guest signing keys
-└── lib/
-    ├── uwu-request-signing.js         # client: HMAC-signed fetch (Web Crypto)
-    └── uwu-request-signing-server.js  # server: verification + Supabase/PostgREST
+└── api/
+    ├── forecast.js                    # → api.open-meteo.com/v1/forecast
+    └── geocode.js                     # → geocoding-api.open-meteo.com/v1/search
 ```
-
-### Request signing
-
-The API routes aren't open proxies. Every call is HMAC-SHA256 signed over
-`timestamp:method:path:bodyHash`:
-
-1. The client asks `/api/auth/guest-key` for a session token + signing key (10-minute TTL,
-   origin-checked, stored in `sessionStorage`).
-2. `signedFetch()` signs each request and sends `X-Request-Token`, `X-Request-TS`, and `X-Key-ID`.
-3. The server rejects stale timestamps (>30s skew), unknown or expired keys, bad signatures, and
-   replayed tokens — the last via a used-token table, so each signature works exactly once.
-
-Signing keys and spent tokens live in Supabase (`uwu_signing_keys`, `uwu_used_request_tokens`),
-reached through a tiny hand-rolled PostgREST wrapper so there's no `supabase-js` dependency.
 
 ## Running locally
 
@@ -63,17 +45,7 @@ cd weather-app/main-site
 vercel dev
 ```
 
-Set these environment variables (`.env.local` or the Vercel dashboard):
-
-| Variable | Purpose |
-| --- | --- |
-| `SUPABASE_URL` | Supabase project URL |
-| `SUPABASE_SERVICE_KEY` | Service-role key, used server-side only |
-| `ALLOWED_ORIGINS` | Comma-separated origins allowed to request guest keys |
-
-You'll also need the two tables described above. Want to skip the backend? The static front end
-works on its own if you point `script.js` at Open-Meteo directly — the signing layer exists to keep
-the hosted deployment from being used as a free proxy.
+No environment variables or API keys are required — Open-Meteo is keyless.
 
 ## Contributing
 

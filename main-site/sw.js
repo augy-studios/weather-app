@@ -1,4 +1,4 @@
-const CACHE = "weather-v2";
+const CACHE = "weather-v3";
 
 const ASSETS = [
   "/",
@@ -8,7 +8,6 @@ const ASSETS = [
   "/js/theme.js",
   "/js/icons.js",
   "/js/ui.js",
-  "/lib/uwu-request-signing.js",
   "/manifest.json",
   "/favicon.ico",
   "/weathericon3.png",

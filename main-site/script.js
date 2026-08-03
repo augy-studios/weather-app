@@ -72,8 +72,6 @@ function parseQuery(q) {
     return { name, admin1, countryCode };
 }
 
-const UWU_APP_ID = 'uwu-weather';
-
 // ===== Geocoding =====
 async function searchCitySmart(q) {
     const { name, admin1, countryCode } = parseQuery(q);
@@ -82,8 +80,7 @@ async function searchCitySmart(q) {
     const params = new URLSearchParams({ name, count: '8', language: 'en', format: 'json' });
     if (countryCode) params.set('countryCode', countryCode);
 
-    await UwuSigning.initGuestKey(UWU_APP_ID);
-    const res = await UwuSigning.signedFetch(`/api/geocode?${params}`);
+    const res = await fetch(`/api/geocode?${params}`);
     if (!res.ok) return [];
 
     const j = await res.json();
@@ -176,8 +173,7 @@ async function loadWeather(lat, lon, label) {
         wind_speed_unit:  isImperial() ? 'mph' : 'kmh'
     });
 
-    await UwuSigning.initGuestKey(UWU_APP_ID);
-    const res = await UwuSigning.signedFetch(`/api/forecast?${params}`);
+    const res = await fetch(`/api/forecast?${params}`);
     const j   = await res.json();
     _lastWeatherData = j;
 

@@ -1,12 +1,4 @@
-import { verifySignedRequest, createSupabaseClient } from '../lib/uwu-request-signing-server.js';
-
 export default async function handler(req, res) {
-  const { valid, reason } = await verifySignedRequest(req, createSupabaseClient());
-  if (!valid) {
-    res.status(401).json({ error: 'Invalid request signature', reason });
-    return;
-  }
-
   const { latitude, longitude } = req.query;
 
   if (!latitude || !longitude) {
