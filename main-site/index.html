@@ -92,6 +92,10 @@
         <a class="btn icon coffee-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" title="Buy Augy a Coffee" aria-label="Buy Augy a Coffee">
           <span data-icon="coffee" aria-hidden="true"></span>
         </a>
+        <button class="icon-btn" id="syncBtn" type="button" aria-label="Sync favourites"
+          title="Sync favourites">
+          <span data-icon="sync"></span>
+        </button>
         <button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">
           <span data-icon="sun"></span>
         </button>
@@ -254,10 +258,70 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="syncModal">
+    <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="syncModalTitle">
+      <div class="modal-head">
+        <h2 id="syncModalTitle">Sync favourites</h2>
+        <button class="icon-btn small" type="button" data-close-modal="syncModal" aria-label="Close">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+
+      <p class="muted" id="sync-status">Checking whether this browser is linked.</p>
+
+      <div id="sync-setup" hidden>
+        <p class="modal-section-label">Link with Telegram</p>
+        <button class="btn" id="sync-open-telegram" type="button">
+          <span data-icon="telegram" aria-hidden="true"></span>
+          <span>Open the chat</span>
+        </button>
+
+        <p class="modal-section-label">Or type a code</p>
+        <div class="sync-row">
+          <input id="sync-code" type="text" autocomplete="one-time-code" spellcheck="false"
+            placeholder="123456, or a backup code" aria-label="Sync code" />
+          <button class="btn" id="sync-use-code" type="button">Use</button>
+        </div>
+        <p class="muted sync-hint">
+          Send the bot /code for six digits, or use one of your backup codes when
+          Telegram is out of reach.
+        </p>
+      </div>
+
+      <div id="sync-linked" hidden>
+        <p class="modal-section-label">Saved places</p>
+        <p class="muted sync-hint">
+          This browser and the bot keep one list. Saving a place in either shows up in
+          the other.
+        </p>
+
+        <p class="modal-section-label">Backup codes</p>
+        <p class="muted sync-hint" id="sync-backup-status">None yet.</p>
+        <button class="btn secondary" id="sync-backup-new" type="button">
+          Create a new set
+        </button>
+        <p class="muted sync-hint">
+          Single use codes for getting back in when Telegram is out of reach. Approve
+          the request in the chat, then the codes appear here once.
+        </p>
+        <div id="sync-codes" hidden>
+          <ol class="code-list" id="sync-code-list"></ol>
+          <button class="btn" id="sync-copy-codes" type="button">Copy all</button>
+        </div>
+
+        <p class="modal-section-label">This browser</p>
+        <button class="btn secondary" id="sync-unlink" type="button">Stop syncing</button>
+      </div>
+
+      <p class="sync-message" id="sync-message" role="status" hidden></p>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="/js/icons.js" defer></script>
   <script src="/js/ui.js" defer></script>
   <script src="/js/theme.js" defer></script>
+  <script src="/js/sync.js" defer></script>
   <script src="/script.js" defer></script>
 </body>
 

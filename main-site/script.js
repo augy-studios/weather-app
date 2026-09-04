@@ -118,6 +118,9 @@ function loadSaved() {
 function saveSaved(list) {
     localStorage.setItem('uwuweather.saved', JSON.stringify(list));
     renderSaved();
+    // Fire and forget. A failed push is corrected by the merge on next load,
+    // so a flaky network never blocks a save.
+    window.UwuSync?.push(list);
 }
 
 function renderSaved() {
@@ -490,7 +493,7 @@ $('#btn-save').addEventListener('click', () => {
     const list = loadSaved();
     if (!list.find(it => Math.abs(it.lat - current.lat) < 1e-6 && Math.abs(it.lon - current.lon) < 1e-6)) {
         list.unshift({ name: current.name, lat: current.lat, lon: current.lon });
-        saveSaved(list.slice(0, 12));
+        saveSaved(list.slice(0, 24));
     }
 });
 
@@ -553,6 +556,132 @@ function repaintThemedGraphics() {
     updateShare(_lastWeatherData);
 }
 
+// ===== Sync Panel =====
+function syncMessage(text, tone = 'good') {
+    const el = $('#sync-message');
+    el.textContent = text || '';
+    el.dataset.tone = tone;
+    el.hidden = !text;
+}
+
+function renderSyncState() {
+    const { linked, username, backupCodesLeft } = window.UwuSync.state;
+    $('#sync-status').textContent = linked
+        ? (username
+            ? `Linked to @${username}. One list, kept the same in both places.`
+            : 'This browser is linked. One list, kept the same in both places.')
+        : 'Not linked. Saved places stay in this browser only.';
+    $('#sync-setup').hidden = linked;
+    $('#sync-linked').hidden = !linked;
+    $('#sync-backup-status').textContent = backupCodesLeft
+        ? `${backupCodesLeft} unused code${backupCodesLeft === 1 ? '' : 's'}. Making a new set retires them.`
+        : 'None yet.';
+}
+
+// Codes are put in the DOM and nowhere else. They are never written to storage,
+// so closing the panel or reloading is enough to be rid of them.
+function showBackupCodes(codes) {
+    const list = $('#sync-code-list');
+    list.innerHTML = '';
+    codes.forEach(code => list.appendChild(h('li', { textContent: code })));
+    $('#sync-codes').hidden = false;
+}
+
+function hideBackupCodes() {
+    $('#sync-code-list').innerHTML = '';
+    $('#sync-codes').hidden = true;
+}
+
+async function onSyncSettled(status) {
+    if (await window.UwuSync.settle(status)) {
+        renderSyncState();
+        renderSaved();
+        syncMessage('Linked. Your saved places are now shared with the bot.');
+        return;
+    }
+    syncMessage(status === 'denied'
+        ? 'That request was rejected in Telegram. Nothing was shared.'
+        : 'That request ran out of time. Please start again.', 'bad');
+}
+
+async function onBackupSettled(status, id) {
+    if (status !== 'approved') {
+        syncMessage(status === 'rejected'
+            ? 'That request was rejected in Telegram. No codes were created.'
+            : 'That request ran out of time. Nothing was created, please ask again.',
+            'bad');
+        return;
+    }
+
+    const res = await window.UwuSync.collectBackupCodes(id);
+    if (res.error) { syncMessage(res.error, 'bad'); return; }
+
+    showBackupCodes(res.codes);
+    renderSyncState();
+    syncMessage('Approved. These are shown once, so save them now.');
+}
+
+function wireSync() {
+    const Sync = window.UwuSync;
+
+    $('#syncBtn').addEventListener('click', async () => {
+        openModal('syncModal');
+        syncMessage('');
+        hideBackupCodes();
+        await Sync.refresh();
+        renderSyncState();
+    });
+
+    $('#sync-backup-new').addEventListener('click', async () => {
+        hideBackupCodes();
+        syncMessage('Asking for approval. Check your Telegram chat.');
+        const res = await Sync.requestBackupCodes(onBackupSettled);
+        if (res.error) syncMessage(res.error, 'bad');
+    });
+
+    $('#sync-copy-codes').addEventListener('click', async () => {
+        const codes = [...$('#sync-code-list').children].map(li => li.textContent);
+        try {
+            await navigator.clipboard.writeText(codes.join('\n'));
+            syncMessage('Copied. Paste them somewhere that does not need Telegram to open.');
+        } catch {
+            syncMessage('Copying was blocked. Select the codes and copy them by hand.', 'bad');
+        }
+    });
+
+    $('#sync-open-telegram').addEventListener('click', async () => {
+        syncMessage('Opening Telegram. Confirm there and this page follows along.');
+        const res = await Sync.startDeepLink(onSyncSettled);
+        if (res.error) syncMessage(res.error, 'bad');
+    });
+
+    $('#sync-use-code').addEventListener('click', async () => {
+        const field = $('#sync-code');
+        if (!field.value.trim()) return;
+        syncMessage('Checking that code.');
+        const res = await Sync.useCode(field.value);
+        if (res.error) { syncMessage(res.error, 'bad'); return; }
+        field.value = '';
+        renderSyncState();
+        renderSaved();
+        syncMessage(res.backup_codes_left === undefined
+            ? 'Linked. Your saved places are now shared with the bot.'
+            : `Linked with a backup code. ${res.backup_codes_left} of them left.`);
+    });
+
+    $('#sync-unlink').addEventListener('click', async () => {
+        await Sync.unlink();
+        renderSyncState();
+        syncMessage('This browser has stopped syncing. Your saved places are still here.');
+    });
+
+    $('#sync-code').addEventListener('keydown', e => {
+        if (e.key === 'Enter') $('#sync-use-code').click();
+    });
+
+    Sync.onChange(renderSaved);
+}
+
 function wireModals() {
     document.querySelectorAll('[data-close-modal]').forEach((btn) => {
         btn.addEventListener('click', () => closeModal(btn.dataset.closeModal));
@@ -575,8 +704,14 @@ hydrateIcons();
 updateThemeButtonIcon();
 buildThemeModal();
 wireModals();
+wireSync();
 
 renderSaved();
+
+// Pull the account's list in the background. When this browser is linked, the
+// merge brings back anything saved on the bot and pushes anything saved here
+// while it was offline.
+window.UwuSync.refresh().then(renderSyncState);
 
 (async () => {
     const params = new URLSearchParams(window.location.search);

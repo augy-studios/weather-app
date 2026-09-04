@@ -224,6 +224,75 @@ body.modal-open { overflow: hidden; }
   color: var(--on-brand);
 }
 
+/* ---- sync panel ---- */
+[hidden] { display: none !important; }
+
+.sync-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Same treatment as the search field, which is the only other input on the
+   page. Kept as its own rule so the search bar's layout stays untouched. */
+.sync-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 16px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  font-size: 14px;
+  color: var(--ink);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.sync-row input[type="text"]:focus {
+  border-color: var(--brand-ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-ink) 25%, transparent);
+}
+.sync-row input[type="text"]::placeholder { color: var(--muted-strong); opacity: 1; }
+
+.sync-hint { font-size: 0.8rem; }
+
+/* Backup codes are read off the screen and copied by hand, so they get a
+   monospace face and enough tracking to tell 8 from B at a glance. */
+.code-list {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.code-list li {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.code-list li.spent { opacity: 0.45; text-decoration: line-through; }
+
+.sync-message {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-fill);
+  color: var(--on-brand);
+  font-size: 0.85rem;
+}
+.sync-message[data-tone="bad"] {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--surface-border);
+}
+
+#sync-setup > .btn, #sync-linked > .btn { width: 100%; justify-content: center; }
+
 /* ---- swatch grid ---- */
 .swatch-grid {
   display: grid;

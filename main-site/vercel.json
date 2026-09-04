@@ -1,4 +1,8 @@
 {
+  "rewrites": [
+    { "source": "/lib/:path*", "destination": "/404.html" },
+    { "source": "/migrations/:path*", "destination": "/404.html" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
