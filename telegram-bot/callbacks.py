@@ -44,6 +44,13 @@ async def _fav_del(event, payload):
     removed, warning = await favourites.remove(event.sender_id, payload["k"])
     await event.answer(warning or ("Removed." if removed else "It was not on your list."),
                        alert=bool(warning))
+    if "n" in payload:
+        # Tapped on a forecast. Redraw it, so the weather someone was reading
+        # survives the removal and the button turns back into Save this place.
+        place = {"name": payload["n"], "lat": payload["lat"], "lon": payload["lon"]}
+        message = await commands.weather_view(event.sender_id, place, payload.get("v", "current"))
+        await ui.edit_rich_message(event, owner_id=event.sender_id, **message)
+        return
     await _fav_list(event, {})
 
 

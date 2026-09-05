@@ -99,7 +99,10 @@ async def weather_view(telegram_id: int, place: dict, view: str, note: str | Non
         for label, value in VIEW_LABELS if value != view
     ]
     if key in saved:
-        action = {"label": "Remove from favourites", "kind": "fav_del", "payload": {"k": key}}
+        # The place travels with the button so removing it can redraw this same
+        # forecast rather than replacing it with the list of saved places.
+        action = {"label": "Remove from favourites", "kind": "fav_del",
+                  "payload": {"k": key, **short, "v": view}}
     else:
         action = {"label": "Save this place", "kind": "fav_add", "payload": short}
 
