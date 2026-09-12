@@ -30,7 +30,11 @@ come back here.
   a location pin and it works too. Free text like `Springfield, IL, US` is parsed into
   name, region and country exactly the way the web app parses it.
 - **Four views of one place.** Now, the next 24 hours, five days, and the two hour
-  rain nowcast, switchable with the buttons under every reply.
+  rain nowcast, switchable with the buttons under every reply. The Now view also
+  carries the day at a glance: today's range, rain, strongest wind, sunrise and sunset.
+- **Real headings and tables.** Replies are Telegram Rich Messages, so the hourly and
+  daily views are proper tables rather than monospace text. An older client gets the
+  same words as plain text.
 - **Saved places.** Up to 24 of them, each one a button that fetches its weather.
 - **One list across both.** Link the bot to the web app and both sides read and write
   the same saved places. If each side already had favourites before linking, the first
@@ -47,10 +51,10 @@ come back here.
 | Command | What it does |
 | --- | --- |
 | `/start` | What the bot is, every command, and links to the web app and the donation page |
-| `/weather [city]` | Current conditions. With no city, the last place you looked at |
-| `/forecast [city]` | The next five days |
-| `/hourly [city]` | The next 24 hours |
-| `/nowcast [city]` | Rain in the next two hours, as a text sparkline |
+| `/weather [city]` | Current conditions plus the day at a glance: today's range, rain chance and total, strongest wind, sunrise and sunset. With no city, the last place you looked at |
+| `/forecast [city]` | The next five days, as a table |
+| `/hourly [city]` | The next 24 hours, as a table |
+| `/nowcast [city]` | Rain in the next two hours, a table with a bar per quarter hour |
 | `/fav` | Your saved places, one button each |
 | `/save [city]` | Save a place. With no city, the last place you looked at |
 | `/remove [city]` | Drop a saved place, or tap one from the list |
@@ -228,6 +232,8 @@ telegram-bot/
 ├── db.py              SQLite: preferences, favourites, buttons, schedules
 ├── supabase_rest.py   a small PostgREST client, no supabase-js equivalent needed
 ├── weather.py         Open-Meteo access and every formatter
+├── ui.py              one message shape: heading, body, fields, table, footer, buttons
+├── reply.py           sends that shape as a Rich Message over raw MTProto requests
 ├── favourites.py      saved places, local first, synced when linked
 ├── linking.py         the three link routes and the notice watcher
 ├── backup_codes.py    single use codes and their hashes
@@ -237,7 +243,17 @@ telegram-bot/
 └── requirements.txt
 ```
 
-Three things are worth calling out.
+Four things are worth calling out.
+
+**Replies are Rich Messages.** Every message is built twice from the same parts, once
+as Telegram's Rich Markdown (headings, bold, bullet lists, pipe tables) and once as
+plain text. Telethon's `send_message` cannot carry the rich payload, so `reply.py`
+issues the raw `messages.sendMessage` and `messages.editMessage` requests with the
+plain text in the required `message` field and the markdown alongside it. A current
+client renders the markdown; an older one, or a rejected payload, shows the plain
+text. That is why `requirements.txt` asks for Telethon 1.44 or later, the first
+release whose TL layer knows the field. Dynamic text is escaped before it goes in, so
+a place called `Spring|field` cannot break a table.
 
 **Buttons are rows, not payloads.** Telegram allows 64 bytes of callback data, which is
 usually spent encoding the action. Here the data is only `b:<row id>`, and the action
@@ -286,6 +302,15 @@ Check `.env` is next to `bot.py` and has no quotes around the values.
 **The backup code alarm never arrives.** The bot can only message someone who has
 messaged it first, which linking guarantees, but a blocked bot cannot deliver anything.
 Unblock it and send `/start` once.
+
+**Headings and tables come through as plain text.** Either the Telegram client is too
+old to render Rich Messages, or Telegram rejected the payload and the bot fell back.
+The second case shows up in the log as `rich send failed, falling back:` followed by
+the reason Telegram gave.
+
+**It will not start, complaining about `InputRichMessageMarkdown`.** The venv holds a
+Telethon older than 1.44, which predates the field. `pip install -r requirements.txt`
+and start again.
 
 **Buttons say they are no longer available.** That message means the SQLite file was
 replaced or deleted. Restore `data/bot.db` from a backup, or send the command again to

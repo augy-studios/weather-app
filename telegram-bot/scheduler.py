@@ -90,10 +90,10 @@ async def _send_digest(client, telegram_id: int, payload: dict) -> None:
             DAILY_DIGEST, telegram_id, payload,
             next_daily_run(payload["hour"], payload["minute"], offset))
 
-    title, body, fields = weather.format_digest(data, ui.esc(payload["name"]), units)
+    title, body, fields, table = weather.format_digest(data, ui.escape_md(payload["name"]), units)
     await ui.send_rich_message(
         client, telegram_id,
-        title=title, body=body, fields=fields,
+        title=title, body=body, fields=fields, table=table,
         footer="Sent by your daily digest. Send /unsub to stop it.",
         buttons=[[
             {"label": "Next 24 hours", "kind": "weather",

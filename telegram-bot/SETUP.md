@@ -111,7 +111,7 @@ Pick the bot, then paste this block in one message. The format is
 
 ```text
 start - What this bot is, every command, and quick links
-weather - Current conditions, for example Tokyo
+weather - Current conditions and today at a glance, for example Tokyo
 forecast - The next five days
 hourly - The next 24 hours
 nowcast - Rain in the next two hours
@@ -248,7 +248,10 @@ reboots.
 In a private chat with the bot:
 
 1. `/start` shows the introduction with a web app button and a coffee button.
-2. `Tokyo` on its own returns the weather, with buttons that switch view.
+2. `Tokyo` on its own returns the weather, with buttons that switch view. On a
+   current Telegram client the place name is a real heading and **24 hours** redraws
+   the message as a table. If it arrives as plain text instead, check the log for a
+   `falling back` line.
 3. **Save this place**, then `/fav`, shows Tokyo as a button.
 4. Restart the bot, then tap a button on that older message. It still works. That is
    the button registry doing its job.

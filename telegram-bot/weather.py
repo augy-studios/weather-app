@@ -221,7 +221,10 @@ async def forecast(lat: float, lon: float, units: str = "metric") -> dict:
 
 # --- formatting ------------------------------------------------------------
 #
-# Every formatter returns (title, body, fields) ready for send_rich_message.
+# Every formatter returns (title, body, fields, table) ready for
+# ui.send_rich_message. Text is Rich Markdown, so the place name arrives
+# already escaped and any markup here is deliberate. Table cells are raw
+# values; ui.render escapes them.
 
 def _local_time(iso: str) -> str:
     return iso.split("T")[1][:5] if "T" in iso else iso
@@ -241,12 +244,40 @@ def _future_hours(data: dict, limit: int) -> list[int]:
     return list(range(start, min(start + limit, len(times))))
 
 
-def format_current(data: dict, place: str, units: str) -> tuple[str, str, list]:
+def _today(data: dict, units: str) -> dict:
+    """The first day of the daily series, formatted. Shared by the current
+    conditions card and the digest so both describe the day the same way."""
+    daily = data.get("daily") or {}
+
+    def first(key, default=None):
+        values = daily.get(key)
+        return values[0] if values else default
+
+    sunrise, sunset = first("sunrise", ""), first("sunset", "")
+    return {
+        "code": first("weather_code"),
+        "high": fmt_temp(first("temperature_2m_max"), units),
+        "low": fmt_temp(first("temperature_2m_min"), units),
+        "pop": first("precipitation_probability_max"),
+        "rain": first("precipitation_sum", 0) or 0,
+        "wind": fmt_wind(first("wind_speed_10m_max"), None, units),
+        "sun": f"{_local_time(sunrise)} to {_local_time(sunset)}" if sunrise and sunset else None,
+    }
+
+
+def format_current(data: dict, place: str, units: str) -> tuple[str, str, list, None]:
     c = data.get("current") or {}
     code = c.get("weather_code")
     flag = flag_from_label(place)
     title = f"{wmo_emoji(code)} {place}{' ' + flag if flag else ''}"
-    body = f"<b>{fmt_temp(c.get('temperature_2m'), units)}</b>, {wmo_text(code)}"
+    body = f"**{fmt_temp(c.get('temperature_2m'), units)}**, {wmo_text(code)}"
+
+    today = _today(data, units)
+    if (data.get("daily") or {}).get("time"):
+        body += f"\n\nToday runs {today['low']} to {today['high']}."
+        if today["pop"]:
+            body += f" Rain chance peaks at {today['pop']}%."
+
     pressure = c.get("surface_pressure")
     fields = [
         ("Feels like", fmt_temp(c.get("apparent_temperature"), units)),
@@ -256,42 +287,51 @@ def format_current(data: dict, place: str, units: str) -> tuple[str, str, list]:
         ("Pressure", f"{round(pressure)} hPa" if pressure is not None else "n/a"),
         ("Cloud cover", fmt_percent(c.get("cloud_cover"))),
     ]
-    return title, body, fields
+    if (data.get("daily") or {}).get("time"):
+        fields += [
+            ("Rain today", f"{today['rain']:.1f} mm"),
+            ("Strongest wind today", today["wind"]),
+        ]
+        if today["sun"]:
+            fields.append(("Sun", today["sun"]))
+    return title, body, fields, None
 
 
-def format_hourly(data: dict, place: str, units: str) -> tuple[str, str, list]:
+def format_hourly(data: dict, place: str, units: str) -> tuple[str, str | None, list, tuple | None]:
     hourly = data.get("hourly") or {}
-    lines = []
+    rows = []
     for i in _future_hours(data, 24):
         code = (hourly.get("weather_code") or [None])[i]
         temp = fmt_temp((hourly.get("temperature_2m") or [None])[i], units)
         pop = (hourly.get("precipitation_probability") or [None])[i]
-        pop_text = "" if pop is None else f"  {pop}%"
-        lines.append(f"<code>{_local_time(hourly['time'][i])}</code>  {wmo_emoji(code)}  {temp}{pop_text}")
-    body = "\n".join(lines) or "No hourly data came back for this place."
-    return f"Next 24 hours in {place}", body, []
+        rows.append([_local_time(hourly["time"][i]), wmo_emoji(code), temp,
+                     "" if pop is None else f"{pop}%"])
+    if not rows:
+        return f"Next 24 hours in {place}", "No hourly data came back for this place.", [], None
+    return f"Next 24 hours in {place}", None, [], (["Sky", "Temp", "Rain"], rows)
 
 
-def format_daily(data: dict, place: str, units: str) -> tuple[str, str, list]:
+def format_daily(data: dict, place: str, units: str) -> tuple[str, str | None, list, tuple | None]:
     from datetime import date
 
     daily = data.get("daily") or {}
     times = daily.get("time") or []
-    lines = []
+    rows = []
     for i in range(min(5, len(times))):
         day = date.fromisoformat(times[i]).strftime("%a")
         high = fmt_temp((daily.get("temperature_2m_max") or [None])[i], units)
         low = fmt_temp((daily.get("temperature_2m_min") or [None])[i], units)
         code = (daily.get("weather_code") or [None])[i]
         rain = (daily.get("precipitation_sum") or [0])[i] or 0
-        lines.append(f"<code>{day}</code>  {wmo_emoji(code)}  {high} / {low}  {rain:.1f} mm")
-    body = "\n".join(lines) or "No daily data came back for this place."
-    return f"Next 5 days in {place}", body, []
+        rows.append([day, wmo_emoji(code), f"{high} / {low}", f"{rain:.1f} mm"])
+    if not rows:
+        return f"Next 5 days in {place}", "No daily data came back for this place.", [], None
+    return f"Next 5 days in {place}", None, [], (["Sky", "High / Low", "Rain"], rows)
 
 
-def format_nowcast(data: dict, place: str) -> tuple[str, str, list]:
+def format_nowcast(data: dict, place: str) -> tuple[str, str, list, tuple | None]:
     """The site draws the two hour nowcast as a Plotly bar chart. Telegram gets
-    the same numbers as a text sparkline built from block characters."""
+    the same numbers as a table with a bar of block characters per row."""
     minutely = data.get("minutely_15") or {}
     times = minutely.get("time") or []
     values = minutely.get("precipitation") or []
@@ -306,43 +346,36 @@ def format_nowcast(data: dict, place: str) -> tuple[str, str, list]:
             break
 
     if not points:
-        return f"Two hour nowcast for {place}", "No nowcast data came back for this place.", []
+        return f"Two hour nowcast for {place}", "No nowcast data came back for this place.", [], None
 
     peak = max([v or 0 for _, v in points]) or 0
     blocks = " ▁▂▃▅▆▇█"
-    lines = []
+    rows = []
     for t, v in points:
         v = v or 0
         level = 0 if peak == 0 else min(len(blocks) - 1, int(round(v / peak * (len(blocks) - 1))))
-        lines.append(f"<code>{_local_time(t)}  {blocks[level] * 6 if level else '.'}  {v:.2f} mm</code>")
+        rows.append([_local_time(t), blocks[level] * 6 if level else ".", f"{v:.2f} mm"])
 
     headline = "Dry for the next two hours." if peak == 0 else f"Peak of {peak:.2f} mm in a quarter hour."
-    body = headline + "\n\n" + "\n".join(lines)
-    return f"Two hour nowcast for {place}", body, []
+    return f"Two hour nowcast for {place}", headline, [], (["Rain", "mm"], rows)
 
 
-def format_digest(data: dict, place: str, units: str) -> tuple[str, str, list]:
+def format_digest(data: dict, place: str, units: str) -> tuple[str, str, list, None]:
     """The daily scheduled message: today at a glance plus what to expect."""
     c = data.get("current") or {}
-    daily = data.get("daily") or {}
-    code = (daily.get("weather_code") or [c.get("weather_code")])[0]
-    high = fmt_temp((daily.get("temperature_2m_max") or [None])[0], units)
-    low = fmt_temp((daily.get("temperature_2m_min") or [None])[0], units)
-    pop = (daily.get("precipitation_probability_max") or [None])[0]
-    rain = (daily.get("precipitation_sum") or [0])[0] or 0
-    wind = fmt_wind((daily.get("wind_speed_10m_max") or [None])[0], None, units)
-    sunrise = (daily.get("sunrise") or [""])[0]
-    sunset = (daily.get("sunset") or [""])[0]
+    today = _today(data, units)
+    code = today["code"] if today["code"] is not None else c.get("weather_code")
 
     title = f"{wmo_emoji(code)} Good morning, here is {place} today"
-    body = f"<b>{wmo_text(code)}</b>, {low} to {high}."
-    if pop:
-        body += f"\nRain chance peaks at {pop}%."
+    body = f"**{wmo_text(code)}**, {today['low']} to {today['high']}."
+    if today["pop"]:
+        # Markdown folds a single newline into the paragraph, so this is its own.
+        body += f"\n\nRain chance peaks at {today['pop']}%."
     fields = [
         ("Right now", f"{fmt_temp(c.get('temperature_2m'), units)}, {wmo_text(c.get('weather_code')).lower()}"),
-        ("Rain total", f"{rain:.1f} mm"),
-        ("Strongest wind", wind),
+        ("Rain total", f"{today['rain']:.1f} mm"),
+        ("Strongest wind", today["wind"]),
     ]
-    if sunrise and sunset:
-        fields.append(("Sun", f"{_local_time(sunrise)} to {_local_time(sunset)}"))
-    return title, body, fields
+    if today["sun"]:
+        fields.append(("Sun", today["sun"]))
+    return title, body, fields, None

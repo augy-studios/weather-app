@@ -127,7 +127,7 @@ async def offer_token(client, event, token: str) -> None:
     await ui.send_rich_message(
         client, event.chat_id,
         title="Sync request",
-        body=f"{ui.esc(label)} is asking to share favourites with this account.",
+        body=f"{ui.escape_md(label)} is asking to share favourites with this account.",
         fields=[("Requested", requested.strftime("%H:%M UTC") if requested else "just now")],
         footer="Approve only if this was you.",
         buttons=[[
@@ -182,7 +182,7 @@ async def issue_code(client, event) -> None:
     await ui.send_rich_message(
         client, event.chat_id,
         title="Your sync code",
-        body=f"<code>{code[:3]} {code[3:]}</code>",
+        body=f"`{code[:3]} {code[3:]}`",
         fields=[("Valid for", f"{CODE_TTL_MINUTES} minutes")],
         footer="Type it into the sync panel on the web app. Never share it with anyone.",
         buttons=[[{"label": "Open the web app", "url": WEB_APP_URL}]],
@@ -261,7 +261,7 @@ async def _deliver_notice(client, notice: dict) -> None:
         # this is approved, and the codes themselves never come through here.
         left = data.get("remaining")
         title = "Approve new backup codes"
-        body = (f"{ui.esc(data.get('label') or 'A browser')} is asking to create a new set "
+        body = (f"{ui.escape_md(data.get('label') or 'A browser')} is asking to create a new set "
                 "of backup codes for this account.")
         fields = [("Unused codes right now", str(left) if left else "none"),
                   ("If you approve", "the web app shows the new codes once, in the tab "
@@ -278,15 +278,15 @@ async def _deliver_notice(client, notice: dict) -> None:
     elif notice.get("kind") == "backup_used":
         left = data.get("remaining")
         title = "A backup code was used"
-        body = (f"{ui.esc(data.get('label') or 'A browser')} used one of your backup codes "
+        body = (f"{ui.escape_md(data.get('label') or 'A browser')} used one of your backup codes "
                 "to load your saved places.")
         fields = [("Codes left", str(left) if left is not None else "unknown")]
         footer = ("If that was you, nothing to do. If it was not, lock it down below and "
                   "make a fresh set in the web app.")
         buttons = [[{"label": "That was not me", "kind": "panic", "payload": {}}]]
     else:
-        title = data.get("title") or "A message about your account"
-        body = ui.esc(data.get("text") or "")
+        title = ui.escape_md(data.get("title") or "A message about your account")
+        body = ui.escape_md(data.get("text") or "")
         fields = []
         footer = None
 

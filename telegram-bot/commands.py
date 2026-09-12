@@ -40,6 +40,7 @@ ABOUT = (
 
 COMMAND_LIST = [
     ("/weather", "current conditions, for example /weather Tokyo"),
+    ("/today", "the day at a glance, the same as the daily digest"),
     ("/forecast", "the next five days"),
     ("/hourly", "the next 24 hours"),
     ("/nowcast", "rain in the next two hours"),
@@ -73,26 +74,34 @@ def args_of(event) -> str:
 
 # --- shared rendering ------------------------------------------------------
 
-async def weather_view(telegram_id: int, place: dict, view: str, note: str | None = None) -> dict:
-    """Build one weather message. Commands send it, buttons edit into it."""
+async def weather_view(telegram_id: int, place: dict, view: str, note: str | None = None,
+                       from_favs: bool = False) -> dict:
+    """Build one weather message. Commands send it, buttons edit into it.
+
+    `from_favs` marks a forecast reached from the saved places list. It adds a
+    way back to that list, and every button on the message carries the mark so
+    the way back survives switching views or saving and removing the place.
+    """
     units = await db.get_units(telegram_id)
     data = await weather.forecast(place["lat"], place["lon"], units)
-    name = ui.esc(place["name"])
+    name = ui.escape_md(place["name"])
 
     if view == "hourly":
-        title, body, fields = weather.format_hourly(data, name, units)
+        title, body, fields, table = weather.format_hourly(data, name, units)
     elif view == "daily":
-        title, body, fields = weather.format_daily(data, name, units)
+        title, body, fields, table = weather.format_daily(data, name, units)
     elif view == "nowcast":
-        title, body, fields = weather.format_nowcast(data, name)
+        title, body, fields, table = weather.format_nowcast(data, name)
     else:
         view = "current"
-        title, body, fields = weather.format_current(data, name, units)
+        title, body, fields, table = weather.format_current(data, name, units)
 
     saved = {p["place_key"] for p in await db.list_favourites(telegram_id)}
     key = db.place_key(place["lat"], place["lon"])
     short = {"lat": round(float(place["lat"]), 4), "lon": round(float(place["lon"]), 4),
              "n": place["name"]}
+    if from_favs:
+        short["f"] = 1
 
     views_row = [
         {"label": label, "kind": "weather", "payload": {**short, "v": value}}
@@ -110,11 +119,14 @@ async def weather_view(telegram_id: int, place: dict, view: str, note: str | Non
         "title": title,
         "body": body,
         "fields": fields,
+        "table": table,
         "footer": note or "Data from Open-Meteo.",
         "buttons": [
             views_row,
             [action, {"label": "Open in the app",
                       "url": f"{WEB_APP_URL}/?q={quote(place['name'])}"}],
+            [{"label": "Back to saved places", "kind": "fav_list", "payload": {}}]
+            if from_favs else [],
         ],
     }
 
@@ -132,11 +144,11 @@ async def resolve_place(event, query: str) -> tuple[dict | None, str | None]:
     results = await weather.search_city(query)
     if not results:
         return None, ("No place matched that. Try a different spelling, or narrow it "
-                      "down like <code>Springfield, IL, US</code>.")
+                      "down like `Springfield, IL, US`.")
 
     note = None
     if len(results) > 1:
-        others = ", ".join(ui.esc(r["name"]) for r in results[1:4])
+        others = ", ".join(ui.escape_md(r["name"]) for r in results[1:4])
         note = f"Also matched: {others}. Add a region or country code to pick another."
     return results[0], note
 
@@ -163,12 +175,11 @@ async def on_start(event) -> None:
         await linking.offer_token(client, event, token)
         return
 
-    commands = "\n".join(f"{cmd} {desc}" for cmd, desc in COMMAND_LIST)
     await ui.send_rich_message(
         client, event.chat_id,
         title="Weather, in your pocket",
         body=ABOUT,
-        fields=[("Commands", "\n" + commands)],
+        table=(["What it does"], [[cmd, desc] for cmd, desc in COMMAND_LIST]),
         footer="Made with love in Singapore. Weather data from Open-Meteo.",
         buttons=[
             [{"label": "Open the web app", "url": WEB_APP_URL},
@@ -219,7 +230,7 @@ async def on_fav(event) -> None:
     rows = []
     for place in places:
         short = {"lat": round(place["lat"], 4), "lon": round(place["lon"], 4),
-                 "n": place["name"], "v": "current"}
+                 "n": place["name"], "v": "current", "f": 1}
         flag = weather.flag_from_label(place["name"])
         rows.append([
             {"label": f"{flag} {place['name']}".strip(), "kind": "weather", "payload": short},
@@ -247,8 +258,8 @@ async def on_save(event) -> None:
     was_new, warning = await favourites.add(event.sender_id, place["name"],
                                             place["lat"], place["lon"])
     linked = await favourites.is_linked(event.sender_id)
-    body = (f"{ui.esc(place['name'])} is saved." if was_new
-            else f"{ui.esc(place['name'])} was already on your list.")
+    body = (f"{ui.escape_md(place['name'])} is saved." if was_new
+            else f"{ui.escape_md(place['name'])} was already on your list.")
     if warning:
         footer = warning
     elif linked:
@@ -280,7 +291,7 @@ async def on_remove(event) -> None:
             await ui.send_rich_message(
                 event.client, event.chat_id,
                 title="Saved places updated",
-                body=f"{ui.esc(match['name'])} is off your list.",
+                body=f"{ui.escape_md(match['name'])} is off your list.",
                 buttons=[[{"label": "See all saved places", "kind": "fav_list", "payload": {}}]],
                 owner_id=event.sender_id)
             return
@@ -334,7 +345,7 @@ async def on_sub(event) -> None:
             event.client, event.chat_id,
             title="When should the digest arrive?",
             body=f"Pick a time, or send /sub 08:00 to choose your own. "
-                 f"It will cover {ui.esc(place['name'])}.",
+                 f"It will cover {ui.escape_md(place['name'])}.",
             footer="Times follow the local clock at that place.",
             buttons=[[
                 {"label": f"{hour:02d}:00", "kind": "sub_time",
@@ -370,7 +381,7 @@ async def apply_subscription(client, telegram_id: int, chat_id, place: dict,
 
     title = "Daily digest is on"
     body = (f"Every day at {hour:02d}:{minute:02d}, local time in "
-            f"{ui.esc(place['name'])}, you get the day ahead.")
+            f"{ui.escape_md(place['name'])}, you get the day ahead.")
     hours_away = max(1, round((next_run - int(time.time())) / 3600))
     fields = [("First one", f"in about {hours_away} hour{'s' if hours_away != 1 else ''}")]
     if chat_id is not None:
@@ -399,11 +410,11 @@ async def on_settings(event) -> None:
     digest_text = "off"
     if digest:
         digest_text = (f"{digest['payload']['hour']:02d}:{digest['payload']['minute']:02d} "
-                       f"in {ui.esc(digest['payload']['name'])}")
+                       f"in {ui.escape_md(digest['payload']['name'])}")
 
     fields = [
         ("Units", f"{weather.temp_unit(units)} and {weather.wind_unit(units)}"),
-        ("Default place", ui.esc(place["name"]) if place else "not set"),
+        ("Default place", ui.escape_md(place["name"]) if place else "not set"),
         ("Saved places", f"{len(saved)} of {MAX_FAVOURITES}"),
         ("Daily digest", digest_text),
         ("Linked browsers", str(len(links)) if links else "none"),

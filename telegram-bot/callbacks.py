@@ -22,10 +22,16 @@ from supabase_rest import SupabaseError
 log = logging.getLogger(__name__)
 
 
+def _from_favs(payload) -> bool:
+    """Set on every button of a forecast opened from the saved places list."""
+    return bool(payload.get("f"))
+
+
 async def _weather(event, payload):
     place = {"name": payload["n"], "lat": payload["lat"], "lon": payload["lon"]}
     view = payload.get("v", "current")
-    message = await commands.weather_view(event.sender_id, place, view)
+    message = await commands.weather_view(event.sender_id, place, view,
+                                          from_favs=_from_favs(payload))
     await db.set_default_place(event.sender_id, place["name"], place["lat"], place["lon"])
     await event.answer()
     await ui.edit_rich_message(event, owner_id=event.sender_id, **message)
@@ -36,7 +42,8 @@ async def _fav_add(event, payload):
                                             payload["lat"], payload["lon"])
     await event.answer(warning or ("Saved." if was_new else "Already saved."), alert=bool(warning))
     place = {"name": payload["n"], "lat": payload["lat"], "lon": payload["lon"]}
-    message = await commands.weather_view(event.sender_id, place, payload.get("v", "current"))
+    message = await commands.weather_view(event.sender_id, place, payload.get("v", "current"),
+                                          from_favs=_from_favs(payload))
     await ui.edit_rich_message(event, owner_id=event.sender_id, **message)
 
 
@@ -48,7 +55,8 @@ async def _fav_del(event, payload):
         # Tapped on a forecast. Redraw it, so the weather someone was reading
         # survives the removal and the button turns back into Save this place.
         place = {"name": payload["n"], "lat": payload["lat"], "lon": payload["lon"]}
-        message = await commands.weather_view(event.sender_id, place, payload.get("v", "current"))
+        message = await commands.weather_view(event.sender_id, place, payload.get("v", "current"),
+                                              from_favs=_from_favs(payload))
         await ui.edit_rich_message(event, owner_id=event.sender_id, **message)
         return
     await _fav_list(event, {})
@@ -70,7 +78,7 @@ async def _fav_list(event, _payload):
         rows.append([
             {"label": f"{flag} {place['name']}".strip(), "kind": "weather",
              "payload": {"lat": round(place["lat"], 4), "lon": round(place["lon"], 4),
-                         "n": place["name"], "v": "current"}},
+                         "n": place["name"], "v": "current", "f": 1}},
             {"label": "Remove", "kind": "fav_del", "payload": {"k": place["place_key"]}},
         ])
 
