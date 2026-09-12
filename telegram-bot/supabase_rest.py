@@ -48,15 +48,29 @@ class Supabase:
             await self._client.aclose()
 
     async def _request(self, method: str, table: str, **kwargs) -> list[dict]:
+        """Every failure comes out as SupabaseError, so callers need one except.
+
+        Timeouts and connection errors are the everyday kind and get one warning
+        line; a traceback for them would only bury the next real bug.
+        """
         if not self.enabled or self._client is None:
             raise SupabaseError("Syncing is not configured on this bot.")
-        res = await self._client.request(method, f"/{table}", **kwargs)
+        try:
+            res = await self._client.request(method, f"/{table}", **kwargs)
+        except httpx.HTTPError as err:
+            log.warning("Supabase %s %s failed: %s", method, table,
+                        repr(err) if not str(err) else err)
+            raise SupabaseError("The sync service did not answer.") from err
         if res.status_code >= 400:
             log.error("Supabase %s %s failed: %s %s", method, table, res.status_code, res.text)
             raise SupabaseError(f"Supabase replied {res.status_code}")
         if not res.content:
             return []
-        body = res.json()
+        try:
+            body = res.json()
+        except ValueError as err:
+            log.error("Supabase %s %s returned something other than JSON", method, table)
+            raise SupabaseError("The sync service sent an unreadable reply.") from err
         return body if isinstance(body, list) else [body]
 
     async def select(self, table: str, params: dict) -> list[dict]:
