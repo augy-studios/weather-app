@@ -1,8 +1,3 @@
-// ===== Service Worker =====
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-}
-
 // ===== Helpers =====
 const $ = (sel, el = document) => el.querySelector(sel);
 const h = (tag, props = {}, children = []) => {
@@ -498,7 +493,7 @@ $('#btn-save').addEventListener('click', () => {
 });
 
 // ===== Theme System =====
-const { COLOR_THEMES, applyColorTheme, applyMode, getStoredColorTheme, getStoredMode, initTheme } = window.UwuTheme;
+const { COLOR_THEMES, applyColorTheme, applyMode, getStoredColorTheme, getStoredMode, getModePreference, initTheme } = window.UwuTheme;
 
 function buildThemeModal() {
     const grid = document.getElementById('swatchGrid');
@@ -527,19 +522,37 @@ function buildThemeModal() {
         syncThemeModalState();
         repaintThemedGraphics();
     });
+
+    // A tab left open across 09:00 or 18:00 re-resolves itself; redraw the
+    // modal so the note and pressed state stay in step with the change, and
+    // the baked-in graphics so they follow the page.
+    document.addEventListener('uwu:modechange', () => {
+        syncThemeModalState();
+        repaintThemedGraphics();
+    });
 }
 
 function syncThemeModalState() {
-    const activeTheme = getStoredColorTheme();
-    const activeMode  = getStoredMode();
+    const activeTheme      = getStoredColorTheme();
+    const activePreference = getModePreference();
+    const resolvedMode     = getStoredMode();
     document.querySelectorAll('#swatchGrid .swatch').forEach((el) => {
         el.classList.toggle('active', el.dataset.themeId === activeTheme);
     });
     document.querySelectorAll('#modeToggle .mode-btn').forEach((el) => {
-        const on = el.dataset.mode === activeMode;
+        const on = el.dataset.mode === activePreference;
         el.classList.toggle('active', on);
         el.setAttribute('aria-pressed', String(on));
     });
+
+    const note = document.getElementById('modeNote');
+    if (note) {
+        note.hidden = activePreference !== 'time';
+        if (activePreference === 'time') {
+            note.textContent = `Following the clock. Currently ${resolvedMode}.`;
+        }
+    }
+
     updateThemeButtonIcon();
 }
 
