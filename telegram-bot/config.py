@@ -46,7 +46,7 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
 
 # --- Links ---
 DONATION_URL = os.environ.get("DONATION_URL", "").strip() or "https://donate.stripe.com/28o2akeAr3hv0DK6oo"
-WEB_APP_URL = (os.environ.get("WEB_APP_URL", "").strip() or "https://weatherapp.today").rstrip("/")
+WEB_APP_URL = (os.environ.get("WEB_APP_URL", "").strip() or "https://weather.uwuapps.org").rstrip("/")
 
 # --- Local storage ---
 _db_path = Path(os.environ.get("DB_PATH", "").strip() or "data/bot.db")

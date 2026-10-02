@@ -1,6 +1,6 @@
 # UwU Weather, the Telegram bot
 
-The [weatherapp.today](https://weatherapp.today) weather app, in a chat. It reads the
+The [weather.uwuapps.org](https://weather.uwuapps.org) weather app, in a chat. It reads the
 same Open-Meteo data the web app reads and describes it in the same words: current
 conditions with air quality, the next 24 hours, a five day outlook, and a two hour
 precipitation nowcast. Air quality is the range across the whole country: NEA's own
@@ -212,7 +212,7 @@ startup as a convenience, and never overrides a variable already exported in the
 | `SUPABASE_URL` | for syncing | Your project URL |
 | `SUPABASE_SERVICE_KEY` | for syncing | The service role key. It bypasses row level security, so it belongs on the VPS and in Vercel, nowhere else |
 | `DONATION_URL` | yes | The link behind the coffee button in `/start` |
-| `WEB_APP_URL` | no | Defaults to `https://weatherapp.today`. Air quality is read from its `/api/air` |
+| `WEB_APP_URL` | no | Defaults to `https://weather.uwuapps.org`. Air quality is read from its `/api/air` |
 | `DB_PATH` | no | Defaults to `data/bot.db` next to the code |
 | `NOTICE_POLL_SECONDS` | no | How often to look for messages the web app has left, default 3 |
 | `SCHEDULER_TICK_SECONDS` | no | How often to look for due digests, default 30 |

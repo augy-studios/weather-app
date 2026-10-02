@@ -83,7 +83,7 @@ Weather for anywhere, in the same words the web app uses.
 
 Send a city name and get current conditions, the next 24 hours, a five day outlook and a two hour rain nowcast. Share a location pin and it works too.
 
-Save the places you check often, sync them with weatherapp.today so one list follows you everywhere, and get the day ahead every morning at a time you pick.
+Save the places you check often, sync them with weather.uwuapps.org so one list follows you everywhere, and get the day ahead every morning at a time you pick.
 
 Data from Open-Meteo. Made with love in Singapore.
 ```

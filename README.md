@@ -2,7 +2,7 @@
 
 An open-source, install-anywhere weather PWA. Search any city (or use your location) and get current conditions, an hourly strip, a 7-day outlook, and a 15-minute precipitation nowcast — with a share card you can post straight to social.
 
-Live at **[weatherapp.today](https://weatherapp.today)** · Android build on **[Google Play](https://play.google.com/store/apps/details?id=com.augystudios.weatherapp)**
+Live at **[weather.uwuapps.org](https://weather.uwuapps.org)** · Android build on **[Google Play](https://play.google.com/store/apps/details?id=com.augystudios.weatherapp)**
 
 ![Screenshot](main-site/images/screenshot_2.png)
 

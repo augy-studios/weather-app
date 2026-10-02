@@ -1,7 +1,7 @@
 # Weather App by Augy Studios
 The (finally) open source version of the weather app! (As advertised on Augy Studios Labs)
 
-Currently live on [weatherapp.today](https://weatherapp.today)
+Currently live on [weather.uwuapps.org](https://weather.uwuapps.org)
 
 ## About
 Get the latest weather information based on your current location or the city you searched for. You can get the current weather information with an estimated 5-day forecast!
