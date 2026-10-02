@@ -81,7 +81,8 @@ async def _fire(client, schedule: dict) -> None:
 async def _send_digest(client, telegram_id: int, payload: dict) -> None:
     units = await db.get_units(telegram_id)
     data, air = await asyncio.gather(weather.forecast(payload["lat"], payload["lon"], units),
-                                     weather.air_quality(payload["lat"], payload["lon"]))
+                                     weather.air_quality(payload["lat"], payload["lon"],
+                                                         payload["name"]))
 
     # The place may have moved into or out of daylight saving since it was set.
     offset = data.get("utc_offset_seconds")

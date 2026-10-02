@@ -9,7 +9,7 @@ Live at **[weatherapp.today](https://weatherapp.today)** · Android build on **[
 ## Features
 
 - **Current conditions** — temperature, feels-like, humidity, wind (speed + direction), and surface pressure
-- **Air quality** — NEA's PSI and PM2.5 for the nearest region in Singapore, US AQI and PM2.5 everywhere else
+- **Air quality** — NEA's islandwide PSI and PM2.5 range in Singapore, a countrywide US AQI and PM2.5 range everywhere else
 - **Forecasts** — next 24 hours as scrollable pills, plus a 7-day daily outlook
 - **Precipitation nowcast** — 15-minute-resolution Plotly chart of what's coming
 - **Smart search** — free-text queries like `Springfield, IL, US` are parsed into name / region / country
@@ -30,10 +30,12 @@ main-site/
 ├── index.html, style.css, script.js   # the whole app
 ├── sw.js                              # service worker (cache-first shell)
 ├── manifest.json                      # PWA manifest, icons, shortcuts
-└── api/
-    ├── forecast.js                    # → api.open-meteo.com/v1/forecast
-    ├── geocode.js                     # → geocoding-api.open-meteo.com/v1/search
-    └── air.js                         # → data.gov.sg PSI + PM2.5 in Singapore, Open-Meteo air quality elsewhere
+├── api/
+│   ├── forecast.js                    # → api.open-meteo.com/v1/forecast
+│   ├── geocode.js                     # → geocoding-api.open-meteo.com/v1/search
+│   └── air.js                         # → data.gov.sg PSI + PM2.5 in Singapore, Open-Meteo air quality elsewhere
+└── lib/
+    └── countries.js                   # country outlines + sample points, built by build-countries.mjs
 ```
 
 ## Running locally
@@ -66,6 +68,7 @@ Issues and PRs are welcome. A few things worth knowing:
 
 - Weather and geocoding data by [Open-Meteo](https://open-meteo.com/) (CC BY 4.0)
 - Singapore's PSI and PM2.5 from NEA via [data.gov.sg](https://data.gov.sg/) (Singapore Open Data Licence)
+- Country outlines from [Natural Earth](https://www.naturalearthdata.com/) (public domain)
 - Charts by [Plotly](https://plotly.com/javascript/), icons by [Font Awesome](https://fontawesome.com/)
 - [Paxriel](https://paxriel.art/) for general coding help
 

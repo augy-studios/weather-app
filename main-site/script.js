@@ -176,7 +176,7 @@ async function loadWeather(lat, lon, label) {
     // the weather draws as soon as it lands, and the reading fills in after.
     _lastAir = null;
     renderAir(null);
-    const airPromise = fetchAir(lat, lon);
+    const airPromise = fetchAir(lat, lon, current.name);
 
     const res = await fetch(`/api/forecast?${params}`);
     const j   = await res.json();
@@ -195,24 +195,33 @@ async function loadWeather(lat, lon, label) {
     updateShare(j);
 }
 
-async function fetchAir(lat, lon) {
+// The label's trailing country code, when it has one, names the country the
+// range covers. "My location" has none, and the route works it out instead.
+async function fetchAir(lat, lon, label) {
+    const params  = new URLSearchParams({ latitude: lat, longitude: lon });
+    const country = label.match(/,\s*([A-Z]{2})$/)?.[1];
+    if (country) params.set('country', country);
     try {
-        const res = await fetch(`/api/air?${new URLSearchParams({ latitude: lat, longitude: lon })}`);
+        const res = await fetch(`/api/air?${params}`);
         return res.ok ? await res.json() : null;
     } catch {
         return null;
     }
 }
 
-// PSI from NEA inside Singapore, US AQI from Open-Meteo everywhere else. The
-// level is the same 1 to 6 on both, and colours the dot.
+// "72–94", or a single number when low and high agree.
+const fmtRange = r => r.low === r.high ? `${r.low}` : `${r.low}–${r.high}`;
+
+// Islandwide PSI range from NEA inside Singapore, countrywide US AQI range from
+// Open-Meteo everywhere else. The level is the same 1 to 6 on both, taken from
+// the worse end, and colours the dot.
 function renderAir(air) {
     const el = $('#aqi');
-    el.textContent     = air ? `${air.value} ${air.index}` : '—';
+    el.textContent     = air ? `${fmtRange(air)} ${air.index}` : '—';
     el.dataset.level   = air?.level ?? '';
-    $('#aqi-label').textContent = air?.region ? `Air quality, ${air.region}` : 'Air quality';
+    $('#aqi-label').textContent = air && air.area !== 'here' ? `Air quality, ${air.area}` : 'Air quality';
     $('#aqi-band').textContent  = air?.band ?? '';
-    $('#pm25').textContent      = air?.pm25 == null ? '—' : `${air.pm25} µg/m³`;
+    $('#pm25').textContent      = air?.pm25 ? `${fmtRange(air.pm25)} µg/m³` : '—';
 }
 
 function renderCurrent(j) {
@@ -412,7 +421,7 @@ function updateShare(j) {
     $('#share-extra').textContent   = [
         fmtPerc(c.relative_humidity_2m),
         fmtWind(c.wind_speed_10m),
-        _lastAir && `${_lastAir.index} ${_lastAir.value}`
+        _lastAir && `${_lastAir.index} ${fmtRange(_lastAir)}`
     ].filter(Boolean).join(' • ');
     $('#share-source').textContent  = _lastAir?.source === 'nea' ? 'Data: Open‑Meteo, NEA' : 'Data: Open‑Meteo';
     $('#share-time').textContent    = new Date().toLocaleString();

@@ -3,8 +3,8 @@
 The [weatherapp.today](https://weatherapp.today) weather app, in a chat. It reads the
 same Open-Meteo data the web app reads and describes it in the same words: current
 conditions with air quality, the next 24 hours, a five day outlook, and a two hour
-precipitation nowcast. In Singapore the air quality is NEA's own PSI and PM2.5, from
-data.gov.sg. It can also carry your saved places back and forth with the web app, and it
+precipitation nowcast. Air quality is the range across the whole country: NEA's own
+islandwide PSI and PM2.5 in Singapore, from data.gov.sg, and the US AQI elsewhere. It can also carry your saved places back and forth with the web app, and it
 can send you the day ahead every morning.
 
 Built on [Telethon](https://docs.telethon.dev/). Runs as a single Python process on a
@@ -211,9 +211,8 @@ startup as a convenience, and never overrides a variable already exported in the
 | `TELEGRAM_BOT_TOKEN` | yes | From BotFather |
 | `SUPABASE_URL` | for syncing | Your project URL |
 | `SUPABASE_SERVICE_KEY` | for syncing | The service role key. It bypasses row level security, so it belongs on the VPS and in Vercel, nowhere else |
-| `DATA_GOV_KEY` | no | A data.gov.sg API key. Singapore's PSI and PM2.5 work without it, at a lower rate limit |
 | `DONATION_URL` | yes | The link behind the coffee button in `/start` |
-| `WEB_APP_URL` | no | Defaults to `https://weatherapp.today` |
+| `WEB_APP_URL` | no | Defaults to `https://weatherapp.today`. Air quality is read from its `/api/air` |
 | `DB_PATH` | no | Defaults to `data/bot.db` next to the code |
 | `NOTICE_POLL_SECONDS` | no | How often to look for messages the web app has left, default 3 |
 | `SCHEDULER_TICK_SECONDS` | no | How often to look for due digests, default 30 |
@@ -275,10 +274,13 @@ was spent. Nothing has to reach the VPS from outside, so the firewall stays clos
 
 Weather calls go straight to Open-Meteo rather than through the site's `/api` proxies,
 with a small cache that copies the lifetimes those proxies advertise: ten minutes for a
-forecast or an air quality reading, a day for a geocode. Air quality follows
-`/api/air`: a point inside a rough outline of Singapore gets the PSI and PM2.5 of the
-nearest NEA region, anywhere else (or Singapore, when data.gov.sg does not answer) gets
-Open-Meteo's US AQI. A failed reading drops out of the message rather than failing it.
+forecast, a day for a geocode.
+
+Air quality is the exception, read from the site's `/api/air` with the same ten minute
+cache. That route holds the data.gov.sg key and does the real work: the islandwide PSI
+and PM2.5 range in Singapore, and elsewhere a US AQI range from Open-Meteo read at sample
+points across the whole country. A failed reading, or the site being down, drops the air
+quality out of the message rather than failing it.
 
 ## Updating
 

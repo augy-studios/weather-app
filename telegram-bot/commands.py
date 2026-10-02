@@ -85,7 +85,7 @@ async def weather_view(telegram_id: int, place: dict, view: str, note: str | Non
     """
     units = await db.get_units(telegram_id)
     data, air = await asyncio.gather(weather.forecast(place["lat"], place["lon"], units),
-                                     weather.air_quality(place["lat"], place["lon"]))
+                                     weather.air_quality(place["lat"], place["lon"], place["name"]))
     name = ui.escape_md(place["name"])
 
     if view == "hourly":

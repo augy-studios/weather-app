@@ -44,11 +44,6 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "").strip().rstrip("/")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
 
-# --- data.gov.sg, optional ---
-# Singapore's PSI and PM2.5 work without it, at a lower rate limit. The same
-# name as the Vercel variable the web app reads.
-DATA_GOV_KEY = os.environ.get("DATA_GOV_KEY", "").strip()
-
 # --- Links ---
 DONATION_URL = os.environ.get("DONATION_URL", "").strip() or "https://donate.stripe.com/28o2akeAr3hv0DK6oo"
 WEB_APP_URL = (os.environ.get("WEB_APP_URL", "").strip() or "https://weatherapp.today").rstrip("/")

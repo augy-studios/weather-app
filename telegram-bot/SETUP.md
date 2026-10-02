@@ -222,7 +222,6 @@ TELEGRAM_API_HASH=0123456789abcdef0123456789abcdef
 TELEGRAM_BOT_TOKEN=1234567890:AAaaBBbbCCccDDddEEeeFFffGGgg
 SUPABASE_URL=https://yourproject.supabase.co
 SUPABASE_SERVICE_KEY=eyJhbGciOi...
-DATA_GOV_KEY=your-data-gov-sg-key
 DONATION_URL=https://donate.stripe.com/28o2akeAr3hv0DK6oo
 ```
 

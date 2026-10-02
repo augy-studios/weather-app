@@ -8,8 +8,10 @@ Open-Meteo needs no key. The site proxies it through /api only to add caching,
 so the bot calls the upstream directly and keeps a small cache of its own with
 the same lifetimes the proxies advertise.
 
-Air quality mirrors main-site/api/air.js: NEA's PSI and PM2.5 from
-data.gov.sg inside Singapore, Open-Meteo's US AQI everywhere else.
+Air quality is the one exception: it comes from the site's own /api/air, which
+does the real work (NEA's islandwide PSI and PM2.5 in Singapore from
+data.gov.sg, a countrywide US AQI range from Open-Meteo everywhere else). That
+keeps the data.gov.sg key and the country sampling in one place.
 """
 
 import logging
@@ -17,36 +19,19 @@ import time
 
 import httpx
 
-from config import DATA_GOV_KEY
+from config import WEB_APP_URL
 
 log = logging.getLogger(__name__)
 
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
-NEA_URL = "https://api-open.data.gov.sg/v2/real-time/api"
+AIR_URL = f"{WEB_APP_URL}/api/air"
 
 GEOCODE_TTL = 24 * 60 * 60
 FORECAST_TTL = 10 * 60
 AIR_TTL = 10 * 60
 
-# A coarse outline of Singapore as (lon, lat). A box would take in Johor Bahru,
-# under a kilometre across the strait. Keep in step with SG_OUTLINE in air.js.
-SG_OUTLINE = [
-    (103.59, 1.19), (104.07, 1.19), (104.07, 1.43), (103.99, 1.44), (103.90, 1.44),
-    (103.85, 1.47), (103.80, 1.46), (103.75, 1.455), (103.70, 1.45), (103.64, 1.35),
-    (103.59, 1.30),
-]
-
-# (upper bound, band, severity). Severity runs 1 to 6 on both scales.
-PSI_BANDS = [
-    (50, "Good", 1), (100, "Moderate", 2), (200, "Unhealthy", 4),
-    (300, "Very unhealthy", 5), (float("inf"), "Hazardous", 6),
-]
-US_AQI_BANDS = [
-    (50, "Good", 1), (100, "Moderate", 2), (150, "Unhealthy for sensitive groups", 3),
-    (200, "Unhealthy", 4), (300, "Very unhealthy", 5), (float("inf"), "Hazardous", 6),
-]
+# Keyed by the severity /api/air reports, 1 to 6 on both PSI and US AQI.
 AIR_EMOJI = {1: "🟢", 2: "🟡", 3: "🟠", 4: "🔴", 5: "🟣", 6: "🟤"}
 
 _client: httpx.AsyncClient | None = None
@@ -96,13 +81,13 @@ async def close() -> None:
         await _client.aclose()
 
 
-async def _get_json(url: str, params: dict, ttl: int, headers: dict | None = None) -> dict:
+async def _get_json(url: str, params: dict, ttl: int) -> dict:
     key = url + "?" + "&".join(f"{k}={v}" for k, v in sorted(params.items()))
     hit = _cache.get(key)
     if hit and hit[0] > time.time():
         return hit[1]
     try:
-        res = await _client.get(url, params=params, headers=headers)
+        res = await _client.get(url, params=params)
         res.raise_for_status()
         data = res.json()
     except httpx.HTTPError as err:
@@ -249,89 +234,39 @@ async def forecast(lat: float, lon: float, units: str = "metric") -> dict:
     return await _get_json(FORECAST_URL, params, FORECAST_TTL)
 
 
-def in_singapore(lat: float, lon: float) -> bool:
-    inside = False
-    j = len(SG_OUTLINE) - 1
-    for i, (xi, yi) in enumerate(SG_OUTLINE):
-        xj, yj = SG_OUTLINE[j]
-        if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / (yj - yi) + xi:
-            inside = not inside
-        j = i
-    return inside
+async def air_quality(lat: float, lon: float, label: str = "") -> dict | None:
+    """The countrywide air quality range from the site's /api/air, or None.
+    Never raises: a missing reading leaves the weather to stand on its own.
 
-
-def _band(value, bands) -> dict:
-    _, label, level = next(b for b in bands if value <= b[0])
-    return {"band": label, "level": level}
-
-
-async def _nea(path: str) -> dict:
-    headers = {"x-api-key": DATA_GOV_KEY} if DATA_GOV_KEY else None
-    data = await _get_json(f"{NEA_URL}/{path}", {}, AIR_TTL, headers)
-    if data.get("code") != 0 or not (data.get("data") or {}).get("items"):
-        _cache.pop(f"{NEA_URL}/{path}?", None)
-        raise WeatherError(f"data.gov.sg {path} had no reading")
-    return data["data"]
-
-
-async def _air_from_nea(lat: float, lon: float) -> dict:
-    psi = await _nea("psi")
-    pm25 = await _nea("pm25")
-    readings = psi["items"][0]["readings"]
-    regional = readings.get("psi_twenty_four_hourly") or {}
-
-    regions = [r for r in psi.get("regionMetadata") or [] if regional.get(r["name"]) is not None]
-    if not regions:
-        raise WeatherError("data.gov.sg PSI had no regional reading")
-    nearest = min(regions, key=lambda r: (r["labelLocation"]["latitude"] - lat) ** 2
-                  + (r["labelLocation"]["longitude"] - lon) ** 2)["name"]
-
-    value = regional[nearest]
-    pm25_hourly = (pm25["items"][0].get("readings") or {}).get("pm25_one_hourly") or {}
-    return {
-        "source": "nea", "index": "PSI", "value": value, **_band(value, PSI_BANDS),
-        "pm25": pm25_hourly.get(nearest), "region": nearest.capitalize(),
-    }
-
-
-async def _air_from_open_meteo(lat: float, lon: float) -> dict:
-    params = {"latitude": f"{lat:.4f}", "longitude": f"{lon:.4f}", "current": "us_aqi,pm2_5"}
-    current = (await _get_json(AIR_URL, params, AIR_TTL)).get("current") or {}
-    if current.get("us_aqi") is None:
-        raise WeatherError("Open-Meteo has no air quality for this point")
-    pm25 = current.get("pm2_5")
-    return {
-        "source": "open-meteo", "index": "US AQI", "value": round(current["us_aqi"]),
-        **_band(current["us_aqi"], US_AQI_BANDS),
-        "pm25": None if pm25 is None else round(pm25), "region": None,
-    }
-
-
-async def air_quality(lat: float, lon: float) -> dict | None:
-    """The air quality reading for a point, or None. Never raises: a missing
-    reading leaves the weather to stand on its own."""
-    lat, lon = float(lat), float(lon)
-    if in_singapore(lat, lon):
-        try:
-            return await _air_from_nea(lat, lon)
-        except (WeatherError, KeyError, TypeError, ValueError) as err:
-            log.warning("NEA air quality failed, falling back to Open-Meteo: %s", err)
+    The label's trailing country code, when it has one, names the country the
+    range covers. A shared pin has none, and the route works it out instead."""
+    params = {"latitude": f"{float(lat):.4f}", "longitude": f"{float(lon):.4f}"}
+    tail = label.strip()[-2:]
+    if label.strip()[-4:-2] == ", " and tail.isalpha() and tail.isupper():
+        params["country"] = tail
     try:
-        return await _air_from_open_meteo(lat, lon)
-    except (WeatherError, KeyError, TypeError, ValueError) as err:
-        log.warning("Air quality failed for %.4f, %.4f: %s", lat, lon, err)
+        air = await _get_json(AIR_URL, params, AIR_TTL)
+        if air.get("level") not in AIR_EMOJI:
+            raise KeyError(f"unexpected level {air.get('level')!r}")
+        return air
+    except (WeatherError, KeyError, TypeError) as err:
+        log.warning("Air quality failed for %s: %s", params, err)
         return None
+
+
+def _range(r: dict) -> str:
+    return str(r["low"]) if r["low"] == r["high"] else f"{r['low']}–{r['high']}"
 
 
 def fmt_air(air: dict | None) -> str:
     if not air:
         return "n/a"
-    text = f"{AIR_EMOJI[air['level']]} {air['value']} {air['index']}, {air['band'].lower()}"
-    return f"{text} ({air['region'].lower()} region)" if air.get("region") else text
+    text = f"{AIR_EMOJI[air['level']]} {_range(air)} {air['index']}, {air['band'].lower()}"
+    return text if air.get("area") in (None, "here") else f"{text}, {air['area']}"
 
 
 def fmt_pm25(air: dict | None) -> str:
-    return "n/a" if not air or air.get("pm25") is None else f"{air['pm25']} µg/m³"
+    return "n/a" if not air or not air.get("pm25") else f"{_range(air['pm25'])} µg/m³"
 
 
 def data_credit(air: dict | None) -> str:
