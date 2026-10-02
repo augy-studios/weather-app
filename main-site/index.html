@@ -159,6 +159,11 @@
             <div class="metric"><span class="muted">Humidity</span><b id="humidity">—</b></div>
             <div class="metric"><span class="muted">Wind</span><b id="wind">—</b></div>
             <div class="metric"><span class="muted">Pressure</span><b id="pressure">—</b></div>
+            <div class="metric">
+              <span class="muted" id="aqi-label">Air quality</span><b id="aqi" data-level="">—</b>
+              <small id="aqi-band"></small>
+            </div>
+            <div class="metric"><span class="muted">PM2.5</span><b id="pm25">—</b></div>
           </div>
         </div>
       </article>
@@ -238,7 +243,7 @@
             </div>
             <footer>
               <span class="muted" id="share-time">—</span>
-              <span class="muted">Data: Open‑Meteo</span>
+              <span class="muted" id="share-source">Data: Open‑Meteo</span>
             </footer>
           </div>
         </div>
@@ -247,7 +252,9 @@
 
     <p class="muted" style="margin-top:22px">
       Sources: <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open‑Meteo</a>
-      (current, hourly, daily, 15‑min precipitation)
+      (current, hourly, daily, 15‑min precipitation, air quality outside Singapore),
+      <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer">NEA via data.gov.sg</a>
+      (PSI and PM2.5 in Singapore)
     </p>
   </main>
 

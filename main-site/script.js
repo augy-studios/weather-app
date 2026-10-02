@@ -103,6 +103,7 @@ const windUnit   = () => isImperial() ? 'mph' : 'km/h';
 // ===== State =====
 let current = { lat: null, lon: null, name: '—' };
 let _lastWeatherData = null;
+let _lastAir = null;
 
 // ===== Saved Locations =====
 function loadSaved() {
@@ -171,6 +172,12 @@ async function loadWeather(lat, lon, label) {
         wind_speed_unit:  isImperial() ? 'mph' : 'kmh'
     });
 
+    // Air quality is asked for alongside the forecast but never holds it up:
+    // the weather draws as soon as it lands, and the reading fills in after.
+    _lastAir = null;
+    renderAir(null);
+    const airPromise = fetchAir(lat, lon);
+
     const res = await fetch(`/api/forecast?${params}`);
     const j   = await res.json();
     _lastWeatherData = j;
@@ -180,6 +187,32 @@ async function loadWeather(lat, lon, label) {
     renderDaily(j);
     renderNowcast(j);
     updateShare(j);
+
+    const air = await airPromise;
+    if (current.lat !== lat || current.lon !== lon) return;
+    _lastAir = air;
+    renderAir(air);
+    updateShare(j);
+}
+
+async function fetchAir(lat, lon) {
+    try {
+        const res = await fetch(`/api/air?${new URLSearchParams({ latitude: lat, longitude: lon })}`);
+        return res.ok ? await res.json() : null;
+    } catch {
+        return null;
+    }
+}
+
+// PSI from NEA inside Singapore, US AQI from Open-Meteo everywhere else. The
+// level is the same 1 to 6 on both, and colours the dot.
+function renderAir(air) {
+    const el = $('#aqi');
+    el.textContent     = air ? `${air.value} ${air.index}` : '—';
+    el.dataset.level   = air?.level ?? '';
+    $('#aqi-label').textContent = air?.region ? `Air quality, ${air.region}` : 'Air quality';
+    $('#aqi-band').textContent  = air?.band ?? '';
+    $('#pm25').textContent      = air?.pm25 == null ? '—' : `${air.pm25} µg/m³`;
 }
 
 function renderCurrent(j) {
@@ -376,7 +409,12 @@ function updateShare(j) {
     const c = j.current || {};
     $('#share-temp').textContent    = fmtTemp(c.temperature_2m);
     $('#share-summary').textContent = wmoText(c.weather_code);
-    $('#share-extra').textContent   = `${fmtPerc(c.relative_humidity_2m)} • ${fmtWind(c.wind_speed_10m)}`;
+    $('#share-extra').textContent   = [
+        fmtPerc(c.relative_humidity_2m),
+        fmtWind(c.wind_speed_10m),
+        _lastAir && `${_lastAir.index} ${_lastAir.value}`
+    ].filter(Boolean).join(' • ');
+    $('#share-source').textContent  = _lastAir?.source === 'nea' ? 'Data: Open‑Meteo, NEA' : 'Data: Open‑Meteo';
     $('#share-time').textContent    = new Date().toLocaleString();
     $('#share-art').innerHTML       = weatherSVG(c.weather_code);
 }

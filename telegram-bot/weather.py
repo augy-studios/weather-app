@@ -7,17 +7,47 @@ the same fields on the current conditions card.
 Open-Meteo needs no key. The site proxies it through /api only to add caching,
 so the bot calls the upstream directly and keeps a small cache of its own with
 the same lifetimes the proxies advertise.
+
+Air quality mirrors main-site/api/air.js: NEA's PSI and PM2.5 from
+data.gov.sg inside Singapore, Open-Meteo's US AQI everywhere else.
 """
 
+import logging
 import time
 
 import httpx
 
+from config import DATA_GOV_KEY
+
+log = logging.getLogger(__name__)
+
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+NEA_URL = "https://api-open.data.gov.sg/v2/real-time/api"
 
 GEOCODE_TTL = 24 * 60 * 60
 FORECAST_TTL = 10 * 60
+AIR_TTL = 10 * 60
+
+# A coarse outline of Singapore as (lon, lat). A box would take in Johor Bahru,
+# under a kilometre across the strait. Keep in step with SG_OUTLINE in air.js.
+SG_OUTLINE = [
+    (103.59, 1.19), (104.07, 1.19), (104.07, 1.43), (103.99, 1.44), (103.90, 1.44),
+    (103.85, 1.47), (103.80, 1.46), (103.75, 1.455), (103.70, 1.45), (103.64, 1.35),
+    (103.59, 1.30),
+]
+
+# (upper bound, band, severity). Severity runs 1 to 6 on both scales.
+PSI_BANDS = [
+    (50, "Good", 1), (100, "Moderate", 2), (200, "Unhealthy", 4),
+    (300, "Very unhealthy", 5), (float("inf"), "Hazardous", 6),
+]
+US_AQI_BANDS = [
+    (50, "Good", 1), (100, "Moderate", 2), (150, "Unhealthy for sensitive groups", 3),
+    (200, "Unhealthy", 4), (300, "Very unhealthy", 5), (float("inf"), "Hazardous", 6),
+]
+AIR_EMOJI = {1: "🟢", 2: "🟡", 3: "🟠", 4: "🔴", 5: "🟣", 6: "🟤"}
 
 _client: httpx.AsyncClient | None = None
 _cache: dict[str, tuple[float, object]] = {}
@@ -66,13 +96,13 @@ async def close() -> None:
         await _client.aclose()
 
 
-async def _get_json(url: str, params: dict, ttl: int) -> dict:
+async def _get_json(url: str, params: dict, ttl: int, headers: dict | None = None) -> dict:
     key = url + "?" + "&".join(f"{k}={v}" for k, v in sorted(params.items()))
     hit = _cache.get(key)
     if hit and hit[0] > time.time():
         return hit[1]
     try:
-        res = await _client.get(url, params=params)
+        res = await _client.get(url, params=params, headers=headers)
         res.raise_for_status()
         data = res.json()
     except httpx.HTTPError as err:
@@ -219,6 +249,95 @@ async def forecast(lat: float, lon: float, units: str = "metric") -> dict:
     return await _get_json(FORECAST_URL, params, FORECAST_TTL)
 
 
+def in_singapore(lat: float, lon: float) -> bool:
+    inside = False
+    j = len(SG_OUTLINE) - 1
+    for i, (xi, yi) in enumerate(SG_OUTLINE):
+        xj, yj = SG_OUTLINE[j]
+        if (yi > lat) != (yj > lat) and lon < (xj - xi) * (lat - yi) / (yj - yi) + xi:
+            inside = not inside
+        j = i
+    return inside
+
+
+def _band(value, bands) -> dict:
+    _, label, level = next(b for b in bands if value <= b[0])
+    return {"band": label, "level": level}
+
+
+async def _nea(path: str) -> dict:
+    headers = {"x-api-key": DATA_GOV_KEY} if DATA_GOV_KEY else None
+    data = await _get_json(f"{NEA_URL}/{path}", {}, AIR_TTL, headers)
+    if data.get("code") != 0 or not (data.get("data") or {}).get("items"):
+        _cache.pop(f"{NEA_URL}/{path}?", None)
+        raise WeatherError(f"data.gov.sg {path} had no reading")
+    return data["data"]
+
+
+async def _air_from_nea(lat: float, lon: float) -> dict:
+    psi = await _nea("psi")
+    pm25 = await _nea("pm25")
+    readings = psi["items"][0]["readings"]
+    regional = readings.get("psi_twenty_four_hourly") or {}
+
+    regions = [r for r in psi.get("regionMetadata") or [] if regional.get(r["name"]) is not None]
+    if not regions:
+        raise WeatherError("data.gov.sg PSI had no regional reading")
+    nearest = min(regions, key=lambda r: (r["labelLocation"]["latitude"] - lat) ** 2
+                  + (r["labelLocation"]["longitude"] - lon) ** 2)["name"]
+
+    value = regional[nearest]
+    pm25_hourly = (pm25["items"][0].get("readings") or {}).get("pm25_one_hourly") or {}
+    return {
+        "source": "nea", "index": "PSI", "value": value, **_band(value, PSI_BANDS),
+        "pm25": pm25_hourly.get(nearest), "region": nearest.capitalize(),
+    }
+
+
+async def _air_from_open_meteo(lat: float, lon: float) -> dict:
+    params = {"latitude": f"{lat:.4f}", "longitude": f"{lon:.4f}", "current": "us_aqi,pm2_5"}
+    current = (await _get_json(AIR_URL, params, AIR_TTL)).get("current") or {}
+    if current.get("us_aqi") is None:
+        raise WeatherError("Open-Meteo has no air quality for this point")
+    pm25 = current.get("pm2_5")
+    return {
+        "source": "open-meteo", "index": "US AQI", "value": round(current["us_aqi"]),
+        **_band(current["us_aqi"], US_AQI_BANDS),
+        "pm25": None if pm25 is None else round(pm25), "region": None,
+    }
+
+
+async def air_quality(lat: float, lon: float) -> dict | None:
+    """The air quality reading for a point, or None. Never raises: a missing
+    reading leaves the weather to stand on its own."""
+    lat, lon = float(lat), float(lon)
+    if in_singapore(lat, lon):
+        try:
+            return await _air_from_nea(lat, lon)
+        except (WeatherError, KeyError, TypeError, ValueError) as err:
+            log.warning("NEA air quality failed, falling back to Open-Meteo: %s", err)
+    try:
+        return await _air_from_open_meteo(lat, lon)
+    except (WeatherError, KeyError, TypeError, ValueError) as err:
+        log.warning("Air quality failed for %.4f, %.4f: %s", lat, lon, err)
+        return None
+
+
+def fmt_air(air: dict | None) -> str:
+    if not air:
+        return "n/a"
+    text = f"{AIR_EMOJI[air['level']]} {air['value']} {air['index']}, {air['band'].lower()}"
+    return f"{text} ({air['region'].lower()} region)" if air.get("region") else text
+
+
+def fmt_pm25(air: dict | None) -> str:
+    return "n/a" if not air or air.get("pm25") is None else f"{air['pm25']} µg/m³"
+
+
+def data_credit(air: dict | None) -> str:
+    return "Data from Open-Meteo and NEA." if air and air["source"] == "nea" else "Data from Open-Meteo."
+
+
 # --- formatting ------------------------------------------------------------
 #
 # Every formatter returns (title, body, fields, table) ready for
@@ -265,7 +384,13 @@ def _today(data: dict, units: str) -> dict:
     }
 
 
-def format_current(data: dict, place: str, units: str) -> tuple[str, str, list, None]:
+def _air_line(air: dict | None) -> str | None:
+    """One sentence for the views whose body is otherwise a table."""
+    return f"Air quality now: {fmt_air(air)}." if air else None
+
+
+def format_current(data: dict, place: str, units: str,
+                   air: dict | None = None) -> tuple[str, str, list, None]:
     c = data.get("current") or {}
     code = c.get("weather_code")
     flag = flag_from_label(place)
@@ -286,6 +411,8 @@ def format_current(data: dict, place: str, units: str) -> tuple[str, str, list, 
         ("Gusts", fmt_wind(c.get("wind_gusts_10m"), None, units)),
         ("Pressure", f"{round(pressure)} hPa" if pressure is not None else "n/a"),
         ("Cloud cover", fmt_percent(c.get("cloud_cover"))),
+        ("Air quality", fmt_air(air)),
+        ("PM2.5", fmt_pm25(air)),
     ]
     if (data.get("daily") or {}).get("time"):
         fields += [
@@ -297,7 +424,8 @@ def format_current(data: dict, place: str, units: str) -> tuple[str, str, list, 
     return title, body, fields, None
 
 
-def format_hourly(data: dict, place: str, units: str) -> tuple[str, str | None, list, tuple | None]:
+def format_hourly(data: dict, place: str, units: str,
+                  air: dict | None = None) -> tuple[str, str | None, list, tuple | None]:
     hourly = data.get("hourly") or {}
     rows = []
     for i in _future_hours(data, 24):
@@ -308,10 +436,11 @@ def format_hourly(data: dict, place: str, units: str) -> tuple[str, str | None, 
                      "" if pop is None else f"{pop}%"])
     if not rows:
         return f"Next 24 hours in {place}", "No hourly data came back for this place.", [], None
-    return f"Next 24 hours in {place}", None, [], (["Sky", "Temp", "Rain"], rows)
+    return f"Next 24 hours in {place}", _air_line(air), [], (["Sky", "Temp", "Rain"], rows)
 
 
-def format_daily(data: dict, place: str, units: str) -> tuple[str, str | None, list, tuple | None]:
+def format_daily(data: dict, place: str, units: str,
+                 air: dict | None = None) -> tuple[str, str | None, list, tuple | None]:
     from datetime import date
 
     daily = data.get("daily") or {}
@@ -326,10 +455,11 @@ def format_daily(data: dict, place: str, units: str) -> tuple[str, str | None, l
         rows.append([day, wmo_emoji(code), f"{high} / {low}", f"{rain:.1f} mm"])
     if not rows:
         return f"Next 5 days in {place}", "No daily data came back for this place.", [], None
-    return f"Next 5 days in {place}", None, [], (["Sky", "High / Low", "Rain"], rows)
+    return f"Next 5 days in {place}", _air_line(air), [], (["Sky", "High / Low", "Rain"], rows)
 
 
-def format_nowcast(data: dict, place: str) -> tuple[str, str, list, tuple | None]:
+def format_nowcast(data: dict, place: str,
+                   air: dict | None = None) -> tuple[str, str, list, tuple | None]:
     """The site draws the two hour nowcast as a Plotly bar chart. Telegram gets
     the same numbers as a table with a bar of block characters per row."""
     minutely = data.get("minutely_15") or {}
@@ -357,10 +487,13 @@ def format_nowcast(data: dict, place: str) -> tuple[str, str, list, tuple | None
         rows.append([_local_time(t), blocks[level] * 6 if level else ".", f"{v:.2f} mm"])
 
     headline = "Dry for the next two hours." if peak == 0 else f"Peak of {peak:.2f} mm in a quarter hour."
+    if air:
+        headline += f"\n\n{_air_line(air)}"
     return f"Two hour nowcast for {place}", headline, [], (["Rain", "mm"], rows)
 
 
-def format_digest(data: dict, place: str, units: str) -> tuple[str, str, list, None]:
+def format_digest(data: dict, place: str, units: str,
+                  air: dict | None = None) -> tuple[str, str, list, None]:
     """The daily scheduled message: today at a glance plus what to expect."""
     c = data.get("current") or {}
     today = _today(data, units)
@@ -375,6 +508,7 @@ def format_digest(data: dict, place: str, units: str) -> tuple[str, str, list, N
         ("Right now", f"{fmt_temp(c.get('temperature_2m'), units)}, {wmo_text(c.get('weather_code')).lower()}"),
         ("Rain total", f"{today['rain']:.1f} mm"),
         ("Strongest wind", today["wind"]),
+        ("Air quality", fmt_air(air)),
     ]
     if today["sun"]:
         fields.append(("Sun", today["sun"]))

@@ -5,6 +5,7 @@ optional @suffix Telegram appends is accepted quietly so a forwarded command
 still works.
 """
 
+import asyncio
 import logging
 import re
 import time
@@ -32,8 +33,8 @@ VIEW_LABELS = [("Now", "current"), ("24 hours", "hourly"),
 
 ABOUT = (
     "Weather for anywhere, in the same words the web app uses. Current "
-    "conditions, the next 24 hours, a five day outlook and a two hour rain "
-    "nowcast, all from Open-Meteo.\n\n"
+    "conditions with air quality, the next 24 hours, a five day outlook and a "
+    "two hour rain nowcast, from Open-Meteo, with NEA's PSI in Singapore.\n\n"
     "Send a city name on its own at any time and you get its weather back. "
     "Sharing a location pin works too."
 )
@@ -83,18 +84,19 @@ async def weather_view(telegram_id: int, place: dict, view: str, note: str | Non
     the way back survives switching views or saving and removing the place.
     """
     units = await db.get_units(telegram_id)
-    data = await weather.forecast(place["lat"], place["lon"], units)
+    data, air = await asyncio.gather(weather.forecast(place["lat"], place["lon"], units),
+                                     weather.air_quality(place["lat"], place["lon"]))
     name = ui.escape_md(place["name"])
 
     if view == "hourly":
-        title, body, fields, table = weather.format_hourly(data, name, units)
+        title, body, fields, table = weather.format_hourly(data, name, units, air)
     elif view == "daily":
-        title, body, fields, table = weather.format_daily(data, name, units)
+        title, body, fields, table = weather.format_daily(data, name, units, air)
     elif view == "nowcast":
-        title, body, fields, table = weather.format_nowcast(data, name)
+        title, body, fields, table = weather.format_nowcast(data, name, air)
     else:
         view = "current"
-        title, body, fields, table = weather.format_current(data, name, units)
+        title, body, fields, table = weather.format_current(data, name, units, air)
 
     saved = {p["place_key"] for p in await db.list_favourites(telegram_id)}
     key = db.place_key(place["lat"], place["lon"])
@@ -120,7 +122,7 @@ async def weather_view(telegram_id: int, place: dict, view: str, note: str | Non
         "body": body,
         "fields": fields,
         "table": table,
-        "footer": note or "Data from Open-Meteo.",
+        "footer": note or weather.data_credit(air),
         "buttons": [
             views_row,
             [action, {"label": "Open in the app",

@@ -623,7 +623,7 @@ input[type="search"]::placeholder { color: var(--muted-strong); opacity: 1; }
 
 .metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
 }
@@ -649,6 +649,33 @@ input[type="search"]::placeholder { color: var(--muted-strong); opacity: 1; }
   color: var(--ink);
   margin-top: 4px;
 }
+
+.metric small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Air quality severity. Fixed-meaning colours, like the nowcast ramp: they
+   follow the PSI and AQI charts, not the brand. */
+#aqi::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--aqi-colour);
+}
+#aqi[data-level=""]::before { display: none; }
+#aqi[data-level="1"] { --aqi-colour: #2f9e44; }
+#aqi[data-level="2"] { --aqi-colour: #e6b800; }
+#aqi[data-level="3"] { --aqi-colour: #f08c00; }
+#aqi[data-level="4"] { --aqi-colour: #e03131; }
+#aqi[data-level="5"] { --aqi-colour: #8e44ad; }
+#aqi[data-level="6"] { --aqi-colour: #a3123a; }
 
 /* ---- scrollers ---- */
 .scroller {

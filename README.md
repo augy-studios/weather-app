@@ -9,6 +9,7 @@ Live at **[weatherapp.today](https://weatherapp.today)** · Android build on **[
 ## Features
 
 - **Current conditions** — temperature, feels-like, humidity, wind (speed + direction), and surface pressure
+- **Air quality** — NEA's PSI and PM2.5 for the nearest region in Singapore, US AQI and PM2.5 everywhere else
 - **Forecasts** — next 24 hours as scrollable pills, plus a 7-day daily outlook
 - **Precipitation nowcast** — 15-minute-resolution Plotly chart of what's coming
 - **Smart search** — free-text queries like `Springfield, IL, US` are parsed into name / region / country
@@ -31,7 +32,8 @@ main-site/
 ├── manifest.json                      # PWA manifest, icons, shortcuts
 └── api/
     ├── forecast.js                    # → api.open-meteo.com/v1/forecast
-    └── geocode.js                     # → geocoding-api.open-meteo.com/v1/search
+    ├── geocode.js                     # → geocoding-api.open-meteo.com/v1/search
+    └── air.js                         # → data.gov.sg PSI + PM2.5 in Singapore, Open-Meteo air quality elsewhere
 ```
 
 ## Running locally
@@ -45,7 +47,10 @@ cd weather-app/main-site
 vercel dev
 ```
 
-No environment variables or API keys are required — Open-Meteo is keyless.
+No API keys are required to run it. Open-Meteo is keyless, and data.gov.sg answers without
+a key at a lower rate limit; set `DATA_GOV_KEY` to a data.gov.sg API key to lift it. Every
+variable the site reads is listed in [`main-site/.env.example`](main-site/.env.example); copy
+it to `.env.local` for `vercel dev`.
 
 ## Contributing
 
@@ -60,6 +65,7 @@ Issues and PRs are welcome. A few things worth knowing:
 ## Credits
 
 - Weather and geocoding data by [Open-Meteo](https://open-meteo.com/) (CC BY 4.0)
+- Singapore's PSI and PM2.5 from NEA via [data.gov.sg](https://data.gov.sg/) (Singapore Open Data Licence)
 - Charts by [Plotly](https://plotly.com/javascript/), icons by [Font Awesome](https://fontawesome.com/)
 - [Paxriel](https://paxriel.art/) for general coding help
 

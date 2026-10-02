@@ -2,8 +2,9 @@
 
 The [weatherapp.today](https://weatherapp.today) weather app, in a chat. It reads the
 same Open-Meteo data the web app reads and describes it in the same words: current
-conditions, the next 24 hours, a five day outlook, and a two hour precipitation
-nowcast. It can also carry your saved places back and forth with the web app, and it
+conditions with air quality, the next 24 hours, a five day outlook, and a two hour
+precipitation nowcast. In Singapore the air quality is NEA's own PSI and PM2.5, from
+data.gov.sg. It can also carry your saved places back and forth with the web app, and it
 can send you the day ahead every morning.
 
 Built on [Telethon](https://docs.telethon.dev/). Runs as a single Python process on a
@@ -210,6 +211,7 @@ startup as a convenience, and never overrides a variable already exported in the
 | `TELEGRAM_BOT_TOKEN` | yes | From BotFather |
 | `SUPABASE_URL` | for syncing | Your project URL |
 | `SUPABASE_SERVICE_KEY` | for syncing | The service role key. It bypasses row level security, so it belongs on the VPS and in Vercel, nowhere else |
+| `DATA_GOV_KEY` | no | A data.gov.sg API key. Singapore's PSI and PM2.5 work without it, at a lower rate limit |
 | `DONATION_URL` | yes | The link behind the coffee button in `/start` |
 | `WEB_APP_URL` | no | Defaults to `https://weatherapp.today` |
 | `DB_PATH` | no | Defaults to `data/bot.db` next to the code |
@@ -220,8 +222,9 @@ startup as a convenience, and never overrides a variable already exported in the
 `.env`, `data/` and `sessions/` are all in `.gitignore`. The session file authenticates
 as the bot, so treat it like the token itself.
 
-The web app needs `SUPABASE_URL` and `SUPABASE_SERVICE_KEY` too, set in the Vercel
-project, plus `TELEGRAM_BOT_USERNAME` if the bot ever moves off `uwuweatherapp_bot`.
+The web app needs `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` and `DATA_GOV_KEY` too, set in
+the Vercel project, plus `TELEGRAM_BOT_USERNAME` if the bot ever moves off
+`uwuweatherapp_bot`.
 
 ## How it is put together
 
@@ -231,7 +234,7 @@ telegram-bot/
 ├── config.py          environment, table names, defaults
 ├── db.py              SQLite: preferences, favourites, buttons, schedules
 ├── supabase_rest.py   a small PostgREST client, no supabase-js equivalent needed
-├── weather.py         Open-Meteo access and every formatter
+├── weather.py         Open-Meteo and data.gov.sg access, and every formatter
 ├── ui.py              one message shape: heading, body, fields, table, footer, buttons
 ├── reply.py           sends that shape as a Rich Message over raw MTProto requests
 ├── favourites.py      saved places, local first, synced when linked
@@ -272,7 +275,10 @@ was spent. Nothing has to reach the VPS from outside, so the firewall stays clos
 
 Weather calls go straight to Open-Meteo rather than through the site's `/api` proxies,
 with a small cache that copies the lifetimes those proxies advertise: ten minutes for a
-forecast, a day for a geocode.
+forecast or an air quality reading, a day for a geocode. Air quality follows
+`/api/air`: a point inside a rough outline of Singapore gets the PSI and PM2.5 of the
+nearest NEA region, anywhere else (or Singapore, when data.gov.sg does not answer) gets
+Open-Meteo's US AQI. A failed reading drops out of the message rather than failing it.
 
 ## Updating
 

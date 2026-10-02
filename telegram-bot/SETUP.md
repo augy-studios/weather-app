@@ -199,6 +199,7 @@ In the Vercel project, under **Settings, Environment Variables**, add:
 | `SUPABASE_URL` | your project URL |
 | `SUPABASE_SERVICE_KEY` | the service role key |
 | `TELEGRAM_BOT_USERNAME` | `uwuweatherapp_bot`, only if it ever differs |
+| `DATA_GOV_KEY` | your data.gov.sg API key, for Singapore's PSI and PM2.5 |
 
 Redeploy so the routes pick them up. Without them the sync panel reports that syncing
 is not switched on, and the rest of the site is untouched.
@@ -210,10 +211,10 @@ On the VPS:
 ```bash
 cd ~/weather-app/telegram-bot
 cp .env.example .env
-nano .env
+micro .env
 ```
 
-Fill in:
+Fill in (Ctrl+S saves, Ctrl+Q quits):
 
 ```ini
 TELEGRAM_API_ID=1234567
@@ -221,6 +222,7 @@ TELEGRAM_API_HASH=0123456789abcdef0123456789abcdef
 TELEGRAM_BOT_TOKEN=1234567890:AAaaBBbbCCccDDddEEeeFFffGGgg
 SUPABASE_URL=https://yourproject.supabase.co
 SUPABASE_SERVICE_KEY=eyJhbGciOi...
+DATA_GOV_KEY=your-data-gov-sg-key
 DONATION_URL=https://donate.stripe.com/28o2akeAr3hv0DK6oo
 ```
 

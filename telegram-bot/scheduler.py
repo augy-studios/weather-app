@@ -80,7 +80,8 @@ async def _fire(client, schedule: dict) -> None:
 
 async def _send_digest(client, telegram_id: int, payload: dict) -> None:
     units = await db.get_units(telegram_id)
-    data = await weather.forecast(payload["lat"], payload["lon"], units)
+    data, air = await asyncio.gather(weather.forecast(payload["lat"], payload["lon"], units),
+                                     weather.air_quality(payload["lat"], payload["lon"]))
 
     # The place may have moved into or out of daylight saving since it was set.
     offset = data.get("utc_offset_seconds")
@@ -90,7 +91,7 @@ async def _send_digest(client, telegram_id: int, payload: dict) -> None:
             DAILY_DIGEST, telegram_id, payload,
             next_daily_run(payload["hour"], payload["minute"], offset))
 
-    title, body, fields, table = weather.format_digest(data, ui.escape_md(payload["name"]), units)
+    title, body, fields, table = weather.format_digest(data, ui.escape_md(payload["name"]), units, air)
     await ui.send_rich_message(
         client, telegram_id,
         title=title, body=body, fields=fields, table=table,

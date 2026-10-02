@@ -1,7 +1,7 @@
 // Bump on every deploy that changes anything this worker serves. The browser
 // compares this file byte for byte, so an unchanged VERSION means no update
 // reaches anybody and the update bar never appears.
-const VERSION = "v6";
+const VERSION = "v7";
 const CACHE = `weather-${VERSION}`;
 
 // The app shell. Served only from this version's own cache, so a page never
