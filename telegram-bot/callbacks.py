@@ -37,6 +37,22 @@ async def _weather(event, payload):
     await ui.edit_rich_message(event, owner_id=event.sender_id, **message)
 
 
+async def _air_regions(event, payload):
+    """Every region's air quality for the place on a forecast. The way back
+    carries the view and the saved places mark, so it returns to the same one."""
+    air = await weather.air_quality(payload["lat"], payload["lon"], payload["n"])
+    if not weather.air_regions(air):
+        await event.answer("No regional readings for this place right now.", alert=True)
+        return
+    title, body, fields, table = weather.format_air_regions(air, ui.escape_md(payload["n"]))
+    await event.answer()
+    await ui.edit_rich_message(
+        event, title=title, body=body, fields=fields, table=table,
+        footer=f"{weather.air_regions_note(air)} {weather.data_credit(air)}",
+        buttons=[[{"label": "Back to the weather", "kind": "weather", "payload": payload}]],
+        owner_id=event.sender_id)
+
+
 async def _fav_add(event, payload):
     was_new, warning = await favourites.add(event.sender_id, payload["n"],
                                             payload["lat"], payload["lon"])
@@ -299,6 +315,7 @@ async def _wipe_cancel(event, _payload):
 
 ROUTES = {
     "weather": _weather,
+    "air_regions": _air_regions,
     "fav_add": _fav_add,
     "fav_del": _fav_del,
     "fav_list": _fav_list,

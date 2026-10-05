@@ -214,14 +214,22 @@ const fmtRange = r => r.low === r.high ? `${r.low}` : `${r.low}–${r.high}`;
 
 // Islandwide PSI range from NEA inside Singapore, countrywide US AQI range from
 // Open-Meteo everywhere else. The level is the same 1 to 6 on both, taken from
-// the worse end, and colours the dot.
+// the worse end, and colours the dot. When the place falls in a region, its
+// reading leads and the wider range sits underneath.
 function renderAir(air) {
+    const region = air?.region;
+    const shown  = region || air;
+    const wide   = air && air.area !== 'here' ? air.area : '';
     const el = $('#aqi');
-    el.textContent     = air ? `${fmtRange(air)} ${air.index}` : '—';
-    el.dataset.level   = air?.level ?? '';
-    $('#aqi-label').textContent = air && air.area !== 'here' ? `Air quality, ${air.area}` : 'Air quality';
-    $('#aqi-band').textContent  = air?.band ?? '';
-    $('#pm25').textContent      = air?.pm25 ? `${fmtRange(air.pm25)} µg/m³` : '—';
+    el.textContent     = shown ? `${fmtRange(shown)} ${air.index}` : '—';
+    el.dataset.level   = shown?.level ?? '';
+    $('#aqi-label').textContent  = region ? `Air quality, ${region.name} region`
+                                 : wide ? `Air quality, ${wide}` : 'Air quality';
+    $('#aqi-band').textContent   = !shown ? ''
+                                 : region ? `${region.band} · ${fmtRange(air)} ${wide}` : air.band;
+    $('#pm25-label').textContent = region ? `PM2.5, ${region.name} region` : 'PM2.5';
+    $('#pm25').textContent       = shown?.pm25 ? `${fmtRange(shown.pm25)} µg/m³` : '—';
+    $('#pm25-wide').textContent  = region && air.pm25 ? `${fmtRange(air.pm25)} ${wide}` : '';
 }
 
 function renderCurrent(j) {
@@ -421,7 +429,9 @@ function updateShare(j) {
     $('#share-extra').textContent   = [
         fmtPerc(c.relative_humidity_2m),
         fmtWind(c.wind_speed_10m),
-        _lastAir && `${_lastAir.index} ${fmtRange(_lastAir)}`
+        _lastAir && (_lastAir.region
+            ? `${_lastAir.index} ${fmtRange(_lastAir.region)} ${_lastAir.region.name}`
+            : `${_lastAir.index} ${fmtRange(_lastAir)}`)
     ].filter(Boolean).join(' • ');
     $('#share-source').textContent  = _lastAir?.source === 'nea' ? 'Data: Open‑Meteo, NEA' : 'Data: Open‑Meteo';
     $('#share-time').textContent    = new Date().toLocaleString();

@@ -9,7 +9,7 @@ Live at **[weather.uwuapps.org](https://weather.uwuapps.org)** · Android build 
 ## Features
 
 - **Current conditions** — temperature, feels-like, humidity, wind (speed + direction), and surface pressure
-- **Air quality** — NEA's islandwide PSI and PM2.5 range in Singapore, a countrywide US AQI and PM2.5 range everywhere else
+- **Air quality** — NEA's islandwide PSI and PM2.5 range in Singapore, a countrywide US AQI and PM2.5 range everywhere else, each with the reading for the place's own region (NEA's five in Singapore, compass regions elsewhere)
 - **Forecasts** — next 24 hours as scrollable pills, plus a 7-day daily outlook
 - **Precipitation nowcast** — 15-minute-resolution Plotly chart of what's coming
 - **Smart search** — free-text queries like `Springfield, IL, US` are parsed into name / region / country

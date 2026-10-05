@@ -10,8 +10,9 @@ the same lifetimes the proxies advertise.
 
 Air quality is the one exception: it comes from the site's own /api/air, which
 does the real work (NEA's islandwide PSI and PM2.5 in Singapore from
-data.gov.sg, a countrywide US AQI range from Open-Meteo everywhere else). That
-keeps the data.gov.sg key and the country sampling in one place.
+data.gov.sg, a countrywide US AQI range from Open-Meteo everywhere else, each
+broken down by region). That keeps the data.gov.sg key and the country sampling
+in one place.
 """
 
 import logging
@@ -235,8 +236,9 @@ async def forecast(lat: float, lon: float, units: str = "metric") -> dict:
 
 
 async def air_quality(lat: float, lon: float, label: str = "") -> dict | None:
-    """The countrywide air quality range from the site's /api/air, or None.
-    Never raises: a missing reading leaves the weather to stand on its own.
+    """The countrywide air quality range from the site's /api/air, with the
+    place's own region and every region's reading, or None. Never raises: a
+    missing reading leaves the weather to stand on its own.
 
     The label's trailing country code, when it has one, names the country the
     range covers. A shared pin has none, and the route works it out instead."""
@@ -258,15 +260,39 @@ def _range(r: dict) -> str:
     return str(r["low"]) if r["low"] == r["high"] else f"{r['low']}–{r['high']}"
 
 
+def _region(air: dict | None) -> dict | None:
+    """The reading for the region the place falls in, when the route gave one."""
+    region = (air or {}).get("region")
+    return region if region and region.get("level") in AIR_EMOJI else None
+
+
 def fmt_air(air: dict | None) -> str:
+    """The place's own region first, when there is one, then the wider range."""
     if not air:
         return "n/a"
+    region = _region(air)
+    if region:
+        return (f"{AIR_EMOJI[region['level']]} {_range(region)} {air['index']}, "
+                f"{region['band'].lower()}, {region['name']} region "
+                f"({_range(air)} {air['area']})")
     text = f"{AIR_EMOJI[air['level']]} {_range(air)} {air['index']}, {air['band'].lower()}"
     return text if air.get("area") in (None, "here") else f"{text}, {air['area']}"
 
 
 def fmt_pm25(air: dict | None) -> str:
-    return "n/a" if not air or not air.get("pm25") else f"{_range(air['pm25'])} µg/m³"
+    if not air or not air.get("pm25"):
+        return "n/a"
+    region = _region(air)
+    if region and region.get("pm25"):
+        return (f"{_range(region['pm25'])} µg/m³ {region['name']} "
+                f"({_range(air['pm25'])} {air['area']})")
+    return f"{_range(air['pm25'])} µg/m³"
+
+
+def air_regions(air: dict | None) -> list[dict]:
+    """Every region with a reading. One region alone is no breakdown at all."""
+    regions = [r for r in (air or {}).get("regions") or [] if r.get("level") in AIR_EMOJI]
+    return regions if len(regions) > 1 else []
 
 
 def data_credit(air: dict | None) -> str:
@@ -425,6 +451,29 @@ def format_nowcast(data: dict, place: str,
     if air:
         headline += f"\n\n{_air_line(air)}"
     return f"Two hour nowcast for {place}", headline, [], (["Rain", "mm"], rows)
+
+
+def format_air_regions(air: dict, place: str) -> tuple[str, str, list, tuple]:
+    """Every region's reading as a table, the place's own region pinned. The
+    caller checks air_regions first, so there is always more than one row."""
+    region = _region(air)
+    body = (f"{AIR_EMOJI[air['level']]} {_range(air)} {air['index']} {air['area']}, "
+            f"{air['band'].lower()}.")
+    if region:
+        body += f" {place} is in the {region['name']} region."
+    rows = [[f"{r['name'].capitalize()}{' 📍' if region and r['name'] == region['name'] else ''}",
+             f"{AIR_EMOJI[r['level']]} {_range(r)}",
+             r["band"],
+             _range(r["pm25"]) if r.get("pm25") else "n/a"]
+            for r in air_regions(air)]
+    return "Air quality by region", body, [], ([air["index"], "Band", "PM2.5"], rows)
+
+
+def air_regions_note(air: dict) -> str:
+    if air["source"] == "nea":
+        return "NEA's 24 hour PSI and one hour PM2.5 in µg/m³, by its five regions."
+    return ("Compass regions of the country, each the range across the points sampled "
+            "in it. PM2.5 in µg/m³.")
 
 
 def format_digest(data: dict, place: str, units: str,

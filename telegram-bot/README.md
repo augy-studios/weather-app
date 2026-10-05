@@ -3,8 +3,9 @@
 The [weather.uwuapps.org](https://weather.uwuapps.org) weather app, in a chat. It reads the
 same Open-Meteo data the web app reads and describes it in the same words: current
 conditions with air quality, the next 24 hours, a five day outlook, and a two hour
-precipitation nowcast. Air quality is the range across the whole country: NEA's own
-islandwide PSI and PM2.5 in Singapore, from data.gov.sg, and the US AQI elsewhere. It can also carry your saved places back and forth with the web app, and it
+precipitation nowcast. Air quality is the reading for the place's region alongside the
+range across the whole country: NEA's own PSI and PM2.5 for its five regions in Singapore,
+from data.gov.sg, and the US AQI elsewhere. It can also carry your saved places back and forth with the web app, and it
 can send you the day ahead every morning.
 
 Built on [Telethon](https://docs.telethon.dev/). Runs as a single Python process on a
@@ -33,6 +34,9 @@ come back here.
 - **Four views of one place.** Now, the next 24 hours, five days, and the two hour
   rain nowcast, switchable with the buttons under every reply. The Now view also
   carries the day at a glance: today's range, rain, strongest wind, sunrise and sunset.
+- **Air quality by region.** Every view leads with the reading for the place's own
+  region, then the islandwide or countrywide range. An **Air quality by region**
+  button lists every region side by side.
 - **Real headings and tables.** Replies are Telegram Rich Messages, so the hourly and
   daily views are proper tables rather than monospace text. An older client gets the
   same words as plain text.
@@ -279,7 +283,9 @@ forecast, a day for a geocode.
 Air quality is the exception, read from the site's `/api/air` with the same ten minute
 cache. That route holds the data.gov.sg key and does the real work: the islandwide PSI
 and PM2.5 range in Singapore, and elsewhere a US AQI range from Open-Meteo read at sample
-points across the whole country. A failed reading, or the site being down, drops the air
+points across the whole country. It also returns a reading per region: NEA's five in
+Singapore, and elsewhere north, south, east, west and central compass regions built
+from those sample points. A failed reading, or the site being down, drops the air
 quality out of the message rather than failing it.
 
 ## Updating

@@ -8,6 +8,11 @@
 // quality model, read at a grid of sample points across the country (see
 // lib/build-countries.mjs). A country too small for any sample point, or a point
 // in no country at all, gets the reading at the point itself.
+//
+// Alongside the range come `regions`, one reading per region, and `region`, the
+// one the point falls in. In Singapore those are NEA's own five. Elsewhere they
+// are compass regions of the country (see compassRegions), so they are only as
+// good as the sample points behind them.
 
 import COUNTRIES from '../lib/countries.js';
 
@@ -98,6 +103,67 @@ function range(values) {
   return finite.length ? { low: Math.min(...finite), high: Math.max(...finite) } : null;
 }
 
+// One region's entry, in the same shape as the top level range, or null when
+// none of its readings came back.
+function regionReading(name, indexValues, pm25Values, bands) {
+  const index = range(indexValues);
+  return index && { name, ...index, ...band(index.low, index.high, bands), pm25: range(pm25Values) };
+}
+
+// NEA's order, which the compass regions follow too.
+const REGION_ORDER = ['north', 'south', 'east', 'west', 'central'];
+
+// Fewer sample points than this and a country is not split into regions.
+const MIN_REGION_SAMPLES = 5;
+
+// A central disc holding about a fifth of the points, like each of the other
+// four. In a round country that is √0.2 of the radius, and the median distance
+// is √0.5 of it, so the disc ends at about 0.63 of the median distance.
+const CENTRAL_SHARE = 0.63;
+
+const median = values => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+
+// Longitude difference folded into -180..180, so Russia's Chukotka sits east.
+const dLon = (a, b) => ((a - b + 540) % 360) - 180;
+
+// The region name of every sample point, in the same order. Measured from the
+// median point rather than the middle of the bounding box, and scaled by the
+// median distance, so outlying parts like Alaska or French Guiana fold into the
+// region in their direction without dragging the centre or the scale with them.
+const _compass = new Map();
+function compassRegions(country) {
+  if (_compass.has(country.code)) return _compass.get(country.code);
+  const { samples } = country;
+  const clat = median(samples.map(s => s[0]));
+  const clon = median(samples.map(s => s[1]));
+  const k = Math.cos((clat * Math.PI) / 180);
+  const offsets = samples.map(([lat, lon]) => [dLon(lon, clon) * k, lat - clat]);
+  const reach = median(offsets.map(([x, y]) => Math.hypot(x, y)));
+  const names = offsets.map(([x, y]) => {
+    if (Math.hypot(x, y) < CENTRAL_SHARE * reach) return 'central';
+    if (Math.abs(y) >= Math.abs(x)) return y > 0 ? 'north' : 'south';
+    return x > 0 ? 'east' : 'west';
+  });
+  _compass.set(country.code, names);
+  return names;
+}
+
+// Index of the point nearest (lat, lon), on the same flattened scale.
+function nearest(points, lat, lon) {
+  const k = Math.cos((lat * Math.PI) / 180);
+  let best = -1;
+  let bestD = Infinity;
+  points.forEach(([plat, plon], i) => {
+    const d = (dLon(plon, lon) * k) ** 2 + (plat - lat) ** 2;
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  return best;
+}
+
 async function nea(path) {
   const headers = process.env.DATA_GOV_KEY ? { 'x-api-key': process.env.DATA_GOV_KEY } : {};
   const res = await fetch(`${NEA_BASE}/${path}`, { headers, signal: AbortSignal.timeout(8000) });
@@ -107,10 +173,19 @@ async function nea(path) {
   return j.data;
 }
 
-async function fromNea() {
+async function fromNea(lat, lon) {
   const [psi, pm25] = await Promise.all([nea('psi'), nea('pm25')]);
-  const index = range(Object.values(psi.items[0].readings?.psi_twenty_four_hourly || {}));
+  const psiBy = psi.items[0].readings?.psi_twenty_four_hourly || {};
+  const pm25By = pm25.items[0].readings?.pm25_one_hourly || {};
+  const index = range(Object.values(psiBy));
   if (!index) throw new Error('data.gov.sg PSI had no regional reading');
+
+  // The point's region is the one whose label NEA places nearest to it.
+  const located = (psi.regionMetadata || [])
+    .map(({ name, labelLocation: at }) =>
+      ({ at: [at?.latitude, at?.longitude], reading: regionReading(name, [psiBy[name]], [pm25By[name]], PSI_BANDS) }))
+    .filter(r => r.reading && r.at.every(Number.isFinite));
+  const here = nearest(located.map(r => r.at), lat, lon);
 
   return {
     source: 'nea',
@@ -118,18 +193,18 @@ async function fromNea() {
     area: 'islandwide',
     ...index,
     ...band(index.low, index.high, PSI_BANDS),
-    pm25: range(Object.values(pm25.items[0].readings?.pm25_one_hourly || {})),
-    time: psi.items[0].timestamp
+    pm25: range(Object.values(pm25By)),
+    time: psi.items[0].timestamp,
+    region: located[here]?.reading ?? null,
+    regions: located.map(r => r.reading)
   };
 }
 
-async function fromOpenMeteo(lat, lon, country) {
-  const countrywide = country?.samples.length > 0;
-  const points = countrywide ? country.samples : [[lat, lon]];
-
-  const key = countrywide ? country.code : `${lat.toFixed(2)},${lon.toFixed(2)}`;
+// The raw reading at every point, cached so that places in the same country
+// share it whichever region each one falls in.
+async function readPoints(key, points) {
   const hit = _cache.get(key);
-  if (hit && hit.expires > Date.now()) return hit.body;
+  if (hit && hit.expires > Date.now()) return hit.current;
 
   // One request for every point: Open-Meteo takes comma separated lists and
   // answers with an array, or a lone object for a single point.
@@ -143,23 +218,49 @@ async function fromOpenMeteo(lat, lon, country) {
   const j = await res.json();
   const current = (Array.isArray(j) ? j : [j]).map(r => r.current || {});
 
+  _cache.set(key, { current, expires: Date.now() + TTL_MS });
+  if (_cache.size > 500) {
+    for (const [k, v] of _cache) if (v.expires <= Date.now()) _cache.delete(k);
+  }
+  return current;
+}
+
+async function fromOpenMeteo(lat, lon, country) {
+  const countrywide = country?.samples.length > 0;
+  const points = countrywide ? country.samples : [[lat, lon]];
+  const current = await readPoints(
+    countrywide ? country.code : `${lat.toFixed(2)},${lon.toFixed(2)}`, points);
+
   const aqi = range(current.map(c => c.us_aqi));
   if (!aqi) throw new Error('Open-Meteo has no air quality for this place');
 
-  const body = {
+  let regions = [];
+  let region = null;
+  if (countrywide && points.length >= MIN_REGION_SAMPLES) {
+    const names = compassRegions(country);
+    regions = REGION_ORDER
+      .map(name => {
+        const inRegion = current.filter((_, i) => names[i] === name);
+        return regionReading(name, inRegion.map(c => c.us_aqi), inRegion.map(c => c.pm2_5), US_AQI_BANDS);
+      })
+      .filter(Boolean);
+    // The region of the sample point nearest the place, among those that read.
+    const reading = points.map((p, i) => Number.isFinite(current[i].us_aqi) ? p : [NaN, NaN]);
+    const name = names[nearest(reading, lat, lon)];
+    region = regions.find(r => r.name === name) ?? null;
+  }
+
+  return {
     source: 'open-meteo',
     index: 'US AQI',
     area: countrywide ? 'countrywide' : 'here',
     ...aqi,
     ...band(aqi.low, aqi.high, US_AQI_BANDS),
     pm25: range(current.map(c => c.pm2_5)),
-    time: current[0].time
+    time: current[0].time,
+    region,
+    regions
   };
-  _cache.set(key, { body, expires: Date.now() + TTL_MS });
-  if (_cache.size > 500) {
-    for (const [k, v] of _cache) if (v.expires <= Date.now()) _cache.delete(k);
-  }
-  return body;
 }
 
 export default async function handler(req, res) {
@@ -177,7 +278,7 @@ export default async function handler(req, res) {
   let country = null;
   if (inSingapore(lat, lon)) {
     try {
-      body = await fromNea();
+      body = await fromNea(lat, lon);
     } catch (err) {
       console.warn('NEA air quality failed, falling back to Open-Meteo:', err.message);
     }

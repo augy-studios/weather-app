@@ -127,6 +127,9 @@ async def weather_view(telegram_id: int, place: dict, view: str, note: str | Non
             views_row,
             [action, {"label": "Open in the app",
                       "url": f"{WEB_APP_URL}/?q={quote(place['name'])}"}],
+            [{"label": "Air quality by region", "kind": "air_regions",
+              "payload": {**short, "v": view}}]
+            if weather.air_regions(air) else [],
             [{"label": "Back to saved places", "kind": "fav_list", "payload": {}}]
             if from_favs else [],
         ],
