@@ -4,7 +4,29 @@ The (finally) open source version of the weather app! (As advertised on Augy Stu
 Currently live on [weather.uwuapps.org](https://weather.uwuapps.org)
 
 ## About
-Get the latest weather information based on your current location or the city you searched for. You can get the current weather information with an estimated 5-day forecast!
+Get the latest weather information based on your current location or the city you searched for. Four pages, picked from the tray on the right:
+
+- **Now**: current conditions, air quality and UV. In Singapore, the nearest NEA station's readings and NEA's 2-hour forecast for the area, plus a warning when lightning is close.
+- **Map**: the rain radar and, in Singapore, every station's temperature, humidity, rainfall and wind, NEA's forecast areas and lightning, with a scrubber through the last three hours.
+- **Forecast**: rain over the next 2 hours, the next 24 hours, and the days ahead. In Singapore, NEA's 24-hour forecast and 4-day outlook lead.
+- **Air & heat**: PSI or US AQI by region, the UV index through the day, and WBGT heat stress in Singapore.
+
+Lightning alerts notify you when NEA detects lightning near a saved place in Singapore, by web push and, for browsers linked to the bot, on Telegram.
+
+### Where the data comes from
+
+- Open-Meteo everywhere, and in Singapore wherever NEA can't answer.
+- NEA via data.gov.sg in Singapore: stations, forecasts, radar (70, 240 and 480 km), UV, WBGT, lightning, PSI and PM2.5.
+- RainViewer's radar outside NEA's 480 km reach, the last 2 hours. RainViewer's API is for personal and educational use only.
+- OpenStreetMap tiles under Leaflet.
+
+### Setting it up
+
+1. `npm install`, for `web-push`.
+2. Run `migrations/0001` and `0002` in the Supabase SQL editor. 0002 holds who asked for lightning alerts on Telegram.
+3. Set the variables in `.env.example` on the Vercel project. The new ones are `CRON_SECRET`, the Upstash pair (`KV_REST_API_URL`, `KV_REST_API_TOKEN`) and the VAPID trio (`npx web-push generate-vapid-keys`). Use a VAPID pair of this site's own, not sg-psi's.
+4. `vercel.json` schedules `/api/cron/collect` every minute. It checks for new lightning and sends alerts, and stores a snapshot of every station each five minutes, so the map can go back three hours. Without Upstash, the map's scrubber carries rainfall only for earlier times, and alerts are off.
+5. Bump `VERSION` in `sw.js` on every deploy, or nobody sees the update bar.
 
 ## How to Use: General Use
 ### Search for city

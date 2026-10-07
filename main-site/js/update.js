@@ -1,7 +1,10 @@
-// Service worker registration and the update bar. The one place the site
+// Service worker registration and the bar along the top. The one place the site
 // registers its worker, so the prompt has the registration to watch.
-// A new version never activates on its own: it waits until somebody presses
-// Reload. Plain script, not a module; publishes nothing.
+//
+// One bar, one state, one precedence order (update-bar-spec.md): being offline
+// outranks a new version being ready, and only the more urgent of the two draws.
+// A new version never activates on its own: it waits until somebody presses Reload.
+// Plain script, not a module; publishes nothing.
 
 (function () {
   const SW_URL = "/sw.js";
@@ -11,6 +14,8 @@
     ready: "A new version of UwU Weather is ready.",
     reload: "Reload",
     later: "Not now",
+    offlineLabel: "Offline",
+    offline: "You're offline. Showing the last weather saved on this device.",
   };
 
   let registration = null;
@@ -18,6 +23,7 @@
   let reloading = false;
   // For this page view only. Never stored: "Not now" means not now.
   let dismissed = false;
+  let offline = !navigator.onLine;
 
   function watchForUpdate() {
     if (!registration) return;
@@ -87,42 +93,78 @@
     });
   }
 
+  function state() {
+    if (offline) return "offline";
+    if (waitingWorker && !dismissed) return "update";
+    return null;
+  }
+
+  // The bar's height, as --notice-h, so the floating tray and the full screen map
+  // start below it rather than under it.
+  const sizer = new ResizeObserver(([entry]) => {
+    document.documentElement.style.setProperty("--notice-h", `${entry.target.offsetHeight}px`);
+  });
+
   function render() {
     const existing = document.querySelector(".update-notice:not(.is-leaving)");
+    const now = state();
 
-    if (!waitingWorker || dismissed) {
+    if (!now) {
       if (existing) {
+        sizer.disconnect();
+        document.documentElement.style.setProperty("--notice-h", "0px");
         existing.classList.add("is-leaving");
         existing.addEventListener("animationend", () => existing.remove(), { once: true });
       }
       return;
     }
+    if (existing?.dataset.state === now) return;
 
     const bar = existing ?? document.createElement("div");
     bar.className = "update-notice";
+    bar.dataset.state = now;
     bar.setAttribute("role", "status");
-    bar.setAttribute("aria-label", STRINGS.label);
-    bar.innerHTML = `
-      <div class="update-notice-inner">
-        <p>${STRINGS.ready}</p>
-        <button type="button" class="btn" data-sw-update>${STRINGS.reload}</button>
-        <button type="button" class="btn secondary" data-sw-later>${STRINGS.later}</button>
-      </div>
-    `;
 
-    bar.querySelector("[data-sw-update]").addEventListener("click", () => {
-      // The only place anything asks for skipWaiting. The reload happens on
-      // controllerchange, not here.
-      waitingWorker?.postMessage("skip-waiting");
-    });
+    if (now === "offline") {
+      bar.setAttribute("aria-label", STRINGS.offlineLabel);
+      bar.innerHTML = `<div class="update-notice-inner"><p>${STRINGS.offline}</p></div>`;
+    } else {
+      bar.setAttribute("aria-label", STRINGS.label);
+      bar.innerHTML = `
+        <div class="update-notice-inner">
+          <p>${STRINGS.ready}</p>
+          <button type="button" class="btn" data-sw-update>${STRINGS.reload}</button>
+          <button type="button" class="btn secondary" data-sw-later>${STRINGS.later}</button>
+        </div>
+      `;
 
-    bar.querySelector("[data-sw-later]").addEventListener("click", () => {
-      dismissed = true;
-      render();
-    });
+      bar.querySelector("[data-sw-update]").addEventListener("click", () => {
+        // The only place anything asks for skipWaiting. The reload happens on
+        // controllerchange, not here.
+        waitingWorker?.postMessage("skip-waiting");
+      });
 
-    if (!existing) document.body.prepend(bar);
+      bar.querySelector("[data-sw-later]").addEventListener("click", () => {
+        dismissed = true;
+        render();
+      });
+    }
+
+    if (!existing) {
+      document.body.prepend(bar);
+      sizer.observe(bar);
+    }
   }
+
+  window.addEventListener("offline", () => {
+    offline = true;
+    render();
+  });
+  window.addEventListener("online", () => {
+    offline = false;
+    render();
+  });
+  render();
 
   // Registration on load, not immediately: installing fetches everything the
   // worker precaches, and competing with the page's own first load makes a

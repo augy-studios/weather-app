@@ -25,7 +25,8 @@ export const T = {
   backupCodes: 'uwu_weather_backup_codes',
   backupRequests: 'uwu_weather_backup_requests',
   notices: 'uwu_weather_notices',
-  favourites: 'uwu_weather_favourites'
+  favourites: 'uwu_weather_favourites',
+  lightning: 'uwu_weather_lightning'
 };
 
 export const syncConfigured = Boolean(SUPABASE_URL && SUPABASE_SERVICE_KEY);

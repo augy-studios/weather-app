@@ -53,14 +53,14 @@
   <link rel="manifest" href="/manifest.json" />
   <meta charset="utf-8">
   <title>Weather | UwU Apps</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A simple weather app; view today's weather at a glance!">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Today's weather at a glance, with live rain radar, lightning alerts and NEA's own readings in Singapore.">
   <meta name="theme-color" content="#ccffcc" id="meta-theme-color">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="Weather | UwU Apps" />
   <meta property="og:site_name" content="UwU Apps" />
-  <meta property="og:description" content="A simple weather app; view today's weather at a glance!" />
+  <meta property="og:description" content="Today's weather at a glance, with live rain radar, lightning alerts and NEA's own readings in Singapore." />
   <link rel="apple-touch-icon" href="/weathericon3.png">
   <link rel="icon" href="/favicon.ico">
   <link rel="shortcut icon" href="/favicon.ico">
@@ -71,196 +71,330 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="/style.css">
-
-  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 </head>
 
 <body>
-  <header>
-    <div class="container">
-      <div class="brand">
-        <div class="logo" aria-hidden="true">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true">
-            <circle cx="12" cy="12" r="4.5" class="logo-circle" stroke-width="1.5" />
-            <g class="logo-rays" stroke-width="1.5" stroke-linecap="round">
-              <path d="M12 2.5v3" />
-              <path d="M12 18.5v3" />
-              <path d="M21.5 12h-3" />
-              <path d="M5.5 12h-3" />
-              <path d="M18.4 5.6l-2.1 2.1" />
-              <path d="M7.7 16.3l-2.1 2.1" />
-              <path d="M18.4 18.4l-2.1-2.1" />
-              <path d="M7.7 7.7L5.6 5.6" />
-            </g>
-          </svg>
-        </div>
-        <div class="brand-text">
-          <h1>Weather | UwU Apps</h1>
-          <small>Made with <span class="heart" data-icon="heart" aria-label="love" role="img"></span> by Augy</small>
-        </div>
-        <a class="btn icon coffee-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" title="Buy Augy a Coffee" aria-label="Buy Augy a Coffee">
-          <span data-icon="coffee" aria-hidden="true"></span>
-        </a>
-        <button class="icon-btn" id="syncBtn" type="button" aria-label="Sync favourites"
-          title="Sync favourites">
+  <!-- The nav, sg-psi's and wordrain-game's floating tray: the pages, then
+       alerts, share, sync and theme, as glass buttons top right. Slides off the
+       right edge, leaving the arrow tab. -->
+  <div class="hud-right">
+    <div id="tray" class="tray">
+      <button id="trayTab" class="tray-tab" type="button" aria-controls="trayButtons" aria-expanded="true" aria-label="Hide menu">
+        <span data-icon="chevron"></span>
+      </button>
+      <div id="trayButtons" class="tray-buttons">
+        <nav class="tray-views" role="tablist" aria-label="Pages" aria-orientation="vertical">
+          <button class="glass-btn" type="button" role="tab" id="tab-now" data-view="now" aria-controls="view-now" aria-selected="true" aria-label="Now" title="Now"><span data-icon="now"></span></button>
+          <button class="glass-btn" type="button" role="tab" id="tab-map" data-view="map" aria-controls="view-map" aria-selected="false" tabindex="-1" aria-label="Map" title="Map"><span data-icon="map"></span></button>
+          <button class="glass-btn" type="button" role="tab" id="tab-forecast" data-view="forecast" aria-controls="view-forecast" aria-selected="false" tabindex="-1" aria-label="Forecast" title="Forecast"><span data-icon="calendar"></span></button>
+          <button class="glass-btn" type="button" role="tab" id="tab-air" data-view="air" aria-controls="view-air" aria-selected="false" tabindex="-1" aria-label="Air and heat" title="Air and heat"><span data-icon="leaf"></span></button>
+        </nav>
+        <span class="tray-rule" aria-hidden="true"></span>
+        <button class="glass-btn" id="alertsBtn" type="button" aria-haspopup="dialog" aria-label="Lightning alerts" title="Lightning alerts">
+          <span data-icon="bell"></span>
+        </button>
+        <button class="glass-btn" id="shareBtn" type="button" aria-haspopup="dialog" aria-label="Share" title="Share">
+          <span data-icon="share"></span>
+        </button>
+        <button class="glass-btn" id="syncBtn" type="button" aria-haspopup="dialog" aria-label="Sync favourites" title="Sync favourites">
           <span data-icon="sync"></span>
         </button>
-        <button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">
+        <button class="glass-btn" id="themeBtn" type="button" aria-haspopup="dialog" aria-label="Theme" title="Theme">
           <span data-icon="sun"></span>
         </button>
       </div>
-
-      <div class="toolbar">
-        <div class="searchbar">
-          <input id="query" type="search" placeholder="Search city… (e.g. Singapore, Tokyo)"
-            autocomplete="off" list="suggestions" />
-          <datalist id="suggestions"></datalist>
-        </div>
-        <div class="search-actions">
-          <button class="btn icon" id="btn-search" title="Search">
-            <span data-icon="search" aria-hidden="true"></span>
-          </button>
-          <button class="btn icon secondary" id="btn-current" title="Use my location">
-            <span data-icon="crosshair" aria-hidden="true"></span>
-          </button>
-          <button class="btn icon" id="btn-units" title="Switch °C/°F">
-            <span data-icon="thermometer" aria-hidden="true"></span>
-            <span id="units-label">°C</span>
-          </button>
-          <button class="btn icon" id="btn-save" title="Save current location">
-            <span data-icon="star" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-
-      <div class="chips" id="saved"></div>
     </div>
-  </header>
+  </div>
 
   <main class="container">
-    <section class="grid">
-      <article class="card glass" id="card-current">
+    <header class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.5" class="logo-circle" stroke-width="1.5" />
+          <g class="logo-rays" stroke-width="1.5" stroke-linecap="round">
+            <path d="M12 2.5v3" />
+            <path d="M12 18.5v3" />
+            <path d="M21.5 12h-3" />
+            <path d="M5.5 12h-3" />
+            <path d="M18.4 5.6l-2.1 2.1" />
+            <path d="M7.7 16.3l-2.1 2.1" />
+            <path d="M18.4 18.4l-2.1-2.1" />
+            <path d="M7.7 7.7L5.6 5.6" />
+          </g>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Weather | UwU Apps</h1>
+        <small>Made with <span class="heart" data-icon="heart" aria-label="love" role="img"></span> by Augy</small>
+      </div>
+      <a class="icon-btn coffee-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" title="Buy Augy a Coffee" aria-label="Buy Augy a Coffee">
+        <span data-icon="coffee" aria-hidden="true"></span>
+      </a>
+    </header>
+
+    <!-- Where, on every page but the map. -->
+    <section class="placebar" aria-label="Place">
+      <form class="searchbar" id="searchForm" role="search">
+        <label for="query" class="sr-only">Search for a place</label>
+        <input id="query" type="search" placeholder="Search a city, e.g. Singapore, Tokyo" autocomplete="off" list="suggestions" enterkeyhint="search" />
+        <datalist id="suggestions"></datalist>
+        <button class="icon-btn" type="submit" title="Search" aria-label="Search">
+          <span data-icon="search"></span>
+        </button>
+      </form>
+      <div class="place-actions">
+        <button class="icon-btn" id="btn-current" type="button" title="Use my location" aria-label="Use my location">
+          <span data-icon="crosshair"></span>
+        </button>
+        <button class="icon-btn units-btn" id="btn-units" type="button" title="Switch °C and °F" aria-label="Switch °C and °F">
+          <span id="units-label">°C</span>
+        </button>
+        <button class="icon-btn" id="btn-save" type="button" title="Save this place" aria-label="Save this place" aria-pressed="false">
+          <span data-icon="star"></span>
+        </button>
+      </div>
+      <div class="chips" id="saved" aria-label="Saved places"></div>
+    </section>
+
+    <!-- Over the map on the Map page, at the top of the column everywhere else. -->
+    <div class="status" id="status">
+      <p id="statusText" role="status">Loading the weather.</p>
+      <button class="icon-btn small" id="refreshBtn" type="button" aria-label="Refresh" title="Refresh">
+        <span data-icon="refresh"></span>
+      </button>
+    </div>
+
+    <!-- ---------- Now ---------- -->
+    <section class="view" id="view-now" role="tabpanel" aria-labelledby="tab-now">
+      <article class="card glass">
         <div class="card-header">
-          <div class="card-title">Current weather</div>
-          <div class="muted" id="place-label">—</div>
+          <h2 class="card-title" id="place-label">--</h2>
+          <span class="muted" id="now-time"></span>
         </div>
         <div class="card-body">
           <div class="hero">
             <div>
-              <div class="temp" id="temp">—°</div>
-              <div class="sub" id="summary">—</div>
+              <p class="temp" id="temp">--</p>
+              <p class="sub" id="summary">--</p>
             </div>
-            <div class="big" id="icon" data-icon="clear" aria-label="Weather icon" role="img"></div>
+            <span class="big" id="icon" data-icon="clear" role="img" aria-label="Weather icon"></span>
           </div>
-          <div class="metrics">
-            <div class="metric"><span class="muted">Feels like</span><b id="apparent">—</b></div>
-            <div class="metric"><span class="muted">Humidity</span><b id="humidity">—</b></div>
-            <div class="metric"><span class="muted">Wind</span><b id="wind">—</b></div>
-            <div class="metric"><span class="muted">Pressure</span><b id="pressure">—</b></div>
-            <div class="metric">
-              <span class="muted" id="aqi-label">Air quality</span><b id="aqi" data-level="">—</b>
-              <small id="aqi-band"></small>
-            </div>
-            <div class="metric">
-              <span class="muted" id="pm25-label">PM2.5</span><b id="pm25">—</b>
-              <small id="pm25-wide"></small>
-            </div>
+          <div class="metrics" id="metrics">
+            <div class="metric"><span>Feels like</span><b id="apparent">--</b><small id="apparent-note"></small></div>
+            <div class="metric"><span>Humidity</span><b id="humidity">--</b><small id="humidity-note"></small></div>
+            <div class="metric"><span>Wind</span><b id="wind">--</b><small id="wind-note"></small></div>
+            <div class="metric"><span id="rain-label">Rain</span><b id="rain-now">--</b><small id="rain-note"></small></div>
+            <div class="metric"><span id="aqi-label">Air quality</span><b id="aqi" class="has-dot" data-level="">--</b><small id="aqi-band"></small></div>
+            <div class="metric"><span>UV index</span><b id="uv-now" class="has-dot" data-level="">--</b><small id="uv-now-band"></small></div>
           </div>
+          <p class="fine muted" id="now-source"></p>
         </div>
       </article>
 
-      <article class="card glass">
+      <!-- NEA's 2-hour forecast for the area, Singapore only. -->
+      <article class="card glass" id="nowcast-card" hidden>
         <div class="card-header">
-          <div class="card-title">2‑hour nowcast (15‑min)</div>
-          <div class="muted" id="nowcast-range">—</div>
+          <h2 class="card-title">Next 2 hours</h2>
+          <span class="muted" id="nowcast-valid"></span>
         </div>
         <div class="card-body">
-          <div id="nowcastPlot" style="height:160px;width:100%"></div>
-          <div class="muted" style="margin-top:8px">Bars show precip (mm) in the next ~2 hours. Zero bars = dry.</div>
-        </div>
-      </article>
-    </section>
-
-    <section class="row" style="margin-top:18px">
-      <article class="card glass">
-        <div class="card-header">
-          <div class="card-title">Next 24 hours</div>
-        </div>
-        <div class="card-body scroller" id="hourly"></div>
-      </article>
-      <article class="card glass">
-        <div class="card-header">
-          <div class="card-title">Next 5 days</div>
-        </div>
-        <div class="card-body scroller" id="daily"></div>
-      </article>
-    </section>
-
-    <section class="row" style="margin-top:18px">
-      <article class="card glass">
-        <div class="card-header">
-          <div class="card-title">Share</div>
-        </div>
-        <div class="card-body">
-          <div class="chips">
-            <button class="btn icon" id="share-device" title="Share via device">
-              <span data-icon="share" aria-hidden="true"></span>
-            </button>
-            <button class="btn icon secondary" data-share="tg" title="Share via Telegram">
-              <span data-icon="telegram" aria-hidden="true"></span>
-            </button>
-            <button class="btn icon secondary" data-share="x" title="Share via X">
-              <span data-icon="x" aria-hidden="true"></span>
-            </button>
-            <button class="btn icon secondary" data-share="wa" title="Share via WhatsApp">
-              <span data-icon="whatsapp" aria-hidden="true"></span>
-            </button>
-            <button class="btn icon secondary" data-share="fb" title="Share via Facebook">
-              <span data-icon="facebook" aria-hidden="true"></span>
-            </button>
-            <button class="btn icon" id="save-image" title="Save image">
-              <span data-icon="image" aria-hidden="true"></span>
-            </button>
-          </div>
-        </div>
-      </article>
-      <article class="card glass">
-        <div class="card-header">
-          <div class="card-title">Share preview</div>
-        </div>
-        <div class="card-body">
-          <div id="share-card">
-            <div class="brandline">
-              <strong>Weather | UwU Apps</strong>
-              <span class="muted" id="share-place">—</span>
-            </div>
-            <div id="share-art" aria-hidden="true"></div>
+          <div class="wx-row">
+            <span class="wx-icon big-ish" id="nowcast-icon" data-icon="partly-cloudy" aria-hidden="true"></span>
             <div>
-              <div class="bigtemp" id="share-temp">—°</div>
-              <div class="meta">
-                <span id="share-summary">—</span>
-                <span id="share-extra">—</span>
-              </div>
+              <p class="wx-row-title" id="nowcast-text">--</p>
+              <p class="muted" id="nowcast-area"></p>
             </div>
-            <footer>
-              <span class="muted" id="share-time">—</span>
-              <span class="muted" id="share-source">Data: Open‑Meteo</span>
-            </footer>
+          </div>
+        </div>
+      </article>
+
+      <!-- Lightning in the last half hour, near here. Singapore only. -->
+      <article class="card glass banner-card" id="lightning-card" hidden>
+        <div class="card-body wx-row">
+          <span class="wx-icon big-ish warn" data-icon="bolt" aria-hidden="true"></span>
+          <div>
+            <p class="wx-row-title" id="lightning-title">Lightning nearby</p>
+            <p class="muted" id="lightning-text"></p>
           </div>
         </div>
       </article>
     </section>
 
-    <p class="muted" style="margin-top:22px">
-      Sources: <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open‑Meteo</a>
-      (current, hourly, daily, 15‑min precipitation, air quality outside Singapore),
-      <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer">NEA via data.gov.sg</a>
-      (PSI and PM2.5 in Singapore)
-    </p>
+    <!-- ---------- Map ---------- -->
+    <!-- Fills the screen. The map sits behind everything; the controls float on it. -->
+    <section class="view" id="view-map" role="tabpanel" aria-labelledby="tab-map" hidden>
+      <div id="map" role="region" aria-label="Map with rain radar, station readings and lightning. The scrubber at the bottom moves through the last three hours."></div>
+      <div class="map-controls">
+        <div class="map-status glass" id="mapStatus">
+          <p id="mapStatusText" role="status">Loading the radar.</p>
+        </div>
+        <div class="segmented solid" id="mapMetric" role="group" aria-label="Readings on the pins">
+          <button type="button" data-metric="temp" aria-pressed="true" class="active"><span data-icon="thermometer"></span><span class="lbl">Temp</span></button>
+          <button type="button" data-metric="humidity" aria-pressed="false"><span data-icon="droplet"></span><span class="lbl">Humidity</span></button>
+          <button type="button" data-metric="rain" aria-pressed="false"><span data-icon="rain"></span><span class="lbl">Rain</span></button>
+          <button type="button" data-metric="wind" aria-pressed="false"><span data-icon="wind"></span><span class="lbl">Wind</span></button>
+          <button type="button" data-metric="forecast" aria-pressed="false"><span data-icon="partly-cloudy"></span><span class="lbl">Forecast</span></button>
+        </div>
+        <div class="map-toggles">
+          <button type="button" class="toggle-btn solid active" id="mapRadar" aria-pressed="true"><span data-icon="radar"></span><span class="lbl">Radar</span></button>
+          <button type="button" class="toggle-btn solid active" id="mapLightning" aria-pressed="true"><span data-icon="bolt"></span><span class="lbl">Lightning</span></button>
+        </div>
+        <p class="map-note" id="forecastNote" hidden></p>
+      </div>
+
+      <!-- The last three hours, five minutes a step. -->
+      <div class="timeline glass" id="timeline">
+        <div class="tl-row">
+          <button class="icon-btn" id="tlPlay" type="button" aria-label="Play the last three hours">
+            <span data-icon="play"></span>
+          </button>
+          <div class="tl-track">
+            <label for="tlRange" class="sr-only">Time on the map</label>
+            <input type="range" id="tlRange" min="0" max="0" step="1" value="0">
+            <div class="tl-scale" aria-hidden="true"><span id="tlStart"></span><span id="tlEnd"></span></div>
+          </div>
+          <div class="tl-when">
+            <strong id="tlTime">--</strong>
+            <span id="tlAgo"></span>
+          </div>
+          <button class="toggle-btn" id="tlLive" type="button" disabled>Now</button>
+        </div>
+        <ul class="radar-legend" id="radarLegend" aria-label="Radar rain intensity" hidden>
+          <li><span class="swatch-key" style="background:var(--radar-light)"></span>Light</li>
+          <li><span class="swatch-key" style="background:var(--radar-moderate)"></span>Moderate</li>
+          <li><span class="swatch-key" style="background:var(--radar-heavy)"></span>Heavy</li>
+          <li><span class="swatch-key" style="background:var(--radar-intense)"></span>Very heavy</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ---------- Forecast ---------- -->
+    <section class="view" id="view-forecast" role="tabpanel" aria-labelledby="tab-forecast" hidden>
+      <article class="card glass">
+        <div class="card-header">
+          <h2 class="card-title">Rain, next 2 hours</h2>
+          <span class="muted" id="rain-range"></span>
+        </div>
+        <div class="card-body">
+          <p class="muted" id="rain-summary"></p>
+          <div class="chart-box"><canvas id="rainChart"></canvas></div>
+          <ul class="chart-legend" aria-label="Rain intensity, per fifteen minutes">
+            <li><span class="swatch-key" style="background:var(--rain-1)"></span>Light, under 0.5 mm</li>
+            <li><span class="swatch-key" style="background:var(--rain-2)"></span>Moderate</li>
+            <li><span class="swatch-key" style="background:var(--rain-3)"></span>Heavy, over 2 mm</li>
+            <li><span class="swatch-key" style="background:var(--rain-4)"></span>Very heavy, over 5 mm</li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="card glass">
+        <div class="card-header">
+          <h2 class="card-title">Next 24 hours</h2>
+        </div>
+        <div class="card-body">
+          <div class="scroller" id="hourly" tabindex="0" aria-label="Hourly forecast, scrolls sideways"></div>
+        </div>
+      </article>
+
+      <!-- NEA's own 24-hour forecast for the region, Singapore only. -->
+      <article class="card glass" id="nea24-card" hidden>
+        <div class="card-header">
+          <h2 class="card-title" id="nea24-title">Next 24 hours, NEA</h2>
+          <span class="muted" id="nea24-time"></span>
+        </div>
+        <div class="card-body">
+          <p class="muted" id="nea24-general"></p>
+          <ul class="period-list" id="nea24-periods"></ul>
+        </div>
+      </article>
+
+      <article class="card glass">
+        <div class="card-header">
+          <h2 class="card-title">Next days</h2>
+          <span class="muted" id="daily-source"></span>
+        </div>
+        <div class="card-body">
+          <ul class="day-list" id="daily"></ul>
+        </div>
+      </article>
+    </section>
+
+    <!-- ---------- Air & heat ---------- -->
+    <section class="view" id="view-air" role="tabpanel" aria-labelledby="tab-air" hidden>
+      <article class="card glass">
+        <div class="card-header">
+          <h2 class="card-title" id="air-title">Air quality</h2>
+          <span class="muted" id="air-time"></span>
+        </div>
+        <div class="card-body">
+          <div class="hero">
+            <p class="hero-value"><span id="air-range">--</span> <span class="unit" id="air-index"></span></p>
+            <p class="band-chip" id="air-band" hidden></p>
+          </div>
+          <p class="muted" id="air-note"></p>
+          <p class="muted">PM2.5 <strong class="ink" id="air-pm25">--</strong> µg/m³</p>
+          <ul class="region-list" id="air-regions"></ul>
+        </div>
+      </article>
+
+      <article class="card glass">
+        <div class="card-header">
+          <h2 class="card-title">UV index</h2>
+          <span class="muted" id="uv-time"></span>
+        </div>
+        <div class="card-body">
+          <div class="hero">
+            <p class="hero-value" id="uv-value">--</p>
+            <p class="band-chip" id="uv-band" hidden></p>
+          </div>
+          <p class="muted" id="uv-advice"></p>
+          <div class="chart-box short"><canvas id="uvChart"></canvas></div>
+          <p class="fine muted" id="uv-source"></p>
+        </div>
+      </article>
+
+      <article class="card glass">
+        <div class="card-header">
+          <h2 class="card-title">Heat stress</h2>
+          <span class="muted" id="heat-time"></span>
+        </div>
+        <div class="card-body">
+          <div id="heat-sg">
+            <div class="hero">
+              <p class="hero-value"><span id="heat-value">--</span><span class="unit">°C WBGT</span></p>
+              <p class="band-chip" id="heat-band" hidden></p>
+            </div>
+            <p class="muted" id="heat-advice"></p>
+            <p class="muted" id="heat-station"></p>
+            <ul class="region-list" id="heat-list"></ul>
+          </div>
+          <p class="muted" id="heat-elsewhere" hidden>
+            Wet bulb globe temperature, which counts sun, wind and humidity as well as heat,
+            is measured by NEA in Singapore only. Feels like here: <strong class="ink" id="heat-feels">--</strong>.
+          </p>
+        </div>
+      </article>
+    </section>
+
+    <footer class="site-footer">
+      <p class="muted">
+        Forecasts from <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>.
+        In Singapore, readings, forecasts, radar and lightning from NEA via
+        <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer">data.gov.sg</a>, with Open-Meteo filling any gap.
+        Radar elsewhere from <a class="link" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a>.
+        Map tiles from <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.
+      </p>
+      <p class="muted">
+        <a class="link" href="https://augystudios.com/terms" target="_blank" rel="noopener noreferrer">Terms</a> ·
+        <a class="link" href="https://augystudios.com/privacy" target="_blank" rel="noopener noreferrer">Privacy</a> ·
+        <a class="link" href="https://forms.gle/4wKTdjgiC6MGX1aN8" target="_blank" rel="noopener noreferrer">Report an issue</a>
+      </p>
+    </footer>
   </main>
 
+  <!-- ---------- Theme ---------- -->
   <div class="modal-backdrop hidden" id="themeModal">
     <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="themeModalTitle">
       <div class="modal-head">
@@ -281,6 +415,80 @@
     </div>
   </div>
 
+  <!-- ---------- Lightning alerts ---------- -->
+  <div class="modal-backdrop hidden" id="alertsModal">
+    <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="alertsModalTitle">
+      <div class="modal-head">
+        <h2 id="alertsModalTitle">Lightning alerts</h2>
+        <button class="icon-btn small" type="button" data-close-modal="alertsModal" aria-label="Close">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <p class="muted">A notification when NEA detects lightning near your saved places in Singapore, even with UwU Weather closed.</p>
+
+      <p class="modal-section-label">Watching</p>
+      <ul class="watch-list" id="alertPlaces" hidden></ul>
+      <p class="muted fine" id="alertOthers" hidden></p>
+
+      <p class="modal-section-label">When lightning is within</p>
+      <div class="choice-grid thirds" id="alertRadius" role="group" aria-label="Distance">
+        <button type="button" class="choice" data-radius="5" aria-pressed="false">5 km</button>
+        <button type="button" class="choice" data-radius="10" aria-pressed="false">10 km</button>
+        <button type="button" class="choice" data-radius="20" aria-pressed="false">20 km</button>
+      </div>
+
+      <button type="button" class="btn alerts-toggle" id="alertsToggle">Turn alerts on</button>
+      <button type="button" class="btn secondary" id="alertsTest" hidden>Send test alert</button>
+      <p class="alerts-note" id="alertsNote" role="status"></p>
+
+      <p class="modal-section-label">Telegram</p>
+      <div id="tgLinked" hidden>
+        <button type="button" class="btn secondary" id="tgToggle">Send them on Telegram too</button>
+        <p class="alerts-note" id="tgNote" role="status"></p>
+      </div>
+      <p class="muted fine" id="tgUnlinked">Link this browser to the Telegram bot under Sync favourites, and the bot can send these too.</p>
+    </div>
+  </div>
+
+  <!-- ---------- Share ---------- -->
+  <div class="modal-backdrop hidden" id="shareModal">
+    <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+      <div class="modal-head">
+        <h2 id="shareModalTitle">Share</h2>
+        <button class="icon-btn small" type="button" data-close-modal="shareModal" aria-label="Close">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <div id="share-card">
+        <div class="brandline">
+          <strong>Weather | UwU Apps</strong>
+          <span id="share-place">--</span>
+        </div>
+        <div id="share-art" aria-hidden="true"></div>
+        <div>
+          <div class="bigtemp" id="share-temp">--</div>
+          <div class="meta">
+            <span id="share-summary">--</span>
+            <span id="share-extra">--</span>
+          </div>
+        </div>
+        <footer>
+          <span id="share-time">--</span>
+          <span id="share-source">Data: Open-Meteo</span>
+        </footer>
+      </div>
+      <div class="share-actions">
+        <button class="icon-btn" id="share-device" type="button" title="Share via device" aria-label="Share via device"><span data-icon="share"></span></button>
+        <button class="icon-btn" data-share="tg" type="button" title="Share via Telegram" aria-label="Share via Telegram"><span data-icon="telegram"></span></button>
+        <button class="icon-btn" data-share="x" type="button" title="Share via X" aria-label="Share via X"><span data-icon="x"></span></button>
+        <button class="icon-btn" data-share="wa" type="button" title="Share via WhatsApp" aria-label="Share via WhatsApp"><span data-icon="whatsapp"></span></button>
+        <button class="icon-btn" data-share="fb" type="button" title="Share via Facebook" aria-label="Share via Facebook"><span data-icon="facebook"></span></button>
+        <button class="icon-btn" id="save-image" type="button" title="Save image" aria-label="Save image"><span data-icon="image"></span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---------- Sync ---------- -->
   <div class="modal-backdrop hidden" id="syncModal">
     <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="syncModalTitle">
       <div class="modal-head">
@@ -340,11 +548,17 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
+  <script src="/vendor/leaflet/leaflet.js" defer></script>
+  <script src="/vendor/chartjs/chart.umd.min.js" defer></script>
   <script src="/js/icons.js" defer></script>
   <script src="/js/ui.js" defer></script>
   <script src="/js/theme.js" defer></script>
+  <script src="/js/wx.js" defer></script>
   <script src="/js/sync.js" defer></script>
+  <script src="/js/charts.js" defer></script>
+  <script src="/js/map.js" defer></script>
+  <script src="/js/alerts.js" defer></script>
   <script src="/script.js" defer></script>
   <script src="/js/update.js" defer></script>
 </body>

@@ -22,6 +22,25 @@ button {
 }
 button:disabled { cursor: not-allowed; opacity: 0.6; }
 
+h1, h2, h3 { font-weight: normal; }
+ul, ol { list-style: none; }
+
+[hidden] { display: none !important; }
+
+:focus-visible {
+  outline: 2px solid var(--brand-ink);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -58,6 +77,30 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
   --warn: #a24b08;
   --busy: #627288;
   --error: #b91c1c;
+
+  /* Severity, Good to Hazardous, shared by PSI, US AQI, UV and heat stress.
+     Fixed-meaning accents like the footer heart: they must read as the same
+     severity on every brand colour. Always shown beside the band's name, never
+     as colour alone. */
+  --band-1: #2f9e44;
+  --band-2: #e6b800;
+  --band-3: #f08c00;
+  --band-4: #e03131;
+  --band-5: #8e44ad;
+  --band-6: #a3123a;
+
+  /* Rain per fifteen minutes, for the chart and the gauges on the map. Literal
+     colours rather than color-mix, because Chart.js draws on a canvas, which
+     can't resolve a mix. Every bar also has a tooltip and the chart a summary. */
+  --rain-0: #c9d2cc;
+  --rain-1: #3aa6c9;
+  --rain-2: #2a63c4;
+  --rain-3: #e67700;
+  --rain-4: #d6336c;
+
+  /* The chart tooltip, an inverted chip. */
+  --tooltip-bg: rgba(18, 24, 21, 0.92);
+  --tooltip-ink: #eef2ef;
 }
 
 :root[data-mode="dark"] {
@@ -73,6 +116,23 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
   --warn: #fbbf24;
   --busy: #94a3b8;
   --error: #fa9696;
+
+  --band-1: #3fbf5a;
+  --band-2: #f2c94c;
+  --band-3: #f59f3a;
+  --band-4: #f06060;
+  /* The light steps would sit under 3:1 on the dark page. */
+  --band-5: #b67ad0;
+  --band-6: #e0507a;
+
+  --rain-0: #3a443e;
+  --rain-1: #5cc4e6;
+  --rain-2: #5b8ff0;
+  --rain-3: #f59f3a;
+  --rain-4: #f06595;
+
+  --tooltip-bg: rgba(238, 242, 239, 0.95);
+  --tooltip-ink: #121815;
 }
 
 /* Same in both modes: brand tints are pale whatever the mode. */
@@ -86,18 +146,35 @@ button:disabled { cursor: not-allowed; opacity: 0.6; }
      there in dark mode, since the strong surface lightens the backdrop. */
   --muted-strong: color-mix(in srgb, var(--ink) 70%, transparent);
 
-  --radius: 20px;
+  --page-bg: color-mix(in srgb, var(--brand) 10%, var(--bg));
+  /* Over map tiles a translucent surface isn't enough: the tiles show through. */
+  --surface-solid: color-mix(in srgb, var(--page-bg) 90%, transparent);
+
+  /* NEA's radar legend, from WeatherRadarImages.json. Fixed meaning: the
+     colours of the radar image itself. */
+  --radar-light: #00babf;
+  --radar-moderate: #ffdc00;
+  --radar-heavy: #ff1f00;
+  --radar-intense: #d200a5;
+
+  /* Where the floating controls start: under the update bar when there is
+     one, which already clears the notch, or under the notch. */
+  --hud-top: max(calc(var(--notice-h, 0px) + 14px), calc(env(safe-area-inset-top) + 14px));
+  --hud-edge: max(16px, calc(env(safe-area-inset-right) + 16px));
+  --hud-edge-left: max(16px, calc(env(safe-area-inset-left) + 16px));
+  --hud-bottom: max(14px, calc(env(safe-area-inset-bottom) + 10px));
+  --glass-btn: 44px;
+
   --radius-sm: 12px;
-  --radius-pill: 999px;
 }
 
 /* flat, static colour derived from theme, no gradients */
 body {
-  background-color: color-mix(in srgb, var(--brand) 10%, var(--bg));
+  background-color: var(--page-bg);
   color: var(--ink);
   min-height: 100vh;
   overflow-x: hidden;
-  line-height: 1.5;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.25s ease, color 0.25s ease;
@@ -118,23 +195,28 @@ body {
   box-shadow: var(--shadow);
 }
 
-/* ---- icon button (theme trigger, modal close) ---- */
+/* ---- icon button ---- */
 .icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 42px;
   height: 42px;
   border-radius: 14px;
   background: var(--surface-strong);
   border: 1px solid var(--surface-border);
   color: var(--ink);
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 .icon-btn:hover { transform: translateY(-1px); }
 .icon-btn svg { width: 20px; height: 20px; }
+.icon-btn > [data-icon] { display: inline-flex; }
 .icon-btn.small { width: 34px; height: 34px; }
 .icon-btn.small svg { width: 16px; height: 16px; }
+
+.icon-btn.busy svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---- modal shell ---- */
 .modal-backdrop {
@@ -213,12 +295,13 @@ body.modal-open { overflow: hidden; }
   padding: 8px;
   border-radius: 10px;
   font-size: 0.85rem;
-  /* --muted-strong, not --muted: the toggle's --surface stacks on the
-     modal's --surface-strong, and plain --muted lands at 4.0:1 in dark. */
+  /* --muted-strong, not --muted: the toggle's --surface stacks on the modal's
+     --surface-strong, and plain --muted lands at 4.0:1 in dark. */
   color: var(--muted-strong);
   transition: background 0.15s ease, color 0.15s ease;
 }
 .mode-btn svg { width: 16px; height: 16px; }
+.mode-btn > [data-icon] { display: inline-flex; }
 .mode-btn.active {
   background: var(--brand-fill);
   color: var(--on-brand);
@@ -234,75 +317,6 @@ body.modal-open { overflow: hidden; }
   font-size: 0.85rem;
   color: var(--muted);
 }
-
-/* ---- sync panel ---- */
-[hidden] { display: none !important; }
-
-.sync-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-/* Same treatment as the search field, which is the only other input on the
-   page. Kept as its own rule so the search bar's layout stays untouched. */
-.sync-row input[type="text"] {
-  flex: 1;
-  min-width: 0;
-  padding: 11px 16px;
-  border-radius: var(--radius-sm);
-  outline: none;
-  border: 1px solid var(--surface-border);
-  background: var(--surface);
-  font-size: 14px;
-  color: var(--ink);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
-}
-.sync-row input[type="text"]:focus {
-  border-color: var(--brand-ink);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-ink) 25%, transparent);
-}
-.sync-row input[type="text"]::placeholder { color: var(--muted-strong); opacity: 1; }
-
-.sync-hint { font-size: 0.8rem; }
-
-/* Backup codes are read off the screen and copied by hand, so they get a
-   monospace face and enough tracking to tell 8 from B at a glance. */
-.code-list {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-  margin: 4px 0 10px;
-}
-.code-list li {
-  padding: 8px 10px;
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  border: 1px solid var(--surface-border);
-  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: 0.9rem;
-  letter-spacing: 0.06em;
-  text-align: center;
-  user-select: text;
-  -webkit-user-select: text;
-}
-.code-list li.spent { opacity: 0.45; text-decoration: line-through; }
-
-.sync-message {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background: var(--brand-fill);
-  color: var(--on-brand);
-  font-size: 0.85rem;
-}
-.sync-message[data-tone="bad"] {
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--surface-border);
-}
-
-#sync-setup > .btn, #sync-linked > .btn { width: 100%; justify-content: center; }
 
 /* ---- swatch grid ---- */
 .swatch-grid {
@@ -340,24 +354,16 @@ body.modal-open { overflow: hidden; }
   flex-shrink: 0;
 }
 
-/* ---- header ---- */
-header {
+/* ---- update bar ---- */
+/* Above everything, quieter than the page, and tinted enough to read as a
+   notice. The tint is --brand-ink rather than --brand: the pastel swatches all
+   but vanish at this strength, in dark mode most of all. Text stays --ink.
+   Sticky, so the floating tray and the map can sit under it (--notice-h). */
+.update-notice {
   position: sticky;
   top: 0;
-  z-index: 100;
-  background: var(--surface-strong);
-  backdrop-filter: blur(18px) saturate(150%);
-  -webkit-backdrop-filter: blur(18px) saturate(150%);
-  border-bottom: 1px solid var(--surface-border);
-}
-
-/* ---- update bar ---- */
-/* Above the header, quieter than it, and tinted enough to read as a notice.
-   The tint is --brand-ink rather than --brand: the pastel swatches all but
-   vanish at this strength, in dark mode most of all. Text stays --ink, which
-   clears AA on a tint this light in both modes. */
-.update-notice {
-  background: color-mix(in srgb, var(--brand-ink) 12%, transparent);
+  z-index: 900;
+  background: color-mix(in srgb, var(--brand-ink) 12%, var(--page-bg));
   border-bottom: 1px solid var(--surface-border);
   color: var(--ink);
   font-size: 0.875rem;
@@ -369,9 +375,9 @@ header {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  max-width: 1100px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 0.5rem 20px;
+  padding: 0.5rem 14px;
   /* Under the notch on a phone, where the bar is the topmost thing on screen. */
   padding-top: max(0.5rem, env(safe-area-inset-top));
 }
@@ -386,33 +392,133 @@ header {
   to { opacity: 0; transform: translateY(-6px); }
 }
 
+/* ---- the floating tray: the nav (sg-psi's and wordrain-game's) ---- */
+
+.glass-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--glass-btn);
+  height: var(--glass-btn);
+  border-radius: 14px;
+  background: var(--surface);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.glass-btn:hover { transform: translateY(-1px); background: var(--surface-strong); }
+.glass-btn svg { width: 22px; height: 22px; }
+.glass-btn > [data-icon] { display: inline-flex; }
+
+/* The page on screen. Tracks the brand swatch, with --on-brand on it. */
+.glass-btn[aria-selected="true"],
+.glass-btn[aria-selected="true"]:hover {
+  background: var(--brand-fill);
+  color: var(--on-brand);
+}
+
+/* Top right, over everything but the modals and the update bar. */
+.hud-right {
+  position: fixed;
+  z-index: 800;
+  top: var(--hud-top);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+  transition: top 0.2s ease;
+}
+.hud-right > * { pointer-events: auto; }
+
+/* The tray: a column of glass buttons with an arrow tab beside it. Collapsed,
+   the buttons slide off the right edge and the tab is left peeking out. */
+.tray {
+  --tray-shift: calc(var(--glass-btn) + 8px + var(--hud-edge));
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tray.collapsed { transform: translateX(var(--tray-shift)); }
+
+.tray-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: var(--glass-btn);
+  border-radius: 12px;
+  background: var(--surface);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  transition: border-radius 0.22s ease;
+}
+.tray-tab > [data-icon] { display: inline-flex; }
+.tray-tab svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.22s ease;
+}
+/* At the edge it is a tab, flat on the side the screen cuts off. */
+.tray.collapsed .tray-tab { border-radius: 12px 0 0 12px; border-right: none; }
+.tray.collapsed .tray-tab svg { transform: rotate(180deg); }
+
+.tray-buttons,
+.tray-views {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.tray-buttons {
+  margin-right: var(--hud-edge);
+  transition: opacity 0.22s ease;
+}
+.tray.collapsed .tray-buttons { opacity: 0; }
+
+/* Between the pages and the panels. */
+.tray-rule {
+  width: 24px;
+  height: 1px;
+  margin: 2px 0;
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
+}
+
 /* ---- layout ---- */
 .container {
-  max-width: 1100px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 14px 20px;
+  padding: 14px;
+  padding-bottom: 48px;
 }
 
-main { padding: 24px 0 72px; }
-
-.grid {
-  display: grid;
-  gap: 18px;
-  grid-template-columns: 1.2fr 1fr;
+/* Where the column would run under the open tray, it makes room for it; the
+   arrow tab alone only needs the brand line kept clear. */
+@media (max-width: 920px) {
+  body.tray-open main.container { padding-right: calc(var(--glass-btn) + var(--hud-edge) + 12px); }
+  /* The arrow tab sits level with the brand line, open or closed. Qualified
+     so it outranks the .brand rule further down. */
+  body .brand { padding-right: 34px; }
 }
 
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
+.view:not([hidden]) { animation: view-in 0.2s ease; }
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(6px); }
 }
 
 /* ---- brand ---- */
 .brand {
   display: flex;
   align-items: center;
-  gap: 13px;
-  padding: 8px 0 4px;
+  gap: 12px;
+  padding: 6px 0 12px;
 }
 
 .logo {
@@ -424,271 +530,345 @@ main { padding: 24px 0 72px; }
   border-radius: 14px;
   background: var(--brand-fill);
   border: 1px solid var(--surface-border);
-  transition: transform 0.15s ease;
 }
-
-.logo:hover { transform: scale(1.06); }
-
-.logo-circle { fill: none; stroke: var(--on-brand); }
+.logo-circle,
 .logo-rays { fill: none; stroke: var(--on-brand); }
 
+.brand-text { flex: 1; min-width: 0; }
 .brand-text h1 {
-  font-size: 20px;
-  font-weight: 400;
+  font-size: 1.25rem;
   letter-spacing: 0.2px;
   color: var(--ink);
 }
-
 .brand-text small {
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
-/* Fixed-meaning accent: the byline heart must read as a heart on every
-   brand colour, so it does not use a theme token. */
+/* Fixed-meaning accent: the byline heart must read as a heart on every brand
+   colour, so it does not use a theme token. */
 .heart { color: #34c759; display: inline-flex; }
 .heart svg { width: 13px; height: 13px; }
 
-.coffee-btn { margin-left: auto; }
-
-/* ---- toolbar ---- */
-.toolbar {
+/* ---- place bar ---- */
+.placebar {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 10px;
-  margin-top: 10px;
-  align-items: end;
-}
-
-.searchbar { display: flex; flex: 1 1 auto; }
-
-.search-actions {
-  display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  margin-bottom: 12px;
 }
+.searchbar { display: flex; gap: 8px; min-width: 0; }
+.place-actions { display: flex; gap: 8px; }
+.placebar .chips { grid-column: 1 / -1; }
 
-/* ---- input ---- */
 input[type="search"] {
-  width: 100%;
-  padding: 11px 16px;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 14px;
   border-radius: var(--radius-sm);
   outline: none;
   border: 1px solid var(--surface-border);
   background: var(--surface-strong);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  font-size: 14px;
+  font-size: 0.95rem;
   color: var(--ink);
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
-
 input[type="search"]:focus {
   border-color: var(--brand-ink);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-ink) 25%, transparent);
 }
-
 input[type="search"]::placeholder { color: var(--muted-strong); opacity: 1; }
 
-/* ---- buttons ---- */
-.btn {
-  appearance: none;
-  border: 1px solid var(--surface-border);
-  background: var(--surface-strong);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  color: var(--ink);
-  padding: 11px 18px;
-  border-radius: var(--radius-pill);
-  font-size: 14px;
-  transition: transform 0.12s ease, background 0.14s ease, color 0.14s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
+.units-btn { font-size: 0.95rem; }
+#btn-save[aria-pressed="true"] { background: var(--brand-fill); color: var(--on-brand); }
+#btn-save[aria-pressed="true"] svg { fill: currentColor; }
 
-.btn svg { width: 18px; height: 18px; }
-.btn > [data-icon] { display: inline-flex; }
-
-.btn:hover {
-  transform: translateY(-1px);
-  background: var(--brand-fill);
-  color: var(--on-brand);
-}
-
-.btn:active { transform: translateY(0); }
-
-.btn.secondary { background: var(--surface); }
-.btn.secondary:hover { background: var(--brand-fill); }
-
-.btn.icon { padding: 11px 14px; }
-
-/* ---- chips ---- */
+/* ---- saved places ---- */
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
 }
+.chips:empty { display: none; }
 
 .chip {
-  background: var(--surface-strong);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--surface-border);
-  padding: 4px 4px 4px 12px;
-  border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 13px;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  border: 1px solid var(--surface-border);
+  font-size: 0.85rem;
 }
+.chip[aria-current="true"] { background: var(--brand-fill); }
+.chip[aria-current="true"] button { color: var(--on-brand); }
 
 .chip button {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 13px;
   padding: 4px 8px;
+  border-radius: 999px;
   color: var(--muted-strong);
-  border-radius: var(--radius-pill);
   transition: color 0.14s ease, background 0.14s ease;
 }
-
-.chip button:first-child { color: var(--ink); }
-
-.chip button:hover {
-  color: var(--on-brand);
-  background: var(--brand-fill);
-}
-
+.chip button:first-child { color: var(--ink); padding-left: 10px; }
+.chip button:hover { color: var(--on-brand); background: var(--brand-fill-strong); }
 .chip button svg { width: 13px; height: 13px; }
 .chip button [data-icon] { display: inline-flex; }
 
-/* ---- cards ---- */
-.card {
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.2s ease;
+/* ---- status line ---- */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.status p { flex: 1; min-width: 0; }
+.status[data-tone="bad"] { color: var(--error); }
+
+/* ---- buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--surface-border);
+  background: var(--brand-fill);
+  color: var(--on-brand);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  transition: transform 0.12s ease, background 0.15s ease;
+}
+.btn svg { width: 18px; height: 18px; }
+.btn > [data-icon] { display: inline-flex; }
+.btn:hover { transform: translateY(-1px); background: var(--brand-fill-strong); }
+.btn:active { transform: translateY(0); }
+.btn.secondary { background: var(--surface-strong); color: var(--ink); }
+.btn.secondary:hover { background: var(--brand-fill); color: var(--on-brand); }
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+}
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: var(--muted-strong);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.segmented button svg { width: 15px; height: 15px; }
+.segmented button > [data-icon] { display: inline-flex; }
+.segmented button.active {
+  background: var(--brand-fill);
+  color: var(--on-brand);
 }
 
-.card:hover { transform: translateY(-2px); }
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--surface-strong);
+  border: 1px solid var(--surface-border);
+  font-size: 0.85rem;
+  color: var(--muted-strong);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.toggle-btn > [data-icon] { display: inline-flex; }
+.toggle-btn svg { width: 16px; height: 16px; }
+.toggle-btn.active {
+  background: var(--brand-fill);
+  color: var(--on-brand);
+}
+
+/* ---- cards ---- */
+.card { margin-bottom: 14px; overflow: hidden; }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 18px;
+  padding: 12px 18px;
   border-bottom: 1px solid var(--surface-border);
 }
-
 .card-title {
-  font-size: 14px;
-  font-weight: 400;
+  font-size: 0.95rem;
   color: var(--brand-ink);
-  letter-spacing: 0.2px;
 }
+.card-body { padding: 16px 18px; }
+.card-body > * + * { margin-top: 10px; }
 
-.card-body { padding: 18px; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+.fine { font-size: 0.78rem; }
+.ink { color: var(--ink); font-weight: normal; }
+.unit { font-size: 0.45em; color: var(--muted); letter-spacing: 0; margin-left: 4px; }
 
-/* ---- current weather ---- */
-.hero {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+.link {
+  color: var(--brand-ink);
+  text-decoration: none;
+  border-bottom: 1px dashed currentColor;
+}
+.link:hover { opacity: 0.75; }
+
+/* ---- bands ---- */
+.band-dot,
+.has-dot::before {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--band-colour, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.has-dot::before { content: ""; width: 8px; height: 8px; }
+.band-dot[data-level=""],
+.has-dot[data-level=""]::before { display: none; }
+[data-level="1"] { --band-colour: var(--band-1); }
+[data-level="2"] { --band-colour: var(--band-2); }
+[data-level="3"] { --band-colour: var(--band-3); }
+[data-level="4"] { --band-colour: var(--band-4); }
+[data-level="5"] { --band-colour: var(--band-5); }
+[data-level="6"] { --band-colour: var(--band-6); }
+
+.band-chip {
+  display: inline-flex;
   align-items: center;
-}
-
-.temp {
-  font-size: 72px;
-  font-weight: 400;
-  line-height: 0.9;
-  letter-spacing: -2px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  border: 1px solid var(--surface-border);
+  font-size: 0.9rem;
   color: var(--ink);
 }
 
-.sub {
-  color: var(--muted);
-  font-size: 15px;
-  margin-top: 8px;
+/* ---- Now ---- */
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
+.temp {
+  font-size: 4.4rem;
+  line-height: 0.95;
+  letter-spacing: -2px;
+}
+.sub { color: var(--muted); font-size: 1rem; margin-top: 6px; }
 .hero .big { display: inline-flex; color: var(--brand-ink); }
 .hero .big svg { width: 84px; height: 84px; }
+
+.hero-value {
+  font-size: 3.2rem;
+  line-height: 1;
+  letter-spacing: -1px;
+}
 
 .metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
 }
-
 .metric {
   background: var(--surface-strong);
   border: 1px solid var(--surface-border);
   border-radius: var(--radius-sm);
   padding: 10px 8px;
   text-align: center;
+  min-width: 0;
 }
-
 .metric span {
-  font-size: 11px;
-  color: var(--muted-strong);
   display: block;
+  font-size: 0.72rem;
+  color: var(--muted-strong);
 }
-
 .metric b {
   display: block;
-  font-size: 14px;
-  font-weight: 400;
+  font-size: 1rem;
+  font-weight: normal;
   color: var(--ink);
-  margin-top: 4px;
-}
-
-.metric small {
-  display: block;
-  font-size: 11px;
-  color: var(--muted);
   margin-top: 2px;
 }
-
-/* Air quality severity. Fixed-meaning colours, like the nowcast ramp: they
-   follow the PSI and AQI charts, not the brand. */
-#aqi::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
-  background: var(--aqi-colour);
+.metric small {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--muted-strong);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-#aqi[data-level=""]::before { display: none; }
-#aqi[data-level="1"] { --aqi-colour: #2f9e44; }
-#aqi[data-level="2"] { --aqi-colour: #e6b800; }
-#aqi[data-level="3"] { --aqi-colour: #f08c00; }
-#aqi[data-level="4"] { --aqi-colour: #e03131; }
-#aqi[data-level="5"] { --aqi-colour: #8e44ad; }
-#aqi[data-level="6"] { --aqi-colour: #a3123a; }
+.metric small:empty { display: none; }
 
-/* ---- scrollers ---- */
+.wx-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.wx-row-title { font-size: 1.15rem; }
+.wx-icon { display: inline-flex; color: var(--brand-ink); flex-shrink: 0; }
+.wx-icon svg { width: 22px; height: 22px; }
+.wx-icon.big-ish svg { width: 44px; height: 44px; }
+.wx-icon.warn { color: var(--warn); }
+
+.banner-card { border-color: color-mix(in srgb, var(--warn) 40%, var(--surface-border)); }
+.banner-card .card-body { background: color-mix(in srgb, var(--warn) 10%, transparent); }
+
+/* ---- Forecast ---- */
+.chart-box { position: relative; height: 190px; }
+.chart-box.short { height: 150px; }
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.chart-legend li { display: inline-flex; align-items: center; gap: 6px; }
+
+.swatch-key {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent);
+}
+
 .scroller {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   overflow-x: auto;
   padding-bottom: 6px;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--ink) 25%, transparent) transparent;
 }
-
 .scroller::-webkit-scrollbar { height: 4px; }
-.scroller::-webkit-scrollbar-track { background: transparent; }
 .scroller::-webkit-scrollbar-thumb {
   background: color-mix(in srgb, var(--ink) 25%, transparent);
   border-radius: 2px;
@@ -696,122 +876,484 @@ input[type="search"]::placeholder { color: var(--muted-strong); opacity: 1; }
 
 .pill {
   flex-shrink: 0;
-  min-width: 100px;
+  min-width: 74px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   background: var(--surface-strong);
   border: 1px solid var(--surface-border);
   border-radius: 14px;
-  padding: 12px 10px;
-  text-align: center;
-  transition: transform 0.14s ease;
+  padding: 10px 8px;
 }
-
-.pill:hover { transform: translateY(-2px); }
-.pill .muted { color: var(--muted-strong); }
-
-.day { min-width: 148px; }
-
-/* Weather icon plus value, inside a scroller pill. */
+.pill .muted { color: var(--muted-strong); font-size: 0.78rem; }
+.pill-temp { font-size: 1.2rem; }
 .wx-line {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 13px;
+  gap: 3px;
+  font-size: 0.78rem;
   color: var(--muted-strong);
 }
-.wx-icon { display: inline-flex; color: var(--brand-ink); }
-.wx-icon svg { width: 18px; height: 18px; }
+.wx-line svg { width: 13px; height: 13px; }
+.wx-line [data-icon] { display: inline-flex; }
 
-/* ---- share card ---- */
-/* Opaque on purpose: html2canvas rasterises this node, and it cannot
-   resolve backdrop-filter or a translucent surface token. */
+.period-list li,
+.day-list li,
+.region-list li {
+  display: grid;
+  align-items: center;
+  column-gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--surface-border);
+}
+.period-list li:last-child,
+.day-list li:last-child,
+.region-list li:last-child { border-bottom: none; }
+
+.period-list li { grid-template-columns: 24px 1fr auto; }
+.period-when { color: var(--muted); font-size: 0.85rem; }
+.period-text { text-align: right; }
+
+.day-list li { grid-template-columns: 64px 24px 1fr auto; }
+.day-name small,
+.day-text small {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.day-temps { text-align: right; white-space: nowrap; font-size: 1.05rem; }
+.day-temps strong { font-weight: normal; }
+
+/* ---- Air & heat ---- */
+.region-list li { grid-template-columns: 1fr auto minmax(0, 1.2fr); }
+.region-list li > :last-child { text-align: right; }
+.region-list li[aria-current="true"] .region-name { color: var(--brand-ink); }
+.region-list li[aria-current="true"] .region-name::after { content: ", here"; color: var(--muted); }
+.region-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- the Map page: the whole screen ---- */
+
+/* The map sits behind everything, from under the update bar to the bottom. */
+#map {
+  position: fixed;
+  top: var(--notice-h, 0px);
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  background: var(--page-bg);
+}
+
+/* Nothing scrolls behind a full screen map, and the column's own furniture
+   steps aside so only the controls float on it. */
+body.view-map { overflow: hidden; }
+body.view-map .brand,
+body.view-map .placebar,
+body.view-map .status,
+body.view-map .site-footer { display: none; }
+body.view-map main.container { padding: 0; }
+body.view-map .view#view-map { animation: none; }
+
+/* Top left, opposite the tray. */
+.map-controls {
+  position: fixed;
+  z-index: 700;
+  top: var(--hud-top);
+  left: var(--hud-edge-left);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: min(460px, calc(100vw - var(--hud-edge-left) - var(--glass-btn) - var(--hud-edge) - 48px));
+}
+.map-status {
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: var(--surface-solid);
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+.map-status.busy p::after { content: " Loading."; color: var(--muted-strong); }
+.map-toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+.map-controls .solid { background: var(--surface-solid); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: var(--shadow); }
+.map-controls .toggle-btn.solid.active { background: var(--brand-fill); }
+.map-note {
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: var(--surface-solid);
+  font-size: 0.78rem;
+  color: var(--muted-strong);
+}
+
+/* The scrubber, along the bottom. */
+.timeline {
+  position: fixed;
+  z-index: 700;
+  left: var(--hud-edge-left);
+  right: var(--hud-edge);
+  bottom: var(--hud-bottom);
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 10px 12px;
+  background: var(--surface-solid);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tl-track { flex: 1; min-width: 0; }
+.tl-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--muted-strong);
+}
+.tl-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 74px;
+  line-height: 1.2;
+}
+.tl-when strong { font-weight: normal; font-size: 1rem; }
+.tl-when span { font-size: 0.72rem; color: var(--muted-strong); }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]:disabled { cursor: not-allowed; opacity: 0.5; }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 18%, transparent);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: var(--brand-fill-strong);
+  border: 2px solid var(--brand-ink);
+  box-shadow: var(--shadow);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--brand-fill-strong);
+  border: 2px solid var(--brand-ink);
+}
+
+.radar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: 0.72rem;
+  color: var(--muted-strong);
+}
+.radar-legend li { display: inline-flex; align-items: center; gap: 5px; }
+
+/* Leaflet, in the theme. */
+.leaflet-container { font-family: "Jua", "Segoe UI", sans-serif; font-size: 0.8rem; }
+.leaflet-bar {
+  border: 1px solid var(--surface-border) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--shadow) !important;
+  overflow: hidden;
+}
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  background: var(--surface-solid);
+  color: var(--ink);
+  border-bottom-color: var(--surface-border);
+}
+.leaflet-bar a.leaflet-disabled { background: var(--surface-solid); color: var(--muted); }
+/* Above the scrubber. */
+.leaflet-bottom.leaflet-right { bottom: calc(var(--tl-h, 90px) + var(--hud-bottom) + 6px); }
+.leaflet-bottom.leaflet-right .leaflet-bar { margin-right: var(--hud-edge); }
+.leaflet-control-attribution {
+  background: var(--surface-solid) !important;
+  color: var(--muted-strong);
+  border-radius: 10px 0 0 10px;
+  padding: 2px 8px !important;
+}
+.leaflet-control-attribution a { color: var(--brand-ink); }
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--surface-solid);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.leaflet-popup-content-wrapper { border-radius: 14px; border: 1px solid var(--surface-border); }
+.leaflet-popup-content { margin: 10px 14px; line-height: 1.5; }
+.leaflet-popup-content p { margin: 0; }
+.leaflet-popup-content strong { font-weight: normal; font-size: 1.05rem; }
+.leaflet-container a.leaflet-popup-close-button { color: var(--muted-strong); }
+.popup-title { color: var(--brand-ink); }
+
+/* OpenStreetMap has no dark style, so in dark mode its tiles are turned down to
+   match. Only the tile pane: the radar, pins and controls keep their colours. */
+:root[data-mode="dark"] .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
+}
+
+/* Pins. Leaflet places the outer element; the pill inside centres on the point. */
+.station-pin,
+.area-pin,
+.strike-pin,
+.place-pin { background: none; border: none; }
+.pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--surface-solid);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--surface-border);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+.pin strong { font-weight: normal; font-size: 1rem; line-height: 1; }
+.pin.value > span { color: var(--muted-strong); }
+.pin.wind { gap: 2px; padding: 2px 7px 2px 2px; color: var(--muted-strong); }
+.pin.rain { padding: 3px 7px 3px 3px; gap: 4px; }
+.pin.rain.dry { padding: 3px; box-shadow: none; }
+.rain-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--ink) 25%, transparent); }
+.pin.area { padding: 3px 9px 3px 4px; }
+.pin.area svg { width: 20px; height: 20px; color: var(--brand-ink); }
+.pin.area [data-icon] { display: inline-flex; }
+.pin.place {
+  padding: 5px;
+  background: var(--brand-fill);
+  color: var(--on-brand);
+  transform: translate(-50%, -100%);
+}
+.pin.place svg { width: 20px; height: 20px; }
+.pin.place [data-icon] { display: inline-flex; }
+
+.wind-arrow {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  color: var(--brand-ink);
+}
+.wind-arrow svg { width: 100%; height: 100%; fill: currentColor; }
+
+.strike {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--surface-solid);
+  border: 1px solid var(--surface-border);
+  color: var(--warn);
+}
+.strike.ground { background: color-mix(in srgb, var(--warn) 22%, var(--page-bg)); }
+.strike svg { width: 16px; height: 16px; }
+.strike [data-icon] { display: inline-flex; }
+
+/* Zoomed out, the station names go, leaving the values. Further out, the
+   forecast areas' names too. */
+.map-wide .pin.value > span,
+.map-far .pin.area > span:last-child { display: none; }
+.map-far .pin.wind > span:last-child { display: none; }
+
+/* ---- alerts modal ---- */
+.watch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.watch-list li { display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.watch-list svg { width: 14px; height: 14px; color: var(--brand-ink); }
+.watch-list [data-icon] { display: inline-flex; }
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+.choice-grid.thirds { grid-template-columns: repeat(3, 1fr); }
+.choice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: var(--muted-strong);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.choice.active {
+  background: var(--brand-fill);
+  color: var(--on-brand);
+}
+.alerts-toggle { margin-top: 6px; }
+.alerts-note { font-size: 0.85rem; color: var(--muted); }
+.alerts-note[data-tone="bad"] { color: var(--error); }
+#tgLinked { display: flex; flex-direction: column; gap: 8px; }
+
+/* ---- share ---- */
+/* Opaque on purpose: html2canvas rasterises this node, and it cannot resolve
+   backdrop-filter or a translucent surface token. */
 #share-card {
   width: 100%;
   min-height: 250px;
   border-radius: 18px;
   background: color-mix(in srgb, var(--brand) 65%, var(--bg));
   border: 1px solid var(--surface-border);
-  box-shadow: var(--shadow);
   color: var(--on-brand);
   padding: 18px;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   gap: 8px;
-  position: relative;
-  overflow: hidden;
 }
-
-/* Everything on the brand tint uses --on-brand at full strength; the
-   hierarchy here comes from size, not from a lower-contrast tint. */
-#share-card .muted { color: var(--on-brand); }
-
-#share-art {
-  width: 120px;
-  height: 120px;
-  margin: 6px 0;
-  align-self: center;
-  pointer-events: none;
-}
-
-#share-art svg { width: 100%; height: 100%; display: block; }
-
 #share-card .brandline {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+#share-card .brandline strong { font-weight: normal; }
+#share-art { width: 96px; height: 96px; }
+#share-art svg { width: 100%; height: 100%; display: block; }
+#share-card .bigtemp { font-size: 4rem; letter-spacing: -2px; line-height: 1; }
+#share-card .meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.85rem; }
+#share-card footer { display: flex; justify-content: space-between; font-size: 0.75rem; }
+
+.share-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+
+/* ---- sync panel ---- */
+.sync-row { display: flex; gap: 8px; align-items: center; }
+.sync-row input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 16px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  font-size: 14px;
+  color: var(--ink);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.sync-row input[type="text"]:focus {
+  border-color: var(--brand-ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-ink) 25%, transparent);
+}
+.sync-row input[type="text"]::placeholder { color: var(--muted-strong); opacity: 1; }
+.sync-hint { font-size: 0.8rem; }
+
+/* Backup codes are read off the screen and copied by hand, so they get a
+   monospace face and enough tracking to tell 8 from B at a glance. */
+.code-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.code-list li {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--surface-border);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.9rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: text;
+  -webkit-user-select: text;
 }
 
-#share-card .bigtemp {
-  font-size: 86px;
-  font-weight: 400;
-  letter-spacing: -2px;
-  line-height: 1;
-}
-
-#share-card .meta {
-  display: flex;
-  gap: 12px;
+.sync-message {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--brand-fill);
   color: var(--on-brand);
-  flex-wrap: wrap;
-  font-size: 13px;
+  font-size: 0.85rem;
 }
-
-#share-card footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
+.sync-message[data-tone="bad"] {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--surface-border);
 }
+#sync-setup > .btn, #sync-linked > .btn { width: 100%; }
 
-/* ---- utility ---- */
-.muted { color: var(--muted); font-size: 13px; }
-
-.link {
-  color: var(--brand-ink);
-  border-bottom: 1px dashed currentColor;
+/* ---- footer ---- */
+.site-footer {
+  margin-top: 24px;
+  text-align: center;
 }
-
-.link:hover { opacity: 0.75; }
+.site-footer p + p { margin-top: 6px; }
 
 /* ---- responsive ---- */
-@media (max-width: 980px) {
-  .grid, .row { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 900px) {
-  .toolbar { grid-template-columns: 1fr; }
-}
-
-@media (max-width: 600px) {
-  .temp { font-size: 56px; }
-  .hero .big svg { width: 62px; height: 62px; }
-  .metrics { grid-template-columns: repeat(2, 1fr); }
-  .brand-text h1 { font-size: 17px; }
-  #share-card .bigtemp { font-size: 58px; }
-}
-
 @media (max-width: 480px) {
-  .container { padding: 10px; }
-  .update-notice-inner { padding-left: 10px; padding-right: 10px; gap: 0.5rem; }
+  :root {
+    --glass-btn: 40px;
+    --hud-edge: max(10px, calc(env(safe-area-inset-right) + 10px));
+    --hud-edge-left: max(10px, calc(env(safe-area-inset-left) + 10px));
+  }
+  .container { padding: 10px; padding-bottom: 40px; }
+  .update-notice-inner { flex-wrap: wrap; padding-left: 10px; padding-right: 10px; gap: 0.5rem; }
+  .update-notice p { flex-basis: 100%; }
   .swatch-grid { grid-template-columns: 1fr; }
+  .brand-text h1 { font-size: 1.1rem; }
+  .placebar { grid-template-columns: 1fr; }
+  .place-actions { justify-content: flex-end; }
+  .temp { font-size: 3.6rem; }
+  .hero .big svg { width: 64px; height: 64px; }
+  .hero-value { font-size: 2.6rem; }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card-header { padding: 10px 14px; }
+  .card-body { padding: 14px; }
+  .day-list li { grid-template-columns: 52px 22px 1fr auto; column-gap: 8px; }
+  /* Icons only on the map's buttons; the names stay for screen readers. */
+  .map-controls .lbl {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .map-controls .segmented button,
+  .map-controls .toggle-btn { padding: 8px; }
+  .tl-when { min-width: 60px; }
+  #share-card .bigtemp { font-size: 3.2rem; }
 }

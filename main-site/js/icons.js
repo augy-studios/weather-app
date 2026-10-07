@@ -4,7 +4,7 @@
 // Plain script, not a module: published on window.UwuIcons.
 
 (function () {
-  const A = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+  const A = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
 
   // Shared cloud body, reused by the weather icons so they line up.
   const CLOUD = '<path d="M17 17H7.6a4.2 4.2 0 0 1-.4-8.4 5.2 5.2 0 0 1 9.7 1.7A3.4 3.4 0 0 1 17 17z"/>';
@@ -16,7 +16,19 @@
     close: `<svg ${A}><path d="M18 6 6 18M6 6l12 12"/></svg>`,
     clock: `<svg ${A}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`,
 
-    // ---- toolbar ----
+    // ---- views ----
+    now: `<svg ${A}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/><path d="M12 1.8v1.4M12 20.8v1.4"/></svg>`,
+    map: `<svg ${A}><path d="M9 4.5 3.5 6.6v13l5.5-2.1 6 2.1 5.5-2.1v-13L15 6.6z"/><path d="M9 4.5v13M15 6.6v13"/></svg>`,
+    calendar: `<svg ${A}><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M14 14h2M8 17.2h2"/></svg>`,
+    leaf: `<svg ${A}><path d="M5 19c0-8 5.5-13.5 15-14-0.5 9.5-6 15-14 15"/><path d="M5 19l7-7"/></svg>`,
+
+    // ---- tray ----
+    chevron: `<svg ${A}><path d="m9 5 7 7-7 7"/></svg>`,
+    bell: `<svg ${A}><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/></svg>`,
+    "bell-on": `<svg ${A}><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/><path d="M3.2 8.5a9.5 9.5 0 0 1 2.6-4.3M20.8 8.5a9.5 9.5 0 0 0-2.6-4.3"/></svg>`,
+    refresh: `<svg ${A}><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4.5h-4.5"/></svg>`,
+
+    // ---- place bar ----
     search: `<svg ${A}><circle cx="11" cy="11" r="7"/><path d="M20.5 20.5 16.2 16.2"/></svg>`,
     crosshair: `<svg ${A}><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.4"/><path d="M12 1.8v3.4M12 18.8v3.4M1.8 12h3.4M18.8 12h3.4"/></svg>`,
     thermometer: `<svg ${A}><path d="M14 14.9V5.2a2 2 0 1 0-4 0v9.7a4 4 0 1 0 4 0z"/><path d="M12 8.5v7.7"/></svg>`,
@@ -27,6 +39,15 @@
     image: `<svg ${A}><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><circle cx="8.6" cy="10" r="1.6"/><path d="m3.6 17.4 4.6-4.6 3.8 3.8"/><path d="m14.2 14.6 2.4-2.4 3.8 3.8"/></svg>`,
     heart: `<svg ${A}><path d="m12 20.3-1.4-1.3C6.1 15 3 12.2 3 8.8 3 6.1 5.1 4 7.8 4c1.5 0 3 .7 4.2 2C13.2 4.7 14.7 4 16.2 4 18.9 4 21 6.1 21 8.8c0 3.4-3.1 6.2-7.6 10.2z"/></svg>`,
 
+    // ---- map ----
+    play: `<svg ${A}><path d="M7.5 4.8v14.4L19 12z"/></svg>`,
+    pause: `<svg ${A}><path d="M8 5v14M16 5v14"/></svg>`,
+    radar: `<svg ${A}><circle cx="12" cy="12" r="1.6"/><path d="M8.2 15.8a5.4 5.4 0 0 1 0-7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6"/><path d="M5.2 18.8a9.6 9.6 0 0 1 0-13.6M18.8 5.2a9.6 9.6 0 0 1 0 13.6"/></svg>`,
+    bolt: `<svg ${A}><path d="M13.2 2.8 5 13.6h6l-1.2 7.6 8.2-10.8h-6z"/></svg>`,
+    droplet: `<svg ${A}><path d="M12 3.2s6.2 6.6 6.2 11a6.2 6.2 0 0 1-12.4 0c0-4.4 6.2-11 6.2-11z"/></svg>`,
+    wind: `<svg ${A}><path d="M3 9h11.5a2.75 2.75 0 1 0-2.75-2.75"/><path d="M3 13.5h15.5a2.75 2.75 0 1 1-2.75 2.75"/><path d="M3 18h6"/></svg>`,
+    gauge: `<svg ${A}><path d="M3.5 17a9 9 0 1 1 17 0"/><path d="m12 13 4-4.5"/><circle cx="12" cy="13.5" r="1.2"/></svg>`,
+
     // ---- share ----
     share: `<svg ${A}><circle cx="18" cy="5.2" r="2.8"/><circle cx="6" cy="12" r="2.8"/><circle cx="18" cy="18.8" r="2.8"/><path d="m8.5 10.7 7-4M8.5 13.3l7 4"/></svg>`,
     telegram: `<svg ${A}><path d="M21.4 4.3 2.9 11.4c-.8.3-.8 1.4 0 1.7l4.5 1.5 1.8 5c.2.7 1.1.9 1.6.3l2.3-2.5 4.5 3.3c.6.4 1.4.1 1.6-.6l3.3-14.6c.2-.8-.5-1.4-1.1-1.2z"/><path d="M7.4 14.6 18.2 7.4l-8.4 8.5-.5 4"/></svg>`,
@@ -34,9 +55,11 @@
     whatsapp: `<svg ${A}><path d="M3.4 20.6 4.7 16.4A8.2 8.2 0 1 1 8 19.4z"/><path d="M9 9.2c.2 1.7 2 4.4 4.3 5.2.6.2 1.3-.1 1.6-.7l.2-.4-2-1-.6.7c-1-.5-1.8-1.3-2.3-2.3l.7-.6-1-2-.4.2c-.5.3-.6.6-.5.9z"/></svg>`,
     facebook: `<svg ${A}><rect x="3" y="3" width="18" height="18" rx="4.5"/><path d="M15.4 8.2h-1.7c-1 0-1.7.7-1.7 1.7v9.6M10 12.7h4.6"/></svg>`,
 
-    // ---- weather (WMO codes) ----
+    // ---- weather (WMO codes and NEA's forecast words) ----
     clear: `<svg ${A}><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>`,
+    "clear-night": `<svg ${A}><path d="M20 13.6A8 8 0 1 1 10.4 4a6.2 6.2 0 0 0 9.6 9.6z"/></svg>`,
     "partly-cloudy": `<svg ${A}><path d="M8.4 3.2v1.8M3.6 8h1.8M4.9 4.9l1.3 1.3M11.9 4.9l-1.3 1.3"/><circle cx="8.4" cy="9.4" r="2.8"/>${CLOUD}</svg>`,
+    "partly-cloudy-night": `<svg ${A}><path d="M9.4 3.4a4 4 0 1 0 3 6.1 3.2 3.2 0 0 1-3-6.1z"/>${CLOUD}</svg>`,
     cloudy: `<svg ${A}>${CLOUD}</svg>`,
     fog: `<svg ${A}><path d="M16.6 14.4H7.4a4 4 0 0 1-.4-8 5 5 0 0 1 9.3 1.6 3.2 3.2 0 0 1 .3 6.4z"/><path d="M4.5 18h15M7 21.4h10"/></svg>`,
     rain: `<svg ${A}>${CLOUD}<path d="m9.4 19.2-.9 2.6M14.6 19.2l-.9 2.6"/></svg>`,

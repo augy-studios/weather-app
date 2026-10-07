@@ -1,0 +1,670 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Weather Radar Images API",
+    "description": "**Beta dataset — newly released.** This is a new dataset; response fields, coverage start date, and behaviour may still change as we monitor reliability. Please reach out to feedback@data.gov.sg if you notice anything unexpected.\n\nReal-time weather radar imagery from NEA. The weather radar transmits electromagnetic pulses that detect precipitation (rain, hail, snow) up to a few hundred kilometres away and estimates their intensity from the strength of the echoes. The data is updated every 5 minutes and covers a fixed range of 70 km, 240 km and 480 km, centred on Singapore.\n\nThe weather radar may occasionally pick up reflected signals from sources other than rain. These sometimes appear as stationary-coloured areas.\n\nEach response includes geospatial metadata (projection + boundary box) and presigned PNG image URLs.\n\n**Rainfall intensity legend**\n\n| RGB | Hex | Rainfall intensity |\n|---|---|---|\n| 0, 255, 255 | `#00FFFF` | Light |\n| 0, 239, 239 | `#00EFEF` | Light |\n| 0, 209, 213 | `#00D1D5` | Light |\n| 0, 186, 191 | `#00BABF` | Light |\n| 0, 151, 154 | `#00979A` | Light |\n| 0, 131, 125 | `#00837D` | Light |\n| 0, 128, 69 | `#008045` | Light |\n| 0, 137, 56 | `#008938` | Light |\n| 0, 162, 53 | `#00A235` | Light |\n| 0, 183, 41 | `#00B729` | Light |\n| 0, 202, 17 | `#00CA11` | Light |\n| 0, 218, 13 | `#00DA0D` | Light to Moderate |\n| 0, 245, 7 | `#00F507` | Light to Moderate |\n| 0, 255, 0 | `#00FF00` | Light to Moderate |\n| 67, 255, 65 | `#43FF41` | Light to Moderate |\n| 72, 255, 70 | `#48FF46` | Light to Moderate |\n| 255, 255, 59 | `#FFFF3B` | Moderate |\n| 255, 255, 0 | `#FFFF00` | Moderate |\n| 255, 240, 0 | `#FFF000` | Moderate |\n| 255, 220, 0 | `#FFDC00` | Moderate |\n| 255, 198, 0 | `#FFC600` | Moderate to Heavy |\n| 255, 178, 0 | `#FFB200` | Moderate to Heavy |\n| 255, 165, 0 | `#FFA500` | Moderate to Heavy |\n| 255, 138, 0 | `#FF8A00` | Moderate to Heavy |\n| 255, 114, 0 | `#FF7200` | Moderate to Heavy |\n| 255, 73, 0 | `#FF4900` | Heavy |\n| 255, 31, 0 | `#FF1F00` | Heavy |\n| 229, 0, 0 | `#E50000` | Heavy |\n| 193, 0, 0 | `#C10000` | Heavy |\n| 182, 0, 106 | `#B6006A` | Heavy |\n| 210, 0, 165 | `#D200A5` | Heavy |\n| 212, 0, 170 | `#D400AA` | Heavy |\n| 255, 0, 255 | `#FF00FF` | Heavy |\n",
+    "contact": {
+      "email": "feedback@data.gov.sg"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api-open.data.gov.sg/v2/real-time/api"
+    }
+  ],
+  "paths": {
+    "/weather-radar-images/70km": {
+      "get": {
+        "summary": "Get weather radar images (70 km range)",
+        "description": "Returns radar rainfall intensity images covering a 70 km radius around Singapore.\n\n- Updated every 5 minutes by NEA\n\n<br/>\n\n- Omit `date` to retrieve the single latest image.\n- Filter for a specific date or date-time by providing `date` in query parameter.\n  - use YYYY-MM-DD to retrieve images for that day (paginated via `paginationToken`)\n  - use YYYY-MM-DDTHH:mm:ss to retrieve the latest image at or before that moment in time\n  - example: `?date=2024-07-16` or `?date=2024-07-16T23:59:00`\n\n<br/>\n\n- Boundary box (EPSG:4326): upper-left (103.342685, 1.97854) to lower-right (104.602315, 0.719515)",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "description": "SGT date for which to retrieve data (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "paginationToken",
+            "description": "Pagination token for retrieving subsequent data pages",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weather radar image(s) for the 70 km range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "description": "Response status code (always 0 for success)",
+                      "example": 0
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "description": "Error message (empty string for success)",
+                      "example": ""
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "projection": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "description": "Map projection type",
+                              "example": "Azimuthal Equidistant"
+                            },
+                            "center": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "description": "Longitude of radar station",
+                                  "example": 103.972583
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "description": "Latitude of radar station",
+                                  "example": 1.34911
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "boundaryBox": {
+                          "type": "object",
+                          "properties": {
+                            "upperLeft": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "example": 103.342685
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "example": 1.97854
+                                }
+                              }
+                            },
+                            "lowerRight": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "example": 104.602315
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "example": 0.719515
+                                }
+                              }
+                            },
+                            "crs": {
+                              "type": "string",
+                              "description": "Coordinate Reference System",
+                              "example": "EPSG:4326"
+                            }
+                          }
+                        },
+                        "records": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "timestamp": {
+                                "type": "string",
+                                "description": "SGT timestamp of the radar capture",
+                                "example": "2024-07-16T23:55:00+08:00"
+                              },
+                              "updatedTimestamp": {
+                                "type": "string",
+                                "description": "SGT timestamp when the record was last updated",
+                                "example": "2024-07-16T23:55:30+08:00"
+                              },
+                              "image": {
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "type": "string",
+                                    "description": "Presigned S3 URL to download the radar PNG image (expires after ~20 minutes)"
+                                  },
+                                  "urlExpiresAt": {
+                                    "type": "string",
+                                    "description": "SGT timestamp when the presigned URL expires",
+                                    "example": "2024-07-17T00:15:00+08:00"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "example": "70km"
+                                  },
+                                  "range": {
+                                    "type": "string",
+                                    "example": "70km"
+                                  },
+                                  "format": {
+                                    "type": "string",
+                                    "example": "png"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "paginationToken": {
+                          "type": "string",
+                          "description": "Token to retrieve next page if exists",
+                          "example": "eyJsYXN0S2V5Ijo... (you will see this token only if next page exists)"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid HTTP request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number",
+                      "example": 4
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "ERROR_PARAMS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": null
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "enum": [
+                        "Invalid date format. Date format must be YYYY-MM-DD (2024-06-01) or YYYY-MM-DDTHH:mm:ss (2024-06-01T08:30:00).",
+                        "Invalid pagination token."
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Weather radar data not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number",
+                      "example": 17
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "REAL_TIME_API_DATA_NOT_FOUND"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": null
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "example": "Data not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/weather-radar-images/240km": {
+      "get": {
+        "summary": "Get weather radar images (240 km range)",
+        "description": "Returns radar rainfall intensity images covering a 240 km radius around Singapore.\n\n- Updated every 5 minutes by NEA\n\n<br/>\n\n- Omit `date` to retrieve the single latest image.\n- Filter for a specific date or date-time by providing `date` in query parameter.\n  - use YYYY-MM-DD to retrieve images for that day (paginated via `paginationToken`)\n  - use YYYY-MM-DDTHH:mm:ss to retrieve the latest image at or before that moment in time\n  - example: `?date=2024-07-16` or `?date=2024-07-16T23:59:00`\n\n<br/>\n\n- Boundary box (EPSG:4326): upper-left (101.810507, 3.506012) to lower-right (106.130495, -0.809711)",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "description": "SGT date for which to retrieve data (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "paginationToken",
+            "description": "Pagination token for retrieving subsequent data pages",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weather radar image(s) for the 240 km range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "description": "Response status code (always 0 for success)",
+                      "example": 0
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "description": "Error message (empty string for success)",
+                      "example": ""
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "projection": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "example": "Azimuthal Equidistant"
+                            },
+                            "center": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "example": 103.972583
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "example": 1.34911
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "boundaryBox": {
+                          "type": "object",
+                          "properties": {
+                            "upperLeft": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "example": 101.810507
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "example": 3.506012
+                                }
+                              }
+                            },
+                            "lowerRight": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "example": 106.130495
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "example": -0.809711
+                                }
+                              }
+                            },
+                            "crs": {
+                              "type": "string",
+                              "example": "EPSG:4326"
+                            }
+                          }
+                        },
+                        "records": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "timestamp": {
+                                "type": "string",
+                                "example": "2024-07-16T23:55:00+08:00"
+                              },
+                              "updatedTimestamp": {
+                                "type": "string",
+                                "example": "2024-07-16T23:55:30+08:00"
+                              },
+                              "image": {
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "type": "string",
+                                    "description": "Presigned S3 URL to download the radar PNG image (expires after ~20 minutes)"
+                                  },
+                                  "urlExpiresAt": {
+                                    "type": "string",
+                                    "example": "2024-07-17T00:15:00+08:00"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "example": "240km"
+                                  },
+                                  "range": {
+                                    "type": "string",
+                                    "example": "240km"
+                                  },
+                                  "format": {
+                                    "type": "string",
+                                    "example": "png"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "paginationToken": {
+                          "type": "string",
+                          "description": "Token to retrieve next page if exists",
+                          "example": "eyJsYXN0S2V5Ijo... (you will see this token only if next page exists)"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid HTTP request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number",
+                      "example": 4
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "ERROR_PARAMS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": null
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "enum": [
+                        "Invalid date format. Date format must be YYYY-MM-DD (2024-06-01) or YYYY-MM-DDTHH:mm:ss (2024-06-01T08:30:00).",
+                        "Invalid pagination token."
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Weather radar data not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number",
+                      "example": 17
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "REAL_TIME_API_DATA_NOT_FOUND"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": null
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "example": "Data not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/weather-radar-images/480km": {
+      "get": {
+        "summary": "Get weather radar images (480 km range)",
+        "description": "Returns radar rainfall intensity images covering a 480 km radius around Singapore.\n\n- Updated every 5 minutes by NEA\n\n<br/>\n\n- Omit `date` to retrieve the single latest image.\n- Filter for a specific date or date-time by providing `date` in query parameter.\n  - use YYYY-MM-DD to retrieve images for that day (paginated via `paginationToken`)\n  - use YYYY-MM-DDTHH:mm:ss to retrieve the latest image at or before that moment in time\n  - example: `?date=2024-07-16` or `?date=2024-07-16T23:59:00`\n\n<br/>\n\n- Boundary box (EPSG:4326): upper-left (99.638609, 5.657912) to lower-right (108.290871, -2.967382)",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "description": "SGT date for which to retrieve data (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ss)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "paginationToken",
+            "description": "Pagination token for retrieving subsequent data pages",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Weather radar image(s) for the 480 km range",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "description": "Response status code (always 0 for success)",
+                      "example": 0
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "description": "Error message (empty string for success)",
+                      "example": ""
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "projection": {
+                          "type": "object",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "example": "Azimuthal Equidistant"
+                            },
+                            "center": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "example": 103.972583
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "example": 1.34911
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "boundaryBox": {
+                          "type": "object",
+                          "properties": {
+                            "upperLeft": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "example": 99.638609
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "example": 5.657912
+                                }
+                              }
+                            },
+                            "lowerRight": {
+                              "type": "object",
+                              "properties": {
+                                "longitude": {
+                                  "type": "number",
+                                  "example": 108.290871
+                                },
+                                "latitude": {
+                                  "type": "number",
+                                  "example": -2.967382
+                                }
+                              }
+                            },
+                            "crs": {
+                              "type": "string",
+                              "example": "EPSG:4326"
+                            }
+                          }
+                        },
+                        "records": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "timestamp": {
+                                "type": "string",
+                                "example": "2024-07-16T23:55:00+08:00"
+                              },
+                              "updatedTimestamp": {
+                                "type": "string",
+                                "example": "2024-07-16T23:55:30+08:00"
+                              },
+                              "image": {
+                                "type": "object",
+                                "properties": {
+                                  "url": {
+                                    "type": "string",
+                                    "description": "Presigned S3 URL to download the radar PNG image (expires after ~20 minutes)"
+                                  },
+                                  "urlExpiresAt": {
+                                    "type": "string",
+                                    "example": "2024-07-17T00:15:00+08:00"
+                                  },
+                                  "label": {
+                                    "type": "string",
+                                    "example": "480km"
+                                  },
+                                  "range": {
+                                    "type": "string",
+                                    "example": "480km"
+                                  },
+                                  "format": {
+                                    "type": "string",
+                                    "example": "png"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "paginationToken": {
+                          "type": "string",
+                          "description": "Token to retrieve next page if exists",
+                          "example": "eyJsYXN0S2V5Ijo... (you will see this token only if next page exists)"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid HTTP request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number",
+                      "example": 4
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "ERROR_PARAMS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": null
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "enum": [
+                        "Invalid date format. Date format must be YYYY-MM-DD (2024-06-01) or YYYY-MM-DDTHH:mm:ss (2024-06-01T08:30:00).",
+                        "Invalid pagination token."
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Weather radar data not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number",
+                      "example": 17
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "REAL_TIME_API_DATA_NOT_FOUND"
+                    },
+                    "data": {
+                      "type": "object",
+                      "example": null
+                    },
+                    "errorMsg": {
+                      "type": "string",
+                      "example": "Data not found"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

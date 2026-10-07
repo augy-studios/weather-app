@@ -284,6 +284,15 @@ async def _deliver_notice(client, notice: dict) -> None:
         footer = ("If that was you, nothing to do. If it was not, lock it down below and "
                   "make a fresh set in the web app.")
         buttons = [[{"label": "That was not me", "kind": "panic", "payload": {}}]]
+    elif notice.get("kind") == "lightning":
+        # Queued by the web app's collect cron when NEA detects lightning near a
+        # synced favourite. The text is written there; this adds the distances.
+        title = ui.escape_md(data.get("title") or "Lightning nearby")
+        body = ui.escape_md(data.get("text") or "")
+        # render() escapes field labels itself.
+        fields = [(p.get("name") or "A saved place", f"{p.get('km')} km away")
+                  for p in (data.get("places") or [])[:5]]
+        footer = "Turn these off in the web app, under Lightning alerts."
     else:
         title = ui.escape_md(data.get("title") or "A message about your account")
         body = ui.escape_md(data.get("text") or "")

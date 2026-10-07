@@ -1,4 +1,13 @@
 {
+  "regions": ["sin1"],
+  "functions": {
+    "api/cron/collect.js": { "maxDuration": 60 },
+    "api/timeline.js": { "maxDuration": 30 },
+    "api/radar.js": { "maxDuration": 30 }
+  },
+  "crons": [
+    { "path": "/api/cron/collect", "schedule": "* * * * *" }
+  ],
   "rewrites": [
     { "source": "/lib/:path*", "destination": "/404.html" },
     { "source": "/migrations/:path*", "destination": "/404.html" }
