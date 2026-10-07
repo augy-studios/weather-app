@@ -73,7 +73,9 @@ async function frame(req, res, range, stamp) {
   if (!hit || hit.expires <= Date.now()) {
     // "Latest at or before" that minute, which is the frame itself when it exists.
     const ms = Date.UTC(+stamp.slice(0, 4), +stamp.slice(4, 6) - 1, +stamp.slice(6, 8), +stamp.slice(8, 10), +stamp.slice(10, 12)) - 8 * 3600 * 1000;
-    const data = await at(`weather-radar-images/${range}`, sgMoment(ms));
+    // Once more after a 429: a map opening on a cold deploy asks for many frames at
+    // once, each on its own instance with nothing remembered yet.
+    const data = await at(`weather-radar-images/${range}`, sgMoment(ms), { retries: 1 });
     remember(range, data.records || []);
     hit = signed.get(key);
   }

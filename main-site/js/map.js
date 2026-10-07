@@ -210,9 +210,31 @@
       fetchedAt: Date.now(),
     };
     state.neaFrames[range] = entry;
-    // Warm the cache, so scrubbing and playing don't wait on each image.
-    for (const f of entry.frames) new Image().src = f.src;
+    preload(entry.frames.map((f) => f.src).reverse());
     return entry;
+  }
+
+  // Warm the cache, so scrubbing and playing don't wait on each image. Newest
+  // first, since that is the frame on screen, and a few at a time: all of them at
+  // once can land on cold functions together and have data.gov.sg turn some away.
+  const PRELOAD_AT_ONCE = 3;
+  const preloaded = new Set();
+
+  function preload(srcs) {
+    const queue = srcs.filter((src) => !preloaded.has(src));
+    const next = () => {
+      const src = queue.shift();
+      if (!src) return;
+      const img = new Image();
+      img.onload = () => {
+        preloaded.add(src);
+        next();
+      };
+      // Left out of `preloaded`, so the next refresh tries it again.
+      img.onerror = next;
+      img.src = src;
+    };
+    for (let i = 0; i < PRELOAD_AT_ONCE; i++) next();
   }
 
   async function loadRainViewer({ force = false } = {}) {

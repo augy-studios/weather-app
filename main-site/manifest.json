@@ -1,7 +1,7 @@
 {
     "name": "Weather by UwU Apps",
     "short_name": "UwU Weather",
-    "description": "Today's weather at a glance, with live rain radar, lightning alerts and NEA's own readings in Singapore.",
+    "description": "Today's weather at a glance, with live rain radar and lightning alerts.",
     "icons": [{
             "src": "weather-192.png",
             "type": "image/png",
