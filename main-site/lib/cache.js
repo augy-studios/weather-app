@@ -6,9 +6,9 @@
 // fails, a copy younger than `stale` is served instead and marked as such.
 //
 // allow(): a shared per-minute and per-day count for each keyed provider
-// (OpenWeather, WeatherAPI, Xweather), in Upstash when it is set up so every
-// instance draws on one budget. Asked only when a fallback is about to be
-// called, so the count costs nothing while Open-Meteo and NEA answer.
+// (OpenWeather, WeatherAPI, Xweather, Seniverse), in Upstash when it is set up
+// so every instance draws on one budget. Asked only when a keyed service is
+// about to be called, so the count costs nothing while the free ones answer.
 
 import { getJSON, putJSON } from './blob.js';
 import { redis, storeConfigured } from './kv.js';
@@ -79,38 +79,44 @@ export async function peek(key) {
 
 // A little under each free plan's published limit, so a burst from several
 // instances at once still lands inside it. Change these if a plan changes.
+// Seniverse's free plan is held to about 20 calls a minute, with no daily cap
+// that it publishes.
 export const QUOTAS = {
   openweather: { minute: 50, day: 900 },
   weatherapi: { minute: 30, day: 3000 },
-  xweather: { minute: 8, day: 500 }
+  xweather: { minute: 8, day: 500 },
+  seniverse: { minute: 16, day: Infinity }
 };
 
 const local = new Map();
 
-async function bump(key, seconds) {
+async function bump(key, seconds, by = 1) {
   if (storeConfigured()) {
-    const n = Number(await redis('INCR', key));
-    if (n === 1) await redis('EXPIRE', key, seconds);
+    const n = Number(await redis('INCRBY', key, by));
+    if (n === by) await redis('EXPIRE', key, seconds);
     return n;
   }
   const hit = local.get(key);
   const live = hit && hit.until > Date.now();
-  const n = (live ? hit.n : 0) + 1;
+  const n = (live ? hit.n : 0) + by;
   local.set(key, { n, until: live ? hit.until : Date.now() + seconds * 1000 });
   return n;
 }
 
-/** True when one more call to `provider` fits its budget, counting it. */
+/**
+ * True when `cost` more calls to `provider` fit its budget, counting them. A
+ * refused call is counted too, which errs on the side of staying under.
+ */
 export async function allow(provider, cost = 1) {
   const quota = QUOTAS[provider];
   if (!quota) return true;
   const minute = Math.floor(Date.now() / 60000);
   const day = new Date().toISOString().slice(0, 10);
   try {
-    const perMinute = await bump(`uwuweather:quota:${provider}:m:${minute}`, 120);
+    const perMinute = await bump(`uwuweather:quota:${provider}:m:${minute}`, 120, cost);
     if (perMinute > quota.minute) return false;
-    const perDay = await bump(`uwuweather:quota:${provider}:d:${day}`, 26 * 3600);
-    return perDay + cost - 1 <= quota.day;
+    const perDay = await bump(`uwuweather:quota:${provider}:d:${day}`, 26 * 3600, cost);
+    return perDay <= quota.day;
   } catch (err) {
     // A counter that can't be read is not a reason to go over: say no.
     console.warn('quota check failed:', err.message);

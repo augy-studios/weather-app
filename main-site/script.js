@@ -4,13 +4,14 @@
 //
 // - /api/forecast, everywhere: Open-Meteo's forecast in its own shape, with the
 //   national weather service's readings already laid over it (the US, Norway,
-//   Canada, Germany, England), warnings, the sea, and a keyed service standing
-//   in when Open-Meteo is down. See lib/place.js.
+//   Canada, Germany, England, China), warnings, the sea, and a keyed service
+//   standing in when Open-Meteo is down. See lib/place.js.
 // - NEA, through /api/sg, in Singapore: the nearest stations' readings, the
 //   2-hour, 24-hour and 4-day forecasts, UV, heat stress and lightning. Each
 //   part that NEA can't give right now falls back to the forecast's.
 // - /api/air, everywhere: NEA's PSI in Singapore, the Norwegian index in
-//   Norway, the AQHI in Canada, Open-Meteo's US AQI elsewhere.
+//   Norway, the AQHI in Canada, WAQI's stations in China, Open-Meteo's US AQI
+//   elsewhere.
 //
 // The last answer of each is kept in localStorage too, and drawn straight away
 // on the next visit, so the page has something to show before the network
@@ -620,7 +621,7 @@
   // Who measured the air, by the name /api/air gives them.
   const AIR_NAMES = {
     nea: "NEA", nilu: "NILU", "met-norway": "MET Norway", eccc: "Environment Canada",
-    "open-meteo": "Open-Meteo", ...FALLBACK_NAMES,
+    waqi: "WAQI", "open-meteo": "Open-Meteo", ...FALLBACK_NAMES,
   };
 
   // ---------- helpers for NEA readings near the place ----------
@@ -1077,6 +1078,7 @@
     nilu: "Measured by NILU at the nearest stations, on Norway's 1 to 4 index.",
     "met-norway": "MET Norway's air quality forecast for this hour, on Norway's 1 to 4 index.",
     eccc: "Environment Canada's Air Quality Health Index: 1 to 3 low risk, 4 to 6 moderate, 7 to 10 high.",
+    waqi: "China's monitoring stations, by the World Air Quality Index Project, on the US AQI scale.",
     "open-meteo": "Open-Meteo's air quality model.",
   };
 
@@ -1174,7 +1176,7 @@
     return svg.replace(/currentColor/g, ink).replace(/stroke-width="1.8"/, 'stroke-width="1.4"');
   }
 
-  const NATIONAL_SHORT = { nws: "NWS", "met-norway": "MET Norway", eccc: "Environment Canada", dwd: "DWD", "environment-agency": "Environment Agency" };
+  const NATIONAL_SHORT = { nws: "NWS", "met-norway": "MET Norway", eccc: "Environment Canada", dwd: "DWD", "environment-agency": "Environment Agency", seniverse: "Seniverse" };
 
   function buildShareURL() {
     if (!current.name || current.name === "My location") return location.origin;

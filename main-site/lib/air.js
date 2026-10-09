@@ -10,6 +10,8 @@
 // - Norway: NILU's measuring stations, or MET Norway's forecast, on the
 //   Norwegian 1 to 4 index (lib/sources/norway.js).
 // - Canada: the AQHI at the communities round the point (lib/sources/canada.js).
+// - China: the US AQI at the monitoring stations round the point, from the World
+//   Air Quality Index Project, with WAQI_TOKEN set (lib/sources/china.js).
 // - Everywhere else: the US AQI and PM2.5 from Open-Meteo's air quality model,
 //   read at a grid of sample points across the country (lib/build-countries.mjs).
 //   A country too small for any sample point, or a point in no country at all,
@@ -28,6 +30,7 @@ import { latest } from './datagov.js';
 import { readSg } from './nea.js';
 import { inSingapore } from './singapore.js';
 import { AQHI_BANDS, canadaAir } from './sources/canada.js';
+import { chinaAir } from './sources/china.js';
 import { fallbackAir } from './sources/fallbacks.js';
 import { NORWAY_BANDS, norwayAir } from './sources/norway.js';
 
@@ -177,7 +180,7 @@ async function fromNea(lat, lon) {
   };
 }
 
-// ---------- stations round the point: Norway, Canada ----------
+// ---------- stations round the point: Norway, Canada, China ----------
 
 function distanceKm(lat1, lon1, lat2, lon2) {
   const rad = Math.PI / 180;
@@ -292,7 +295,10 @@ const NATIONAL = {
   NO: (lat, lon) => cached(`air-no-${lat.toFixed(2)},${lon.toFixed(2)}`, { fresh: 15 * MIN, stale: 3 * 60 * MIN }, () => norwayAir(lat, lon))
     .then(({ data }) => fromStations(data, lat, lon, { index: 'AQI', bands: NORWAY_BANDS, digits: 1 })),
   CA: (lat, lon) => cached(`air-ca-${lat.toFixed(1)},${lon.toFixed(1)}`, { fresh: 15 * MIN, stale: 3 * 60 * MIN }, () => canadaAir(lat, lon))
-    .then(({ data }) => fromStations(data, lat, lon, { index: 'AQHI', bands: AQHI_BANDS }))
+    .then(({ data }) => fromStations(data, lat, lon, { index: 'AQHI', bands: AQHI_BANDS })),
+  // Without a token, China is Open-Meteo's countrywide range like anywhere else.
+  ...process.env.WAQI_TOKEN && { CN: (lat, lon) => cached(`air-cn-${lat.toFixed(1)},${lon.toFixed(1)}`, { fresh: 15 * MIN, stale: 3 * 60 * MIN }, () => chinaAir(lat, lon))
+    .then(({ data }) => fromStations(data, lat, lon, { index: 'US AQI', bands: US_AQI_BANDS })) }
 };
 
 /**

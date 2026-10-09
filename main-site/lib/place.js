@@ -9,6 +9,7 @@
 //   US  api.weather.gov            NO  api.met.no
 //   CA  api.weather.gc.ca          DE  api.brightsky.dev, opendata.dwd.de
 //   GB  environment.data.gov.uk    SG  NEA, drawn by the page from /api/sg
+//   CN  api.seniverse.com, with its keys set
 //
 // A national value replaces Open-Meteo's for the same field and time; anything
 // it leaves out stays Open-Meteo's. Everything is metric until present().
@@ -16,6 +17,7 @@
 import { cached, peek, store } from './cache.js';
 import { countryCode } from './country.js';
 import { canada } from './sources/canada.js';
+import { china } from './sources/china.js';
 import { fallbackForecast } from './sources/fallbacks.js';
 import { germany } from './sources/germany.js';
 import { nearestFlash } from './sources/lightning-ca.js';
@@ -27,7 +29,8 @@ import { dateKey } from './wx.js';
 
 export const FRESH_MS = 10 * 60 * 1000;
 
-const NATIONAL = { US: unitedStates, NO: norway, CA: canada, DE: germany, GB: unitedKingdom };
+// A source may answer null when it isn't set up; the place is Open-Meteo's then.
+const NATIONAL = { US: unitedStates, NO: norway, CA: canada, DE: germany, GB: unitedKingdom, CN: china };
 
 // About a kilometre: close enough that two searches for one town share a copy.
 export const placeKey = (lat, lon) => `place-${lat.toFixed(2)},${lon.toFixed(2)}`;
