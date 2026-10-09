@@ -1,6 +1,7 @@
 // The map's scrubber: Singapore's last three hours in five-minute slots, each with
 // every station's temperature, humidity, rainfall and wind, plus every lightning
-// strike in the window. The radar frames come from /api/radar.
+// strike in the window and each 2-hour forecast NEA issued in it (kept by the sg
+// cron). The radar frames come from /api/radar.
 //
 // Read from what the collect cron stored (see lib/timeline.js). Until it has
 // stored anything, or without Upstash at all, the earlier slots carry rainfall
@@ -15,10 +16,11 @@ import {
 const MIN_STORED_SLOTS = 6;
 
 async function fromStore(since) {
-  const [stations, slots, strikes] = await Promise.all([
+  const [stations, slots, strikes, forecasts] = await Promise.all([
     getState('stations'),
     timeline.all('stations'),
-    timeline.all('lightning')
+    timeline.all('lightning'),
+    timeline.all('forecast2h').catch(() => [])
   ]);
   const inWindow = slots.filter(([t]) => Date.parse(t) >= since);
   if (!stations || inWindow.length < MIN_STORED_SLOTS) return null;
@@ -26,7 +28,9 @@ async function fromStore(since) {
     source: 'stored',
     stations,
     slots: inWindow.map(([t, values]) => ({ t, ...values })),
-    strikes: flattenStrikes(Object.fromEntries(strikes), since)
+    strikes: flattenStrikes(Object.fromEntries(strikes), since),
+    // Oldest first, including the one in force when the window opened.
+    forecasts: forecasts.map(([t, f]) => ({ t, ...f }))
   };
 }
 
@@ -48,7 +52,8 @@ async function live(since) {
     source: 'live',
     stations: { ...r.stations, ...n.stations },
     slots,
-    strikes: strikes.status === 'fulfilled' ? flattenStrikes(strikes.value, since) : []
+    strikes: strikes.status === 'fulfilled' ? flattenStrikes(strikes.value, since) : [],
+    forecasts: []
   };
 }
 

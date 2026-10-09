@@ -62,7 +62,7 @@ Issues and PRs are welcome. A few things worth knowing:
 - Themes are a single entry in the `THEMES` map in `script.js` plus a swatch button in `index.html`.
 - Bump the `CACHE` constant in `sw.js` when you change cached assets, or clients will serve stale files.
 - Please read the [Code of Conduct](CODE_OF_CONDUCT.md) before participating.
-- Found a bug but don't want to file an issue? [Use the report form](https://forms.gle/4wKTdjgiC6MGX1aN8).
+- Found a bug but don't want to file an issue? [Email augy@augystudios.com](mailto:augy@augystudios.com).
 
 ## Credits
 

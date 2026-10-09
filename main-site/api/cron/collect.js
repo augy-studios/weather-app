@@ -5,6 +5,9 @@
 //   to lib/lightning.js, which warns anyone with a place near it. Strikes older
 //   than STALE_MS when first seen are stored but not announced: by then the
 //   warning is history, not news.
+//   Environment Canada's lightning grid is new every ten minutes. A few minutes
+//   after each, the cells round every watched Canadian place are read once and
+//   any lit one is passed on the same way (lib/sources/lightning-ca.js).
 // - The map's timeline. One snapshot of every weather station per five-minute
 //   slot, plus the lightning records, three hours of each (lib/timeline.js).
 //   A slot the cron missed, a deploy or an outage, is backfilled from
@@ -14,7 +17,8 @@
 
 import { latest, strikesOf } from '../../lib/datagov.js';
 import { getState, releaseLock, setState, storeConfigured, takeLock, timeline } from '../../lib/kv.js';
-import { notifyLightning } from '../../lib/lightning.js';
+import { coverageOf, notifyLightning, watchedPlaces } from '../../lib/lightning.js';
+import { canadaFlashes, latestTime } from '../../lib/sources/lightning-ca.js';
 import {
   SLOT_MS, WINDOW_MS, flattenStrikes, isoOf, liveLightning, readStations, slotOf
 } from '../../lib/timeline.js';
@@ -46,11 +50,14 @@ export default async function handler(req, res) {
 
   try {
     const since = Date.now() - WINDOW_MS;
-    const [lightning, stations] = await Promise.allSettled([collectLightning(since), collectStations(since)]);
+    const [lightning, stations, canada] = await Promise.allSettled([
+      collectLightning(since), collectStations(since), collectCanada()
+    ]);
     const out = (r) => (r.status === 'fulfilled' ? r.value : { error: r.reason?.message });
     if (lightning.status === 'rejected') console.error('collect: lightning failed:', lightning.reason);
     if (stations.status === 'rejected') console.error('collect: stations failed:', stations.reason);
-    return res.status(200).json({ lightning: out(lightning), stations: out(stations) });
+    if (canada.status === 'rejected') console.error('collect: Canadian lightning failed:', canada.reason);
+    return res.status(200).json({ lightning: out(lightning), stations: out(stations), canada: out(canada) });
   } finally {
     await releaseLock('collect').catch(() => {});
   }
@@ -85,6 +92,25 @@ async function collectLightning(since) {
 
   const alerts = fresh.length ? await notifyLightning(fresh) : null;
   return { record: record.datetime, strikes: strikes.length, fresh: fresh.length, alerts };
+}
+
+// GeoMet's grid for the ten minutes to :00, :10 and so on appears a few minutes
+// later. Looking three times in each ten, and reading the grid only when its time
+// is new, keeps GeoMet's rate limit and Upstash's command count both small.
+const CANADA_MINUTES = [3, 5, 8];
+
+async function collectCanada() {
+  if (!CANADA_MINUTES.includes(new Date().getUTCMinutes() % 10)) return { skipped: 'not due' };
+  const time = await latestTime();
+  if (time === (await getState('lightning-ca-at'))) return { time, fresh: false };
+  await setState('lightning-ca-at', time);
+  if (Date.now() - Date.parse(time) > STALE_MS) return { time, stale: true };
+
+  const places = (await watchedPlaces()).filter((p) => coverageOf(p) === 'CA');
+  if (!places.length) return { time, places: 0 };
+  const flashes = await canadaFlashes(places, time);
+  const alerts = flashes.length ? await notifyLightning(flashes) : null;
+  return { time, places: places.length, cells: flashes.length, alerts };
 }
 
 async function collectStations(since) {

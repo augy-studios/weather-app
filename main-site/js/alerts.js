@@ -1,12 +1,13 @@
-// Lightning alerts: a notification when NEA detects lightning near a saved place
-// in Singapore, even with the site closed. The page subscribes to Web Push and
+// Lightning alerts: a notification when lightning is detected near a saved
+// place in a country with an open lightning network (W.LIGHTNING_COUNTRIES:
+// Singapore by NEA, Canada by Environment Canada), even with the site closed. The page subscribes to Web Push and
 // tells /api/push/devices which places to watch and how close counts; the
 // collect cron (api/cron/collect.js) checks each new lightning record and pushes.
 // A browser linked to the Telegram bot can also have the bot send them, for the
 // places synced with it, through /api/lightning.
 //
-// The watched places are this browser's saved places, the Singapore ones, sent
-// again whenever that list changes. The subscribing follows sg-psi's js/alerts.js.
+// The watched places are this browser's saved places in those countries, sent
+// again whenever that list changes; the server checks each again. The subscribing follows sg-psi's js/alerts.js.
 // Plain script, not a module: published on window.UwuAlerts.
 
 (function () {
@@ -54,14 +55,22 @@
     return id || crypto.randomUUID();
   }
 
-  const watched = () => Sync.readLocal().filter((p) => W.inSingapore(Number(p.lat), Number(p.lon)));
+  // The country the forecast named for a saved place, for one whose label has
+  // no code ("My location"). Set by script.js from its kept copies.
+  let countryHint = () => null;
+
+  const watched = () => Sync.readLocal().filter((p) => W.lightningCountry(p, countryHint(p)));
+
+  // "Singapore or Canada", for the panel's wording.
+  const COVERED = ["Singapore", "Canada"];
+  const coveredText = (joiner) => COVERED.join(` ${joiner} `);
 
   const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
   // ---------- drawing ----------
 
   function noteFor(p, places) {
-    if (!places.length) return "Save a place in Singapore first: search for it, then press the star.";
+    if (!places.length) return `Save a place in ${coveredText("or")} first: search for it, then press the star.`;
     if (!p.on) return "Alerts are off. Pick how close counts, then turn them on.";
     return `You'll be notified when lightning is detected within ${p.radiusKm} km of ${places.length === 1 ? "this place" : `any of these ${places.length} places`}, at most once every half hour for each.`;
   }
@@ -71,10 +80,10 @@
     const others = Sync.readLocal().length - places.length;
     $("#alertPlaces").innerHTML = places.length
       ? places.map((pl) => `<li><span data-icon="pin"></span>${esc(pl.name)}</li>`).join("")
-      : '<li class="muted">No saved places in Singapore yet.</li>';
+      : `<li class="muted">No saved places in ${coveredText("or")} yet.</li>`;
     $("#alertPlaces").hidden = false;
     $("#alertOthers").hidden = !others;
-    $("#alertOthers").textContent = `${others} saved place${others === 1 ? " is" : "s are"} outside Singapore, where NEA can't detect lightning, so ${others === 1 ? "it isn't" : "they aren't"} watched.`;
+    $("#alertOthers").textContent = `${others} saved place${others === 1 ? " is" : "s are"} outside ${coveredText("and")}, where no open network reports lightning, so ${others === 1 ? "it isn't" : "they aren't"} watched.`;
     hydrateIcons($("#alertPlaces"));
 
     document.querySelectorAll("[data-radius]").forEach((btn) => {
@@ -88,6 +97,10 @@
     toggle.disabled = !p.on && !places.length;
     $("#alertsTest").hidden = !p.on;
     note(problem ? PROBLEMS[problem] : noteFor(p, places), problem ? "bad" : "");
+
+    // Alerts can only watch saved places in a covered country. With none saved, the bell
+    // would open a panel with nothing to turn on, so it stays out of the tray.
+    $("#alertsBtn").hidden = !places.length;
 
     const icon = $("#alertsBtn [data-icon]");
     icon.setAttribute("data-icon", p.on || tg.enabled ? "bell-on" : "bell");
@@ -256,8 +269,8 @@
     btn.disabled = tg.busy;
     $("#tgNote").textContent = problem
       || (tg.enabled
-        ? `The bot messages you about lightning within ${prefs().radiusKm} km of your synced places in Singapore (${tg.places} of them).`
-        : `Uses the places synced with the bot, ${tg.places} of them in Singapore.`);
+        ? `The bot messages you about lightning within ${prefs().radiusKm} km of your synced places in ${coveredText("and")} (${tg.places} of them).`
+        : `Uses the places synced with the bot, ${tg.places} of them in ${coveredText("or")}.`);
     $("#tgNote").dataset.tone = problem ? "bad" : "";
     show(prefs());
   }
@@ -290,7 +303,8 @@
 
   // ---------- wiring ----------
 
-  function init() {
+  function init({ countryOf } = {}) {
+    if (countryOf) countryHint = countryOf;
     $("#alertRadius").addEventListener("click", (e) => {
       const btn = e.target.closest("[data-radius]");
       if (!btn) return;
@@ -318,5 +332,9 @@
     if (tg.linked) refreshTelegram();
   }
 
-  window.UwuAlerts = { init, placesChanged, refreshTelegram };
+  // A forecast arrived that may name a saved place's country: the bell and the
+  // panel's list follow, without sending anything to the server.
+  const redraw = () => show(prefs());
+
+  window.UwuAlerts = { init, placesChanged, refreshTelegram, redraw };
 })();

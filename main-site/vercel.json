@@ -2,11 +2,18 @@
   "regions": ["sin1"],
   "functions": {
     "api/cron/collect.js": { "maxDuration": 60 },
+    "api/cron/sg.js": { "maxDuration": 60 },
+    "api/cron/places.js": { "maxDuration": 300 },
     "api/timeline.js": { "maxDuration": 30 },
-    "api/radar.js": { "maxDuration": 30 }
+    "api/radar.js": { "maxDuration": 30 },
+    "api/forecast.js": { "maxDuration": 30 },
+    "api/air.js": { "maxDuration": 30 },
+    "api/gauges.js": { "maxDuration": 30 }
   },
   "crons": [
-    { "path": "/api/cron/collect", "schedule": "* * * * *" }
+    { "path": "/api/cron/collect", "schedule": "* * * * *" },
+    { "path": "/api/cron/sg", "schedule": "* * * * *" },
+    { "path": "/api/cron/places", "schedule": "*/5 * * * *" }
   ],
   "rewrites": [
     { "source": "/lib/:path*", "destination": "/404.html" },

@@ -2,12 +2,20 @@
 // Air & heat), the place bar, the theme, sync, share and alerts panels, and draws
 // each page from three sources:
 //
-// - Open-Meteo, through /api/forecast, everywhere: current conditions, hourly,
-//   daily and fifteen-minute rain.
+// - /api/forecast, everywhere: Open-Meteo's forecast in its own shape, with the
+//   national weather service's readings already laid over it (the US, Norway,
+//   Canada, Germany, England), warnings, the sea, and a keyed service standing
+//   in when Open-Meteo is down. See lib/place.js.
 // - NEA, through /api/sg, in Singapore: the nearest stations' readings, the
 //   2-hour, 24-hour and 4-day forecasts, UV, heat stress and lightning. Each
-//   part that NEA can't give right now falls back to Open-Meteo's.
-// - /api/air, everywhere: NEA's PSI in Singapore, Open-Meteo's US AQI elsewhere.
+//   part that NEA can't give right now falls back to the forecast's.
+// - /api/air, everywhere: NEA's PSI in Singapore, the Norwegian index in
+//   Norway, the AQHI in Canada, Open-Meteo's US AQI elsewhere.
+//
+// The last answer of each is kept in localStorage too, and drawn straight away
+// on the next visit, so the page has something to show before the network
+// answers, and offline even where the service worker isn't running. Saved
+// places are fetched in the background now and then, so they work offline too.
 //
 // Plain script, not a module, like everything under js/.
 
@@ -374,44 +382,88 @@
     load();
   }
 
+  // ---------- offline copies ----------
+  // The last answer for each URL, with when it came. A handful of places'
+  // worth; the oldest go first when there are too many or storage is full.
+
+  const COPY_PREFIX = "uwuweather.copy.";
+  const MAX_COPIES = 24;
+
+  function copyKeys() {
+    const keys = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k?.startsWith(COPY_PREFIX)) keys.push(k);
+      }
+    } catch {}
+    return keys;
+  }
+
+  function pruneCopies(keep) {
+    const aged = copyKeys().map((k) => {
+      let at = 0;
+      try {
+        at = JSON.parse(localStorage.getItem(k))?.at || 0;
+      } catch {}
+      return [k, at];
+    }).sort((a, b) => b[1] - a[1]);
+    for (const [k] of aged.slice(keep)) {
+      try {
+        localStorage.removeItem(k);
+      } catch {}
+    }
+  }
+
+  function keepCopy(url, data) {
+    const value = JSON.stringify({ at: Date.now(), data });
+    try {
+      localStorage.setItem(COPY_PREFIX + url, value);
+    } catch {
+      // Full: make room and try once more.
+      pruneCopies(Math.floor(MAX_COPIES / 2));
+      try {
+        localStorage.setItem(COPY_PREFIX + url, value);
+      } catch {}
+    }
+    if (copyKeys().length > MAX_COPIES) pruneCopies(MAX_COPIES);
+  }
+
+  function copyOf(url) {
+    try {
+      return JSON.parse(localStorage.getItem(COPY_PREFIX + url) || "null");
+    } catch {
+      return null;
+    }
+  }
+
   async function getJSON(url, opts) {
     const res = await fetch(url, opts);
     if (!res.ok) throw new Error(`${url.split("?")[0]} replied ${res.status}`);
-    return res.json();
-  }
-
-  function forecastUrl() {
-    const params = new URLSearchParams({
-      latitude: current.lat,
-      longitude: current.lon,
-      timezone: "auto",
-      timeformat: "unixtime",
-      current: [
-        "temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation",
-        "weather_code", "is_day", "wind_speed_10m", "wind_direction_10m", "surface_pressure",
-      ].join(","),
-      hourly: [
-        "temperature_2m", "apparent_temperature", "precipitation_probability", "precipitation",
-        "weather_code", "is_day", "uv_index",
-      ].join(","),
-      daily: [
-        "weather_code", "temperature_2m_max", "temperature_2m_min", "precipitation_sum",
-        "precipitation_probability_max", "wind_speed_10m_max", "uv_index_max",
-      ].join(","),
-      minutely_15: "precipitation",
-      forecast_minutely_15: "9",
-      forecast_days: "7",
-      temperature_unit: W.isImperial() ? "fahrenheit" : "celsius",
-      wind_speed_unit: W.isImperial() ? "mph" : "kmh",
-    });
-    return `/api/forecast?${params}`;
+    const data = await res.json();
+    keepCopy(url, data);
+    return data;
   }
 
   // The label's trailing country code, when it has one, names the country the
-  // air quality range covers. "My location" has none, and the route works it out.
-  function airUrl() {
-    const params = new URLSearchParams({ latitude: current.lat, longitude: current.lon });
-    const country = current.name.match(/,\s*([A-Z]{2})$/)?.[1];
+  // weather service and the air quality range come from. "My location" has
+  // none, and the routes work it out.
+  const countryOf = (place) => place.name?.match(/,\s*([A-Z]{2})$/)?.[1];
+
+  function forecastUrl(place = current) {
+    const params = new URLSearchParams({
+      latitude: place.lat,
+      longitude: place.lon,
+      units: W.isImperial() ? "imperial" : "metric",
+    });
+    const country = countryOf(place);
+    if (country) params.set("country", country);
+    return `/api/forecast?${params}`;
+  }
+
+  function airUrl(place = current) {
+    const params = new URLSearchParams({ latitude: place.lat, longitude: place.lon });
+    const country = countryOf(place);
     if (country) params.set("country", country);
     return `/api/air?${params}`;
   }
@@ -426,20 +478,74 @@
     return sg;
   }
 
+  // What was last seen for this place, drawn before the network answers.
+  // `copyAt` says how old it is, for the status line.
+  let copyAt = 0;
+
+  function drawCopies() {
+    const f = copyOf(forecastUrl());
+    const a = copyOf(airUrl());
+    const s = W.inNeaRadar(current.lat, current.lon) ? copyOf("/api/sg") : null;
+    if (f && !om) {
+      om = f.data;
+      copyAt = f.at;
+      W.setZone(om.timezone);
+      Map_.setForecast(om);
+    }
+    if (a && !air) air = a.data;
+    if (s && !sg) {
+      sg = s.data;
+      Map_.setSg(sg);
+    }
+    if (om) renderAll();
+  }
+
+  // ---------- saved places, ready for offline ----------
+  // Every half hour at most, while online and idle, each saved place's weather
+  // is fetched once, quietly: that leaves a copy here and in the service
+  // worker's cache, so opening one later works without a connection.
+
+  const PREFETCH_EVERY_MS = 30 * 60 * 1000;
+  let prefetchedAt = 0;
+
+  function prefetchSaved() {
+    if (!navigator.onLine || Date.now() - prefetchedAt < PREFETCH_EVERY_MS) return;
+    prefetchedAt = Date.now();
+    const places = loadSaved().filter((p) => !samePlace(p, current)).slice(0, 12);
+    const urls = places.flatMap((p) => [forecastUrl(p), airUrl(p)]);
+    if (places.some((p) => W.inNeaRadar(p.lat, p.lon))) urls.push("/api/sg");
+    const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 1500));
+    const next = () => {
+      const url = urls.shift();
+      // Done: every saved place now has a kept forecast, so the bell knows
+      // each one's country.
+      if (!url) return Alerts.redraw();
+      if (!navigator.onLine) return;
+      getJSON(url).catch(() => {}).finally(() => idle(next));
+    };
+    idle(next);
+  }
+
   async function load({ force = false } = {}) {
     const ticket = ++loading;
     const place = { ...current };
     const stale = () => ticket !== loading || place.lat !== current.lat || place.lon !== current.lon;
     $("#refreshBtn").classList.add("busy");
-    status("Loading the weather.");
     lastLoad = Date.now();
+    // Last time's answer first, while this time's is on its way.
+    drawCopies();
+    if (!om) status("Loading the weather.");
 
     // Each source draws as soon as it lands; none waits on another.
     const forecast = getJSON(forecastUrl()).then((j) => {
       if (stale()) return;
       om = j;
+      copyAt = 0;
       W.setZone(j.timezone);
+      Map_.setForecast(om);
       renderAll();
+      // This place's country is now known, which may bring the bell back.
+      Alerts.redraw();
     });
     const nea = loadSg({ force }).then(() => !stale() && om && renderAll());
     const quality = getJSON(airUrl()).then((j) => {
@@ -454,18 +560,23 @@
     if (f.status === "rejected") console.warn("forecast unavailable:", f.reason);
     if (n.status === "rejected") {
       console.warn("NEA unavailable:", n.reason);
-      sg = null;
+      // Offline, NEA's last bundle is still the best there is; online, a
+      // failure means NEA is down and the forecast should fill in.
+      if (navigator.onLine) sg = null;
     }
     if (q.status === "rejected") {
       console.warn("air quality unavailable:", q.reason);
-      air = null;
-      renderAir();
-      renderNowAir();
+      // A kept copy stays on screen rather than a blank.
+      if (!air) {
+        renderAir();
+        renderNowAir();
+      }
     }
-    loadFailed = f.status === "rejected" && !om;
+    loadFailed = f.status === "rejected";
     $("#refreshBtn").classList.remove("busy");
     if (om) renderAll();
     renderStatus();
+    if (f.status === "fulfilled") prefetchSaved();
   }
 
   // ---------- status ----------
@@ -482,13 +593,35 @@
         : "Loading the weather.", loadFailed);
     }
     // The reader's own clock: "updated" is about when they looked, not the place.
-    const parts = [`Updated ${W.time(lastLoad, null)}.`];
-    if (W.inSingapore(current.lat, current.lon)) {
-      if (!sg) parts.push("NEA isn't answering, so this is Open-Meteo's forecast for now.");
-      else if (["stations", "forecast2h"].some((k) => !sg[k])) parts.push("Some of NEA's readings are missing; Open-Meteo fills the gaps.");
+    const parts = [];
+    const savedAt = copyAt || (om.stale ? om.savedAt : 0);
+    if (copyAt && loadFailed) {
+      parts.push(navigator.onLine
+        ? `Couldn't reach the server, so this is the weather as of ${W.when(copyAt, null)}.`
+        : `Offline. This is the weather as of ${W.when(copyAt, null)}.`);
+    } else if (savedAt) {
+      parts.push(`Updated ${W.time(lastLoad, null)}, from a copy made ${W.ago(savedAt)}: the weather services aren't answering right now.`);
+    } else {
+      parts.push(`Updated ${W.time(lastLoad, null)}.`);
     }
-    status(parts.join(" "));
+    const standIn = FALLBACK_NAMES[om.source];
+    if (standIn) parts.push(`Open-Meteo isn't answering, so the forecast is ${standIn}'s for now.`);
+    if (W.inSingapore(current.lat, current.lon)) {
+      if (!sg) parts.push(`NEA isn't answering, so this is ${baseName()}'s forecast for now.`);
+      else if (["stations", "forecast2h"].some((k) => !sg[k])) parts.push(`Some of NEA's readings are missing; ${baseName()} fills the gaps.`);
+    }
+    status(parts.join(" "), Boolean(copyAt && loadFailed));
   }
+
+  // The services that stand in for Open-Meteo, by the name /api/forecast gives them.
+  const FALLBACK_NAMES = { weatherapi: "WeatherAPI.com", openweather: "OpenWeather", xweather: "Xweather" };
+  const baseName = () => FALLBACK_NAMES[om?.source] || "Open-Meteo";
+
+  // Who measured the air, by the name /api/air gives them.
+  const AIR_NAMES = {
+    nea: "NEA", nilu: "NILU", "met-norway": "MET Norway", eccc: "Environment Canada",
+    "open-meteo": "Open-Meteo", ...FALLBACK_NAMES,
+  };
 
   // ---------- helpers for NEA readings near the place ----------
 
@@ -589,10 +722,7 @@
     renderNowUv();
     renderNowAir();
 
-    const sources = n.sources.length
-      ? `${n.sources.join("; ")}. Feels like from Open-Meteo.`
-      : "From Open-Meteo.";
-    $("#now-source").textContent = sources;
+    $("#now-source").textContent = nowSource(n);
 
     // NEA's 2-hour forecast for the area.
     const area = nearestArea();
@@ -606,6 +736,67 @@
     }
 
     renderNowLightning();
+    renderWarnings();
+    renderSea();
+  }
+
+  // Where the Now page's numbers came from, in one line.
+  function nowSource(n) {
+    const base = baseName();
+    if (n.sources.length) return `${n.sources.join("; ")}. Feels like from ${base}.`;
+    const nat = om.national;
+    if (!nat?.used?.includes("current")) {
+      return nat?.used?.length ? `From ${base}, with ${nat.name}'s forecast.` : `From ${base}.`;
+    }
+    const where = nat.station
+      ? `${nat.name}'s ${nat.station} station${nat.stationLat != null ? `, ${distance(W.km(current.lat, current.lon, nat.stationLat, nat.stationLon))}` : nat.stationKm != null ? `, ${distance(nat.stationKm)}` : ""}`
+      : nat.name;
+    const forecast = nat.used.some((u) => u !== "current") ? `the forecast from ${nat.name} and ${base}` : `the forecast from ${base}`;
+    return `Now from ${where}; ${forecast}.`;
+  }
+
+  // Warnings in force, from the national service or the stand-in.
+  function renderWarnings() {
+    const list = (om?.alerts || []).filter((a) => !a.until || Date.parse(a.until) > Date.now());
+    $("#warnings-card").hidden = !list.length;
+    if (!list.length) return;
+    $("#warnings-title").textContent = list.length === 1 ? "Weather warning" : `${list.length} weather warnings`;
+    $("#warnings").innerHTML = list.map((a) => {
+      const until = a.until && Date.parse(a.until) ? `Until ${W.when(Date.parse(a.until))}` : "";
+      const from = a.from && Date.parse(a.from) > Date.now() ? `From ${W.when(Date.parse(a.from))}` : "";
+      const when = [from, until, a.source].filter(Boolean).join(" · ");
+      const more = a.text || a.url
+        ? `<details><summary>Details</summary>${a.text ? `<p>${esc(a.text)}</p>` : ""}${a.url ? `<p><a class="link" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Full warning</a></p>` : ""}</details>`
+        : "";
+      return `<li><span class="warning-title">${esc(a.title)}</span><span class="warning-when">${esc(when)}</span>${more}</li>`;
+    }).join("");
+  }
+
+  // Wave heights in metres, or feet for imperial.
+  const fmtWave = (m) => (m == null || !Number.isFinite(m) ? "--" : W.isImperial() ? `${(m * 3.28084).toFixed(1)} ft` : `${m.toFixed(1)} m`);
+
+  function renderSea() {
+    const s = om?.marine;
+    $("#sea-card").hidden = !s || s.waveHeight == null;
+    if (!s || s.waveHeight == null) return;
+    $("#sea-waves").textContent = fmtWave(s.waveHeight);
+    $("#sea-waves-note").textContent = s.waveDirection == null ? "" : `from the ${W.compass(s.waveDirection)}`;
+    $("#sea-period").textContent = s.wavePeriod == null ? "--" : `${Math.round(s.wavePeriod)} s`;
+    $("#sea-temp").textContent = W.fmtTemp(s.seaTemperature);
+    // Lakes have waves in the model but no surface temperature.
+    $("#sea-temp").parentElement.hidden = s.seaTemperature == null;
+    $("#sea-time").textContent = W.time(Date.now());
+    // The highest waves in the next 24 hours.
+    const now = Date.now() / 1000;
+    const ahead = (s.hourly || []).filter((h) => h.t >= now && h.t < now + 86400 && Number.isFinite(h.waveHeight));
+    const peak = ahead.reduce((best, h) => (!best || h.waveHeight > best.waveHeight ? h : best), null);
+    // A current's direction is the way it flows, unlike the wind's.
+    const currentNote = Number.isFinite(s.currentSpeed) && s.currentSpeed >= 0.5
+      ? ` Surface current ${Math.round(s.currentSpeed)} ${W.windUnit()}${s.currentDirection == null ? "" : ` towards the ${W.compass(s.currentDirection)}`}.`
+      : "";
+    $("#sea-outlook").textContent = peak
+      ? `Highest in the next 24 hours: ${fmtWave(peak.waveHeight)} around ${W.time(peak.t * 1000)}.${currentNote}`
+      : currentNote.trim();
   }
 
   function renderNowLightning() {
@@ -616,12 +807,16 @@
       const d = W.km(current.lat, current.lon, s.lat, s.lon);
       if (d <= LIGHTNING_NEAR_KM && (!near || d < near.km)) near = { ...s, km: d };
     }
+    // Canada's grid counts flashes in each ten minutes, and comes with the forecast.
+    const grid = !inSg() && om?.lightning;
+    if (!near && grid && Date.now() - Date.parse(grid.t) < LIGHTNING_RECENT_MS) near = { ...grid, type: "grid" };
     $("#lightning-card").hidden = !near;
     if (!near) return;
+    const what = near.type === "grid"
+      ? `Detected by Environment Canada in the ten minutes to ${W.time(Date.parse(near.t))}`
+      : `${near.type === "ground" ? "Cloud to ground" : "Cloud to cloud"}, ${W.time(Date.parse(near.t))}`;
     $("#lightning-title").textContent = `Lightning ${distance(near.km)}`;
-    $("#lightning-text").textContent =
-      `${near.type === "ground" ? "Cloud to ground" : "Cloud to cloud"}, ${W.time(Date.parse(near.t))}. ` +
-      "Head indoors, and wait 30 minutes after the last flash before going back out.";
+    $("#lightning-text").textContent = `${what}. Head indoors, and wait 30 minutes after the last flash before going back out.`;
   }
 
   // NEA's last hourly UV reading while it is fresh (it stops at 7pm), else Open-Meteo's for the hour.
@@ -647,7 +842,8 @@
     const wide = air && air.area !== "here" ? air.area : "";
     $("#aqi").textContent = shown ? `${W.fmtRange(shown)} ${air.index}` : "--";
     $("#aqi").dataset.level = shown?.level ?? "";
-    $("#aqi-label").textContent = region ? `Air, ${region.name}` : "Air quality";
+    // A region by name ("Air quality, East"); a station's name is too long for the tile.
+    $("#aqi-label").textContent = region && air.regionKind !== "station" ? `Air quality, ${W.cap(region.name)}` : "Air quality";
     $("#aqi-band").textContent = shown ? shown.band : "";
   }
 
@@ -659,6 +855,29 @@
     renderHourly();
     renderNea24();
     renderDaily();
+    renderHistory();
+  }
+
+  // The nearest gauge's daily totals. Hydrology loads once a day, so the newest
+  // day is usually yesterday, and the card says whose gauge and how far.
+  function renderHistory() {
+    const h = om?.history;
+    $("#history-card").hidden = !h?.days?.length;
+    if (!h?.days?.length) return;
+    const most = Math.max(...h.days.map((d) => d.mm), 1);
+    const total = h.days.reduce((sum, d) => sum + d.mm, 0);
+    const fmtMm = (mm) => (W.isImperial() ? `${(mm / 25.4).toFixed(2)} in` : W.fmtMM(mm));
+    $("#history-total").textContent = `${fmtMm(total)} in ${h.days.length} days`;
+    $("#history").innerHTML = h.days.map((d) => {
+      const when = Date.parse(`${d.date}T12:00:00Z`);
+      return `<li>
+        <span class="muted">${esc(W.weekday(when, "UTC"))} ${esc(W.dayLabel(when, "UTC").replace(/^\w+,?\s*/, ""))}</span>
+        <span class="history-bar${d.mm > 0 ? "" : " dry"}" style="width:${Math.max(2, Math.round((d.mm / most) * 100))}%"></span>
+        <span class="history-mm">${d.mm > 0 ? fmtMm(d.mm) : "Dry"}</span>
+      </li>`;
+    }).join("");
+    $("#history-source").textContent =
+      `Measured by the Environment Agency's ${h.station} rain gauge, ${distance(h.km)}. Totals arrive a day late, so the newest is usually yesterday.`;
   }
 
   function rainPoints() {
@@ -761,12 +980,13 @@
         low: d.temperature_2m_min?.[i],
         high: d.temperature_2m_max?.[i],
         extra: `${prob == null ? "--" : `${prob}%`} chance of rain, ${W.fmtMM(d.precipitation_sum?.[i] ?? 0)}`,
-        source: neaDays.length ? "Open-Meteo" : "",
+        source: neaDays.length ? baseName() : "",
       }));
     });
     rows.sort((a, b) => a.when - b.when);
     $("#daily").innerHTML = rows.map((r) => r.html).join("");
-    $("#daily-source").textContent = neaDays.length ? "NEA, then Open-Meteo" : "Open-Meteo";
+    const nat = om.national?.used?.includes("daily") ? om.national.name.replace(/^the /, "") : "";
+    $("#daily-source").textContent = neaDays.length ? `NEA, then ${baseName()}` : nat ? `${nat} and ${baseName()}` : baseName();
     hydrateIcons($("#daily"));
   }
 
@@ -800,33 +1020,78 @@
       chip($("#air-band"), null);
       $("#air-note").textContent = "No air quality reading for this place right now.";
       $("#air-pm25").textContent = "--";
+      $("#air-pm25-row").hidden = false;
       $("#air-regions").innerHTML = "";
+      $("#air-pollutants-box").hidden = true;
       $("#air-time").textContent = "";
+      $("#air-source").textContent = "";
     } else {
       const region = air.region;
       const shown = region || air;
-      $("#air-title").textContent = air.index === "PSI" ? "Air quality, 24-hour PSI" : "Air quality, US AQI";
+      const stations = air.regionKind === "station";
+      $("#air-title").textContent = AIR_TITLES[air.index] || `Air quality, ${air.index}`;
       $("#air-range").textContent = W.fmtRange(shown);
       $("#air-index").textContent = air.index;
       chip($("#air-band"), shown.band, shown.level);
-      $("#air-note").textContent = region
-        ? `In the ${region.name} region. ${air.area === "islandwide" ? "Islandwide" : "Countrywide"} ${W.fmtRange(air)}.`
-        : air.area === "here" ? "At this place." : `The range ${air.area}.`;
-      $("#air-pm25").textContent = W.fmtRange(shown.pm25);
+      $("#air-note").textContent = airNote(region, stations);
+      // Canada's AQHI comes without PM2.5, so the line goes rather than reading "--".
+      $("#air-pm25-row").hidden = !shown.pm25 && !air.pm25;
+      $("#air-pm25").textContent = W.fmtRange(shown.pm25 || air.pm25);
       // NEA's time carries +08:00; Open-Meteo's is UTC with no zone on it.
       const t = air.time && (/[zZ]|[+-]\d\d:?\d\d$/.test(air.time) ? air.time : `${air.time}Z`);
       $("#air-time").textContent = t ? W.when(Date.parse(t)) : "";
       $("#air-regions").innerHTML = (air.regions || []).map((r) => `
         <li${region && r.name === region.name ? ' aria-current="true"' : ""}>
-          <span class="region-name">${esc(W.cap(r.name))}</span>
+          <span class="region-name">${esc(stations ? r.name : W.cap(r.name))}</span>
           <span>${dot(r.level)}${W.fmtRange(r)}</span>
           <span class="muted">${esc(r.band)}</span>
         </li>`).join("");
+
+      // NEA's pollutants behind the PSI, for the place's region.
+      const pollutants = air.pollutants || [];
+      $("#air-pollutants-box").hidden = !pollutants.length;
+      $("#air-pollutants-title").textContent = region ? `Pollutants, ${W.cap(region.name)} region` : "Pollutants";
+      $("#air-pollutants").innerHTML = pollutants.map((p) => `
+        <li>
+          <span class="region-name">${esc(p.name)}</span>
+          <span class="ink">${esc(String(p.value))} ${esc(p.unit)}</span>
+          <span class="muted">${esc(p.period)}</span>
+        </li>`).join("");
+      $("#air-source").textContent = AIR_SOURCES[air.source] || `From ${AIR_NAMES[air.source] || air.source}.`;
     }
 
     if (!om) return;
     renderUv();
     renderHeat();
+  }
+
+  const AIR_TITLES = {
+    PSI: "Air quality, 24-hour PSI",
+    "US AQI": "Air quality, US AQI",
+    AQHI: "Air quality, AQHI",
+    AQI: "Air quality, Norwegian index",
+  };
+
+  const AIR_SOURCES = {
+    nea: "NEA's readings by data.gov.sg: the 24-hour PSI and one-hour PM2.5, by region.",
+    nilu: "Measured by NILU at the nearest stations, on Norway's 1 to 4 index.",
+    "met-norway": "MET Norway's air quality forecast for this hour, on Norway's 1 to 4 index.",
+    eccc: "Environment Canada's Air Quality Health Index: 1 to 3 low risk, 4 to 6 moderate, 7 to 10 high.",
+    "open-meteo": "Open-Meteo's air quality model.",
+  };
+
+  function airNote(region, stations) {
+    const wide = W.fmtRange(air);
+    if (stations) {
+      return air.area === "nearby"
+        ? `At ${region.name}, the nearest station. Nearby stations read ${wide}.`
+        : region ? `For ${region.name}.` : "At this place.";
+    }
+    if (region) return `In the ${region.name} region. ${air.area === "islandwide" ? "Islandwide" : "Countrywide"} ${wide}.`;
+    if (air.area === "here") {
+      return FALLBACK_NAMES[air.source] ? `At this place, from ${FALLBACK_NAMES[air.source]} while Open-Meteo isn't answering.` : "At this place.";
+    }
+    return `The range ${air.area}.`;
   }
 
   function renderUv() {
@@ -861,9 +1126,14 @@
     const w = inSg() && sg?.wbgt;
     $("#heat-sg").hidden = !w;
     $("#heat-elsewhere").hidden = Boolean(w);
-    $("#heat-feels").textContent = W.fmtTemp(om?.current?.apparent_temperature);
     if (!w) {
-      $("#heat-time").textContent = "";
+      // No WBGT to show: the feels like temperature, big, in its place.
+      const c = om?.current || {};
+      $("#heat-feels").textContent = W.fmtTemp(c.apparent_temperature);
+      $("#heat-feels-note").textContent = Number.isFinite(c.temperature_2m)
+        ? `The air is ${W.fmtTemp(c.temperature_2m)}, at ${W.fmtPerc(c.relative_humidity_2m)} humidity. Feels like from ${feelsLikeSource()}.`
+        : "";
+      $("#heat-time").textContent = W.time(Date.now());
       return;
     }
     const ranked = w.stations
@@ -885,6 +1155,14 @@
       </li>`).join("");
   }
 
+  // The NWS and MSC give a heat index, humidex or wind chill of their own;
+  // otherwise it is the base forecast's.
+  function feelsLikeSource() {
+    const nat = om?.national;
+    if (nat && ["nws", "eccc"].includes(nat.source) && nat.used?.includes("current")) return nat.name;
+    return baseName();
+  }
+
   // ---------- share ----------
 
   function weatherSVG(icon) {
@@ -895,6 +1173,8 @@
     const svg = window.UwuIcons.icon(icon) || window.UwuIcons.icon("clear");
     return svg.replace(/currentColor/g, ink).replace(/stroke-width="1.8"/, 'stroke-width="1.4"');
   }
+
+  const NATIONAL_SHORT = { nws: "NWS", "met-norway": "MET Norway", eccc: "Environment Canada", dwd: "DWD", "environment-agency": "Environment Agency" };
 
   function buildShareURL() {
     if (!current.name || current.name === "My location") return location.origin;
@@ -914,7 +1194,12 @@
       n.wind,
       shown && `${air.index} ${W.fmtRange(shown)}`,
     ].filter(Boolean).join(" · ");
-    $("#share-source").textContent = n.neaUsed || air?.source === "nea" ? "Data: NEA, Open-Meteo" : "Data: Open-Meteo";
+    const credits = new Set();
+    if (n.neaUsed || air?.source === "nea") credits.add("NEA");
+    if (om.national?.used?.length) credits.add(NATIONAL_SHORT[om.national.source] || om.national.name);
+    if (air && AIR_NAMES[air.source] && air.source !== "open-meteo") credits.add(AIR_NAMES[air.source]);
+    credits.add(baseName());
+    $("#share-source").textContent = `Data: ${[...credits].join(", ")}`;
     $("#share-time").textContent = `${W.dayLabel(Date.now())}, ${W.time(Date.now())}`;
     $("#share-art").innerHTML = weatherSVG(n.icon);
   }
@@ -1143,7 +1428,8 @@
     wireShare();
     wireSync();
     wireRefresh();
-    Alerts.init();
+    // For a saved place whose label names no country, the one its kept forecast gave.
+    Alerts.init({ countryOf: (p) => copyOf(forecastUrl(p))?.data?.country ?? null });
     renderSaved();
 
     // Pull the account's list in the background. When this browser is linked,

@@ -932,6 +932,34 @@ input[type="search"]::placeholder { color: var(--muted-strong); opacity: 1; }
 .region-list li[aria-current="true"] .region-name::after { content: ", here"; color: var(--muted); }
 .region-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.sub-title { font-size: 0.85rem; color: var(--muted-strong); font-weight: normal; }
+
+/* Heat stress away from Singapore: the feels like temperature, as big as the Now page's. */
+.hero-value.huge { font-size: 4.4rem; letter-spacing: -2px; line-height: 0.95; }
+
+/* ---- warnings ---- */
+.warning-list li { padding: 10px 0; border-bottom: 1px solid var(--surface-border); }
+.warning-list li:first-child { padding-top: 0; }
+.warning-list li:last-child { border-bottom: none; padding-bottom: 0; }
+.warning-list .warning-title { color: var(--ink); }
+.warning-list .warning-when { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+.warning-list details { margin-top: 6px; font-size: 0.85rem; color: var(--muted); }
+.warning-list summary { cursor: pointer; color: var(--brand-ink); }
+.warning-list details p { white-space: pre-line; margin-top: 6px; }
+
+/* ---- rain, past week ---- */
+.history-list li {
+  display: grid;
+  grid-template-columns: 76px 1fr 64px;
+  align-items: center;
+  column-gap: 10px;
+  padding: 6px 0;
+  font-size: 0.9rem;
+}
+.history-bar { height: 8px; border-radius: 4px; background: var(--rain-2); min-width: 2px; }
+.history-bar.dry { background: var(--surface-border); }
+.history-mm { text-align: right; color: var(--ink); }
+
 /* ---- the Map page: the whole screen ---- */
 
 /* The map sits behind everything, from under the update bar to the bottom. */

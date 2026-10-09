@@ -91,6 +91,27 @@ export async function rateLimited(ip, limit) {
   return n > limit;
 }
 
+// ---------- places looked at recently, for the places cron to keep warm ----------
+// A sorted set scored by when each was last asked for. One command per uncached
+// /api/forecast call, which the CDN already holds to one per place per few minutes.
+
+const HOT = `${KEY}:places:recent`;
+
+export const recentPlaces = {
+  async touch(lat, lon, code) {
+    await redis('ZADD', HOT, Date.now(), `${lat},${lon},${code || ''}`);
+  },
+  /** The newest `limit` asked for since `since`, after dropping older ones: [{ lat, lon, code }]. */
+  async since(since, limit) {
+    await redis('ZREMRANGEBYSCORE', HOT, '-inf', `(${since}`);
+    const members = (await redis('ZREVRANGE', HOT, 0, limit - 1)) ?? [];
+    return members.map((m) => {
+      const [lat, lon, code] = m.split(',');
+      return { lat: Number(lat), lon: Number(lon), code: code || null };
+    }).filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
+  }
+};
+
 // ---------- the timeline: hashes keyed by an ISO time, trimmed to a window ----------
 
 const series = (name) => `${KEY}:timeline:${name}`;

@@ -1,7 +1,7 @@
 // Bump on every deploy that changes anything this worker serves. The browser
 // compares this file byte for byte, so an unchanged VERSION means no update
 // reaches anybody and the update bar never appears.
-const VERSION = "v11";
+const VERSION = "v12";
 const CACHE = `weather-${VERSION}`;
 
 // Kept across versions, so an update doesn't throw away what makes the site
@@ -12,10 +12,11 @@ const RADAR_CACHE = "weather-radar";
 const TILE_CACHE = "weather-tiles";
 const KEEP = [CACHE, DATA_CACHE, RADAR_CACHE, TILE_CACHE];
 
-// About 15 MB of tiles at most, and three hours of frames at all three ranges
-// with room to spare; the oldest go first.
+// About 15 MB of tiles at most, and three hours of radar with room to spare:
+// NEA's frames at all three ranges, the DWD's, and the tiled radars' tiles for
+// a view or two. The oldest go first.
 const MAX_TILES = 800;
-const MAX_FRAMES = 240;
+const MAX_FRAMES = 600;
 // How long the weather may take before the last saved copy is shown instead.
 const NETWORK_TIMEOUT_MS = 6000;
 
@@ -48,7 +49,7 @@ const ASSETS = [
 const SHELL = new Set(ASSETS);
 
 // The weather, answered from the network first and from the last copy offline.
-const DATA_PATHS = ["/api/forecast", "/api/air", "/api/sg", "/api/timeline", "/api/geocode"];
+const DATA_PATHS = ["/api/forecast", "/api/air", "/api/sg", "/api/timeline", "/api/gauges", "/api/geocode"];
 
 // Cached on first use: the Jua font, and html2canvas for the share image.
 const STATIC_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.net"];
@@ -56,6 +57,8 @@ const STATIC_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr
 const isTile = (url) => url.hostname === "tile.openstreetmap.org";
 // A single radar frame never changes. The frame list does, every five minutes.
 const isFrame = (url) => url.pathname === "/api/radar" && url.searchParams.has("at");
+// Canada's GeoMet radar: one WMS tile per frame time, so it never changes either.
+const isGeoMet = (url) => url.hostname === "geo.weather.gc.ca" && url.searchParams.has("TIME");
 
 self.addEventListener("install", (event) => {
   // No skipWaiting here. A new version downloads, installs, and then waits.
@@ -141,6 +144,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) {
     if (STATIC_HOSTS.includes(url.hostname)) event.respondWith(cacheFirst(request, CACHE));
     else if (isTile(url)) event.respondWith(capped(event, request, TILE_CACHE, MAX_TILES));
+    else if (isGeoMet(url)) event.respondWith(capped(event, request, RADAR_CACHE, MAX_FRAMES));
     // RainViewer, analytics and ads go straight to the network, untouched.
     return;
   }

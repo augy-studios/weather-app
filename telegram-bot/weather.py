@@ -295,8 +295,16 @@ def air_regions(air: dict | None) -> list[dict]:
     return regions if len(regions) > 1 else []
 
 
+# Who measured the air, as /api/air names them.
+AIR_CREDITS = {
+    "nea": "NEA", "nilu": "NILU", "met-norway": "MET Norway", "eccc": "Environment Canada",
+    "weatherapi": "WeatherAPI.com", "openweather": "OpenWeather", "xweather": "Xweather",
+}
+
+
 def data_credit(air: dict | None) -> str:
-    return "Data from Open-Meteo and NEA." if air and air["source"] == "nea" else "Data from Open-Meteo."
+    extra = AIR_CREDITS.get((air or {}).get("source"))
+    return f"Data from Open-Meteo and {extra}." if extra else "Data from Open-Meteo."
 
 
 # --- formatting ------------------------------------------------------------
@@ -472,6 +480,8 @@ def format_air_regions(air: dict, place: str) -> tuple[str, str, list, tuple]:
 def air_regions_note(air: dict) -> str:
     if air["source"] == "nea":
         return "NEA's 24 hour PSI and one hour PM2.5 in µg/m³, by its five regions."
+    if air.get("regionKind") == "station":
+        return "The nearest measuring stations, nearest first. PM2.5 in µg/m³ where measured."
     return ("Compass regions of the country, each the range across the points sampled "
             "in it. PM2.5 in µg/m³.")
 

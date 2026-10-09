@@ -32,8 +32,9 @@ export function parseRadius(value) {
   return n;
 }
 
-// Places outside Singapore are dropped rather than refused: the page sends its
-// whole saved list, and only some of it can ever be warned about.
+// Places outside the covered countries (LIGHTNING_COUNTRIES) are dropped rather
+// than refused: the page sends its whole saved list, and only some of it can
+// ever be warned about.
 function parsePlaces(list) {
   if (!Array.isArray(list)) fail('places must be a list');
   return list.slice(0, MAX_FAVOURITES).map(cleanPlace).filter((p) => p && eligible(p));

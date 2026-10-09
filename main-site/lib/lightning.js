@@ -1,6 +1,7 @@
-// Lightning alerts: when NEA detects lightning within a chosen distance of a
-// saved place in Singapore, tell whoever saved it. Called by the collect cron
-// (api/cron/collect.js) with each new lightning record, about every two minutes.
+// Lightning alerts: when lightning is detected within a chosen distance of a
+// saved place, tell whoever saved it. Called by the collect cron
+// (api/cron/collect.js) with each new batch of strikes: NEA's lightning record
+// about every two minutes, and Environment Canada's grid every ten.
 //
 // Two ways to hear, both opt in:
 // - Web push, to a browser that turned alerts on. Its places and distance live
@@ -13,14 +14,19 @@
 // long to wait after the last flash, so a storm overhead is one message and not
 // one every two minutes.
 //
-// Only places inside Singapore count: NEA's lightning detection is the only
-// source, and it does not reach far beyond the island.
+// Only places in a country with an open lightning network count, each covered
+// by its own: Singapore by NEA, which does not reach far beyond the island, and
+// Canada by the Canadian Lightning Detection Network through GeoMet
+// (lib/sources/lightning-ca.js). Elsewhere nothing open detects it: MET Norway
+// retired its lightning product, the DWD doesn't publish its own, and the NWS
+// has no feed. A new country goes in LIGHTNING_COUNTRIES and the collect cron
+// once a source exists, and in js/wx.js's copy of the list for the page.
 
 import webpush from 'web-push';
+import { countryCode } from './country.js';
 import { km } from './datagov.js';
 import { devices, storeConfigured, takeLock } from './kv.js';
 import { T, placeKey, rest, syncConfigured } from './portal.js';
-import { inSingapore } from './singapore.js';
 
 export const RADII_KM = [5, 10, 20];
 export const DEFAULT_RADIUS_KM = 10;
@@ -36,7 +42,22 @@ export const pushConfigured = () => {
   return storeConfigured() && Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_SUBJECT);
 };
 
-export const eligible = (p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lon) && inSingapore(p.lat, p.lon);
+// The countries whose lightning can be watched, and who detects it there.
+export const LIGHTNING_COUNTRIES = { SG: 'NEA', CA: 'Environment Canada' };
+
+/**
+ * The covered country a place is in, or null. A label ending in a country code
+ * ("Toronto, Ontario, CA") is believed, as /api/air believes it, so a city just
+ * outside a simplified outline still counts; Singapore goes by its own outline.
+ */
+export function coverageOf(p) {
+  if (!Number.isFinite(p?.lat) || !Number.isFinite(p?.lon)) return null;
+  const named = String(p.name || '').match(/,\s*([A-Z]{2})$/)?.[1];
+  const code = countryCode(named === 'SG' ? null : named, p.lat, p.lon);
+  return LIGHTNING_COUNTRIES[code] ? code : null;
+}
+
+export const eligible = (p) => coverageOf(p) !== null;
 
 function sgTime(iso) {
   return new Date(iso)
@@ -73,11 +94,16 @@ async function placesHit(scope, places, radiusKm, strikes) {
 
 function message(hits) {
   const [first, ...rest] = hits;
-  const kind = first.strike.type === 'ground' ? 'Cloud to ground lightning' : 'Lightning';
+  // NEA reports each strike, with its time and kind. Canada's grid only counts
+  // flashes in each ten minutes, and the place's zone isn't known here, so it
+  // says when without a clock.
+  const what = first.strike.source === 'eccc'
+    ? 'Lightning detected in the last 10 minutes.'
+    : `${first.strike.type === 'ground' ? 'Cloud to ground lightning' : 'Lightning'} at ${sgTime(first.strike.t)}.`;
   const also = rest.length ? ` Also near ${rest.map((h) => `${h.name} (${kmText(h.km)})`).join(', ')}.` : '';
   return {
     title: `Lightning ${kmText(first.km)} from ${first.name}`,
-    body: `${kind} at ${sgTime(first.strike.t)}. Head indoors, and wait 30 minutes after the last flash before going back out.${also}`
+    body: `${what} Head indoors, and wait 30 minutes after the last flash before going back out.${also}`
   };
 }
 
@@ -131,7 +157,7 @@ export async function pushTest(id, device) {
     title: 'Test alert from UwU Weather',
     body: places.length
       ? `Alerts work on this device. You'll hear when lightning is within ${device.radiusKm} km of ${places.map((p) => p.name).join(', ')}.`
-      : 'Alerts work on this device. Save a place in Singapore to start hearing about lightning near it.',
+      : 'Alerts work on this device. Save a place in Singapore or Canada to start hearing about lightning near it.',
     url: '/#map'
   });
   return send(id, device, payload, { TTL: TEST_TTL, urgency: 'high' });
@@ -170,6 +196,27 @@ async function telegramAll(strikes) {
   }
   if (notices.length) await rest('POST', T.notices, { body: notices, prefer: 'return=minimal' });
   return { queued: notices.length };
+}
+
+/**
+ * Every place someone is watching, from both web push and Telegram, for the
+ * collect cron to know where to look: Canada's grid is read only round them.
+ */
+export async function watchedPlaces() {
+  const places = [];
+  if (storeConfigured()) {
+    for (const [, device] of await devices.all()) places.push(...(device?.places || []));
+  }
+  if (syncConfigured && storeConfigured()) {
+    const subs = await rest('GET', T.lightning, { params: { enabled: 'eq.true', select: 'telegram_id' } });
+    if (subs.length) {
+      const favourites = await rest('GET', T.favourites, {
+        params: { telegram_id: `in.(${subs.map((s) => s.telegram_id).join(',')})`, deleted_at: 'is.null', select: 'name,lat,lon' }
+      });
+      places.push(...favourites.map((f) => ({ name: f.name, lat: Number(f.lat), lon: Number(f.lon) })));
+    }
+  }
+  return places.filter(eligible);
 }
 
 /** Warn everyone with a place near any of these strikes. */

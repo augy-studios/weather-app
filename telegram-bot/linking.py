@@ -285,8 +285,9 @@ async def _deliver_notice(client, notice: dict) -> None:
                   "make a fresh set in the web app.")
         buttons = [[{"label": "That was not me", "kind": "panic", "payload": {}}]]
     elif notice.get("kind") == "lightning":
-        # Queued by the web app's collect cron when NEA detects lightning near a
-        # synced favourite. The text is written there; this adds the distances.
+        # Queued by the web app's collect cron when NEA or Environment Canada
+        # detects lightning near a synced favourite. The text is written there;
+        # this adds the distances.
         title = ui.escape_md(data.get("title") or "Lightning nearby")
         body = ui.escape_md(data.get("text") or "")
         # render() escapes field labels itself.

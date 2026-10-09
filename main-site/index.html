@@ -92,7 +92,8 @@
           <button class="glass-btn" type="button" role="tab" id="tab-air" data-view="air" aria-controls="view-air" aria-selected="false" tabindex="-1" aria-label="Air and heat" title="Air and heat"><span data-icon="leaf"></span></button>
         </nav>
         <span class="tray-rule" aria-hidden="true"></span>
-        <button class="glass-btn" id="alertsBtn" type="button" aria-haspopup="dialog" aria-label="Lightning alerts" title="Lightning alerts">
+        <!-- Shown by js/alerts.js only once a saved place is in Singapore or Canada. -->
+        <button class="glass-btn" id="alertsBtn" type="button" aria-haspopup="dialog" aria-label="Lightning alerts" title="Lightning alerts" hidden>
           <span data-icon="bell"></span>
         </button>
         <button class="glass-btn" id="shareBtn" type="button" aria-haspopup="dialog" aria-label="Share" title="Share">
@@ -193,6 +194,16 @@
         </div>
       </article>
 
+      <!-- Warnings in force here, from the national weather service. -->
+      <article class="card glass banner-card" id="warnings-card" hidden>
+        <div class="card-header">
+          <h2 class="card-title" id="warnings-title">Weather warnings</h2>
+        </div>
+        <div class="card-body">
+          <ul class="warning-list" id="warnings"></ul>
+        </div>
+      </article>
+
       <!-- NEA's 2-hour forecast for the area, Singapore only. -->
       <article class="card glass" id="nowcast-card" hidden>
         <div class="card-header">
@@ -210,7 +221,7 @@
         </div>
       </article>
 
-      <!-- Lightning in the last half hour, near here. Singapore only. -->
+      <!-- Lightning near here: the last half hour in Singapore, the last ten minutes in Canada. -->
       <article class="card glass banner-card" id="lightning-card" hidden>
         <div class="card-body wx-row">
           <span class="wx-icon big-ish warn" data-icon="bolt" aria-hidden="true"></span>
@@ -218,6 +229,23 @@
             <p class="wx-row-title" id="lightning-title">Lightning nearby</p>
             <p class="muted" id="lightning-text"></p>
           </div>
+        </div>
+      </article>
+
+      <!-- The sea, for places on the coast. -->
+      <article class="card glass" id="sea-card" hidden>
+        <div class="card-header">
+          <h2 class="card-title">The sea</h2>
+          <span class="muted" id="sea-time"></span>
+        </div>
+        <div class="card-body">
+          <div class="metrics">
+            <div class="metric"><span>Waves</span><b id="sea-waves">--</b><small id="sea-waves-note"></small></div>
+            <div class="metric"><span>Period</span><b id="sea-period">--</b><small>between waves</small></div>
+            <div class="metric"><span>Water</span><b id="sea-temp">--</b><small>at the surface</small></div>
+          </div>
+          <p class="muted" id="sea-outlook"></p>
+          <p class="fine muted">From Open-Meteo's marine model, for the nearest stretch of sea.</p>
         </div>
       </article>
     </section>
@@ -319,6 +347,18 @@
           <ul class="day-list" id="daily"></ul>
         </div>
       </article>
+
+      <!-- The nearest rain gauge's daily totals, England only. -->
+      <article class="card glass" id="history-card" hidden>
+        <div class="card-header">
+          <h2 class="card-title">Rain, past week</h2>
+          <span class="muted" id="history-total"></span>
+        </div>
+        <div class="card-body">
+          <ul class="history-list" id="history"></ul>
+          <p class="fine muted" id="history-source"></p>
+        </div>
+      </article>
     </section>
 
     <!-- ---------- Air & heat ---------- -->
@@ -334,8 +374,13 @@
             <p class="band-chip" id="air-band" hidden></p>
           </div>
           <p class="muted" id="air-note"></p>
-          <p class="muted">PM2.5 <strong class="ink" id="air-pm25">--</strong> µg/m³</p>
+          <p class="muted" id="air-pm25-row">PM2.5 <strong class="ink" id="air-pm25">--</strong> µg/m³</p>
           <ul class="region-list" id="air-regions"></ul>
+          <div id="air-pollutants-box" hidden>
+            <h3 class="sub-title" id="air-pollutants-title">Pollutants</h3>
+            <ul class="region-list" id="air-pollutants"></ul>
+          </div>
+          <p class="fine muted" id="air-source"></p>
         </div>
       </article>
 
@@ -370,26 +415,46 @@
             <p class="muted" id="heat-station"></p>
             <ul class="region-list" id="heat-list"></ul>
           </div>
-          <p class="muted" id="heat-elsewhere" hidden>
-            Wet bulb globe temperature, which counts sun, wind and humidity as well as heat,
-            is measured by NEA in Singapore only. Feels like here: <strong class="ink" id="heat-feels">--</strong>.
-          </p>
+          <!-- No NEA heat stress here: the feels like temperature stands in, big. -->
+          <div id="heat-elsewhere" hidden>
+            <div class="hero">
+              <p class="hero-value huge" id="heat-feels">--</p>
+              <p class="band-chip" id="heat-feels-chip">Feels like</p>
+            </div>
+            <p class="muted" id="heat-feels-note"></p>
+            <p class="fine muted">
+              Wet bulb globe temperature, which counts sun, wind and humidity as well as heat,
+              is measured by NEA in Singapore only. Feels like is the nearest thing everywhere else.
+            </p>
+          </div>
         </div>
       </article>
     </section>
 
     <footer class="site-footer">
       <p class="muted">
-        Forecasts from <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>.
-        In Singapore, readings, forecasts, radar and lightning from NEA via
-        <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer">data.gov.sg</a>, with Open-Meteo filling any gap.
+        Forecasts from <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>, with the national
+        weather service laid over them where there is one:
+        in Singapore, readings, forecasts, radar and lightning from NEA via
+        <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer">data.gov.sg</a>;
+        in the US, the <a class="link" href="https://www.weather.gov/" target="_blank" rel="noreferrer">National Weather Service</a>;
+        in Norway, <a class="link" href="https://api.met.no/" target="_blank" rel="noreferrer">MET Norway</a> and
+        <a class="link" href="https://www.nilu.com/" target="_blank" rel="noreferrer">NILU</a> (CC BY 4.0);
+        in Canada, <a class="link" href="https://eccc-msc.github.io/open-data/" target="_blank" rel="noreferrer">Environment and Climate Change Canada</a>;
+        in Germany, the <a class="link" href="https://www.dwd.de/" target="_blank" rel="noreferrer">Deutscher Wetterdienst</a> (CC BY 4.0) via
+        <a class="link" href="https://brightsky.dev/" target="_blank" rel="noreferrer">Bright Sky</a>;
+        in England, rain gauges from the <a class="link" href="https://environment.data.gov.uk/" target="_blank" rel="noreferrer">Environment Agency</a>
+        (contains public sector information licensed under the Open Government Licence v3.0).
+        When Open-Meteo is down, <a class="link" href="https://www.weatherapi.com/" target="_blank" rel="noreferrer">WeatherAPI.com</a>,
+        <a class="link" href="https://openweathermap.org/" target="_blank" rel="noreferrer">OpenWeather</a> or
+        <a class="link" href="https://www.xweather.com/" target="_blank" rel="noreferrer">Xweather</a> stand in.
         Radar elsewhere from <a class="link" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a>.
         Map tiles from <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.
       </p>
       <p class="muted">
         <a class="link" href="https://augystudios.com/terms" target="_blank" rel="noopener noreferrer">Terms</a> ·
         <a class="link" href="https://augystudios.com/privacy" target="_blank" rel="noopener noreferrer">Privacy</a> ·
-        <a class="link" href="https://forms.gle/4wKTdjgiC6MGX1aN8" target="_blank" rel="noopener noreferrer">Report an issue</a>
+        <a class="link" href="mailto:augy@augystudios.com?subject=UwU%20Weather%3A%20an%20issue">Report an issue</a>
       </p>
     </footer>
   </main>
@@ -424,7 +489,7 @@
           <span data-icon="close"></span>
         </button>
       </div>
-      <p class="muted">A notification when NEA detects lightning near your saved places in Singapore, even with UwU Weather closed.</p>
+      <p class="muted">A notification when lightning is detected near your saved places in Singapore (by NEA) or Canada (by Environment Canada), even with UwU Weather closed.</p>
 
       <p class="modal-section-label">Watching</p>
       <ul class="watch-list" id="alertPlaces" hidden></ul>

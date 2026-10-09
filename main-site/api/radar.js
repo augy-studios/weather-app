@@ -1,105 +1,130 @@
-// NEA's rain radar, for the map.
+// The rain radar, for the map (lib/radar.js has the sources).
 //
-//   GET /api/radar?range=70km              the last three hours of frames
-//   GET /api/radar?range=70km&at=YYYYMMDDHHmm   one frame's PNG
+//   GET /api/radar?range=70km                    NEA: the last three hours of frames
+//   GET /api/radar?range=70km&at=YYYYMMDDHHmm    NEA: one frame's PNG
+//   GET /api/radar?src=dwd&lat=&lon=             Germany: the frames round a place
+//   GET /api/radar?src=dwd&cell=52.5,13.5&at=YYYYMMDDHHmm   Germany: one frame
+//   GET /api/radar?src=msc                       Canada: the radar layer's times
+//   GET /api/radar?src=msc-lightning             Canada: the lightning grid's times
 //
-// data.gov.sg hands out each image as a presigned S3 link that dies after twenty
-// minutes, which a map left open on the scrubber would outlive. So the list
-// points at this function instead, and each frame is fetched once, here, and
-// served as immutable: a frame for 23:55 never changes, so the CDN keeps it for
-// good and the next visitor gets it without data.gov.sg being asked at all.
+// NEA's frames come from what the sg cron keeps in Blob. Only a frame it has
+// not got yet is fetched from data.gov.sg here, and then kept for next time.
+// Every frame, whatever its source, is served as immutable: a frame for 23:55
+// never changes, so the CDN and the page's service worker keep it for good.
 //
-// The images are drawn in NEA's azimuthal equidistant projection and placed on
+// NEA's images are drawn in its azimuthal equidistant projection and placed on
 // the map by their EPSG:4326 corners. Near the equator, over these distances,
 // the difference from Leaflet's projection is a few hundred metres at the edge of
 // the 70 km image and a few kilometres at the edge of the 480 km one.
 
+import { blobConfigured, getBytes, putBytes } from '../lib/blob.js';
 import { at, latest, sgMoment, windowBack } from '../lib/datagov.js';
+import {
+  MSC_LAYER, MSC_LIGHTNING_LAYER, NEA_RANGES, WINDOW_MS, boundsOf, dwdFrame, dwdList, msOfStamp, mscList,
+  neaFramePath, readNeaIndex, stampOf
+} from '../lib/radar.js';
 
-const RANGES = ['70km', '240km', '480km'];
-const WINDOW_MS = 3 * 3600 * 1000;
 const STAMP = /^\d{12}$/;
+// The cron writes the index every minute; past this it has stopped.
+const INDEX_FRESH_MS = 10 * 60 * 1000;
 
-// Presigned links seen in recent listings, so a frame asked for soon after its
-// list does not need another data.gov.sg call. One per warm instance.
-const signed = new Map();
+// ---------- NEA ----------
 
-// "2026-10-07T23:55:00+08:00" to "202610072355": NEA's own clock, as its file names use.
-const stampOf = (iso) => iso.slice(0, 16).replace(/\D/g, '');
-
-function remember(range, records) {
-  const now = Date.now();
-  for (const [k, v] of signed) if (v.expires <= now) signed.delete(k);
-  for (const r of records) {
-    const expires = Date.parse(r.image?.urlExpiresAt) || now + 15 * 60_000;
-    if (r.image?.url) signed.set(`${range}|${stampOf(r.timestamp)}`, { url: r.image.url, expires: expires - 60_000 });
+async function neaList(res, range) {
+  const index = await readNeaIndex(range);
+  let frames;
+  let bounds;
+  let center;
+  if (index?.frames?.length && Date.now() - index.updatedAt < INDEX_FRESH_MS) {
+    ({ bounds, center } = index);
+    frames = index.frames.filter((f) => Date.parse(f.t) >= Date.now() - WINDOW_MS);
+  } else {
+    // No cron, or a stalled one: list straight from data.gov.sg.
+    const path = `weather-radar-images/${range}`;
+    let { meta, entries } = await windowBack(path, 'records', Date.now() - WINDOW_MS);
+    if (!meta) meta = await latest(path);
+    bounds = boundsOf(meta);
+    center = meta?.projection?.center ?? null;
+    frames = entries.filter((r) => r.timestamp).map((r) => ({ t: r.timestamp, stamp: stampOf(r.timestamp) }));
   }
-}
-
-function boundsOf(meta) {
-  const b = meta?.boundaryBox;
-  if (!b?.upperLeft || !b?.lowerRight) return null;
-  return [[b.lowerRight.latitude, b.upperLeft.longitude], [b.upperLeft.latitude, b.lowerRight.longitude]];
-}
-
-async function list(req, res, range) {
-  const since = Date.now() - WINDOW_MS;
-  const path = `weather-radar-images/${range}`;
-  // The listing's metadata is on every page; the latest call is the fallback when
-  // today's listing is empty just after midnight.
-  let { meta, entries } = await windowBack(path, 'records', since);
-  if (!meta) meta = await latest(path);
-  remember(range, entries);
-
-  const frames = entries
-    .filter((r) => r.timestamp)
-    .map((r) => ({ t: r.timestamp, src: `/api/radar?range=${range}&at=${stampOf(r.timestamp)}` }))
-    .sort((a, b) => Date.parse(a.t) - Date.parse(b.t));
 
   // A new frame arrives every five minutes.
   res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
   return res.status(200).json({
     source: 'nea',
     range,
-    bounds: boundsOf(meta),
-    center: meta?.projection?.center ?? null,
-    frames
+    bounds,
+    center,
+    frames: frames
+      .sort((a, b) => Date.parse(a.t) - Date.parse(b.t))
+      .map((f) => ({ t: f.t, src: `/api/radar?range=${range}&at=${f.stamp}` }))
   });
 }
 
-async function frame(req, res, range, stamp) {
-  const key = `${range}|${stamp}`;
-  let hit = signed.get(key);
-  if (!hit || hit.expires <= Date.now()) {
+async function neaFrame(res, range, stamp) {
+  let png = await getBytes(neaFramePath(range, stamp));
+  if (!png) {
     // "Latest at or before" that minute, which is the frame itself when it exists.
-    const ms = Date.UTC(+stamp.slice(0, 4), +stamp.slice(4, 6) - 1, +stamp.slice(6, 8), +stamp.slice(8, 10), +stamp.slice(10, 12)) - 8 * 3600 * 1000;
-    // Once more after a 429: a map opening on a cold deploy asks for many frames at
-    // once, each on its own instance with nothing remembered yet.
-    const data = await at(`weather-radar-images/${range}`, sgMoment(ms), { retries: 1 });
-    remember(range, data.records || []);
-    hit = signed.get(key);
+    // Once more after a 429: a map opening on a cold deploy asks for many frames at once.
+    const data = await at(`weather-radar-images/${range}`, sgMoment(msOfStamp(stamp)), { retries: 1 });
+    const record = (data.records || []).find((r) => r.timestamp && stampOf(r.timestamp) === stamp);
+    if (!record?.image?.url) {
+      res.setHeader('Cache-Control', 'public, s-maxage=60');
+      return res.status(404).json({ error: 'No radar frame at that time' });
+    }
+    const upstream = await fetch(record.image.url, { signal: AbortSignal.timeout(8000) });
+    if (!upstream.ok) throw new Error(`radar image answered ${upstream.status}`);
+    png = Buffer.from(await upstream.arrayBuffer());
+    if (blobConfigured()) await putBytes(neaFramePath(range, stamp), png, 'image/png').catch(() => {});
   }
-  if (!hit) {
-    res.setHeader('Cache-Control', 'public, s-maxage=60');
-    return res.status(404).json({ error: 'No radar frame at that time' });
-  }
+  return sendPng(res, png);
+}
 
-  const upstream = await fetch(hit.url, { signal: AbortSignal.timeout(8000) });
-  if (!upstream.ok) throw new Error(`radar image answered ${upstream.status}`);
-  const png = Buffer.from(await upstream.arrayBuffer());
-
+function sendPng(res, png) {
   res.setHeader('Content-Type', 'image/png');
   res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   return res.status(200).send(png);
 }
 
+// ---------- the others ----------
+
+async function dwd(req, res) {
+  const { at: stamp, cell } = req.query;
+  if (stamp !== undefined) {
+    const [clat, clon] = String(cell || '').split(',').map(Number);
+    if (!STAMP.test(stamp) || !Number.isFinite(clat) || !Number.isFinite(clon) || (clat * 2) % 1 || (clon * 2) % 1) {
+      return res.status(400).json({ error: 'cell must be a half degree "lat,lon" and at YYYYMMDDHHmm' });
+    }
+    const png = await dwdFrame(clat, clon, stamp);
+    if (!png) {
+      res.setHeader('Cache-Control', 'public, s-maxage=60');
+      return res.status(404).json({ error: 'No radar frame at that time' });
+    }
+    return sendPng(res, png);
+  }
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return res.status(400).json({ error: 'lat and lon are required' });
+  res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+  return res.status(200).json(await dwdList(lat, lon));
+}
+
+async function msc(req, res, layer) {
+  res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+  return res.status(200).json(await mscList(layer));
+}
+
 export default async function handler(req, res) {
-  const range = RANGES.includes(req.query.range) ? req.query.range : '70km';
-  const stamp = req.query.at;
   try {
-    if (stamp === undefined) return await list(req, res, range);
+    if (req.query.src === 'dwd') return await dwd(req, res);
+    if (req.query.src === 'msc') return await msc(req, res, MSC_LAYER);
+    if (req.query.src === 'msc-lightning') return await msc(req, res, MSC_LIGHTNING_LAYER);
+
+    const range = NEA_RANGES.includes(req.query.range) ? req.query.range : '70km';
+    const stamp = req.query.at;
+    if (stamp === undefined) return await neaList(res, range);
     if (!STAMP.test(stamp)) return res.status(400).json({ error: 'at must be YYYYMMDDHHmm' });
-    return await frame(req, res, range, stamp);
+    return await neaFrame(res, range, stamp);
   } catch (err) {
     console.warn('radar failed:', err.message);
     res.setHeader('Cache-Control', 'no-store');

@@ -140,6 +140,22 @@
     return inside;
   }
 
+  // Where lightning alerts can watch a place, and who detects it there. The
+  // same list as LIGHTNING_COUNTRIES in lib/lightning.js; keep the two in step.
+  const LIGHTNING_COUNTRIES = { SG: "NEA", CA: "Environment Canada" };
+
+  // The covered country a saved place is in, or null: Singapore by its outline,
+  // anywhere else by the label's country code ("Toronto, Ontario, CA"), or by
+  // `known`, the country the forecast said, for a place like "My location".
+  function lightningCountry(place, known = null) {
+    const lat = Number(place?.lat);
+    const lon = Number(place?.lon);
+    if (inSingapore(lat, lon)) return "SG";
+    const named = String(place?.name || "").match(/,\s*([A-Z]{2})$/)?.[1];
+    const code = named && named !== "SG" ? named : known;
+    return code !== "SG" && LIGHTNING_COUNTRIES[code] ? code : null;
+  }
+
   // NEA's widest radar image, 480 km round the Changi radar. Inside it the map
   // shows NEA's radar; outside, RainViewer's.
   const NEA_RADAR_BOX = { south: -2.967382, west: 99.638609, north: 5.657912, east: 108.290871 };
@@ -218,6 +234,7 @@
     setZone, getZone, time, weekday, dayLabel, dateKey, when, ago,
     wmoText, wmoIcon, neaIcon, neaText,
     inSingapore, inNeaRadar, NEA_RADAR_BOX, km, nearestStation, regionOf, cap,
+    LIGHTNING_COUNTRIES, lightningCountry,
     uvBand, UV_ADVICE, HEAT_LEVELS, HEAT_ADVICE,
   };
 })();
