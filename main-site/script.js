@@ -4,8 +4,9 @@
 //
 // - /api/forecast, everywhere: Open-Meteo's forecast in its own shape, with the
 //   national weather service's readings already laid over it (the US, Norway,
-//   Canada, Germany, England, China), warnings, the sea, and a keyed service
-//   standing in when Open-Meteo is down. See lib/place.js.
+//   Canada, Germany, England, Ireland, Switzerland, China), MeteoGate's
+//   stations and warnings across Europe, the sea, and a keyed service standing
+//   in when Open-Meteo is down. See lib/place.js.
 // - NEA, through /api/sg, in Singapore: the nearest stations' readings, the
 //   2-hour, 24-hour and 4-day forecasts, UV, heat stress and lightning. Each
 //   part that NEA can't give right now falls back to the forecast's.
@@ -178,13 +179,15 @@
     if (name === "air" && om) renderUv();
   }
 
+  // Keep in step with the head script in index.html, which reads it before paint.
   const TRAY_KEY = "uwuweather.trayOpen";
 
+  // The tray to edge-tray-spec.md.
   function setTray(open, { save = true } = {}) {
     $("#tray").classList.toggle("collapsed", !open);
     $("#trayTab").setAttribute("aria-expanded", String(open));
     $("#trayTab").setAttribute("aria-label", open ? "Hide menu" : "Show menu");
-    // Off screen buttons must not take focus.
+    // Off screen buttons must not take focus or clicks.
     $("#trayButtons").inert = !open;
     document.body.classList.toggle("tray-open", open);
     if (save) {
@@ -202,6 +205,9 @@
       open = localStorage.getItem(TRAY_KEY) !== "0";
     } catch {}
     setTray(open, { save: false });
+    // The head script drew a collapsed tray without transitions; from the next
+    // frame on, toggles animate.
+    requestAnimationFrame(() => document.documentElement.classList.remove("tray-start-collapsed"));
     $("#trayTab").addEventListener("click", () => setTray($("#tray").classList.contains("collapsed")));
   }
 
@@ -749,9 +755,11 @@
     if (!nat?.used?.includes("current")) {
       return nat?.used?.length ? `From ${base}, with ${nat.name}'s forecast.` : `From ${base}.`;
     }
-    const where = nat.station
-      ? `${nat.name}'s ${nat.station} station${nat.stationLat != null ? `, ${distance(W.km(current.lat, current.lon, nat.stationLat, nat.stationLon))}` : nat.stationKm != null ? `, ${distance(nat.stationKm)}` : ""}`
-      : nat.name;
+    const away = nat.stationLat != null ? `, ${distance(W.km(current.lat, current.lon, nat.stationLat, nat.stationLon))}` : nat.stationKm != null ? `, ${distance(nat.stationKm)}` : "";
+    // A station passed on by MeteoGate is named as such, not as the forecaster's.
+    const where = !nat.station ? nat.name
+      : nat.stationBy || nat.source === "meteogate" ? `the ${nat.station} station via MeteoGate${away}`
+      : `${nat.name}'s ${nat.station} station${away}`;
     const forecast = nat.used.some((u) => u !== "current") ? `the forecast from ${nat.name} and ${base}` : `the forecast from ${base}`;
     return `Now from ${where}; ${forecast}.`;
   }
@@ -1176,7 +1184,10 @@
     return svg.replace(/currentColor/g, ink).replace(/stroke-width="1.8"/, 'stroke-width="1.4"');
   }
 
-  const NATIONAL_SHORT = { nws: "NWS", "met-norway": "MET Norway", eccc: "Environment Canada", dwd: "DWD", "environment-agency": "Environment Agency", seniverse: "Seniverse" };
+  const NATIONAL_SHORT = {
+    nws: "NWS", "met-norway": "MET Norway", eccc: "Environment Canada", dwd: "DWD", "environment-agency": "Environment Agency",
+    seniverse: "Seniverse", "met-eireann": "Met Éireann", meteoswiss: "MeteoSwiss", meteogate: "MeteoGate",
+  };
 
   function buildShareURL() {
     if (!current.name || current.name === "My location") return location.origin;
@@ -1199,6 +1210,7 @@
     const credits = new Set();
     if (n.neaUsed || air?.source === "nea") credits.add("NEA");
     if (om.national?.used?.length) credits.add(NATIONAL_SHORT[om.national.source] || om.national.name);
+    if (om.national?.stationBy) credits.add(om.national.stationBy);
     if (air && AIR_NAMES[air.source] && air.source !== "open-meteo") credits.add(AIR_NAMES[air.source]);
     credits.add(baseName());
     $("#share-source").textContent = `Data: ${[...credits].join(", ")}`;

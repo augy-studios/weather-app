@@ -37,6 +37,12 @@
       document.documentElement.setAttribute('data-mode', m);
       document.documentElement.setAttribute('data-color-theme', c);
     })();
+    // The tray as it was left, before first paint, so a collapsed tray doesn't
+    // slide shut on load. script.js removes the class once it has taken over;
+    // keep the key in step with TRAY_KEY there.
+    try {
+      if (localStorage.getItem('uwuweather.trayOpen') === '0') document.documentElement.classList.add('tray-start-collapsed');
+    } catch (e) {}
   </script>
 
   <!-- Google tag (gtag.js) -->
@@ -75,10 +81,11 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 
-<body>
-  <!-- The nav, sg-psi's and wordrain-game's floating tray: the pages, then
-       alerts, share, sync and theme, as glass buttons top right. Slides off the
-       right edge, leaving the arrow tab. -->
+<!-- Ships open, like the tray; script.js sets the real state. -->
+<body class="tray-open">
+  <!-- The nav, sg-psi's and wordrain-game's floating tray (edge-tray-spec.md):
+       the pages, then alerts, share, sync, theme and the coffee link, as glass
+       buttons top right. Slides off the right edge, leaving the arrow tab. -->
   <div class="hud-right">
     <div id="tray" class="tray">
       <button id="trayTab" class="tray-tab" type="button" aria-controls="trayButtons" aria-expanded="true" aria-label="Hide menu">
@@ -105,6 +112,9 @@
         <button class="glass-btn" id="themeBtn" type="button" aria-haspopup="dialog" aria-label="Theme" title="Theme">
           <span data-icon="sun"></span>
         </button>
+        <a class="glass-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" aria-label="Buy Augy a Coffee" title="Buy Augy a Coffee">
+          <span data-icon="coffee"></span>
+        </a>
       </div>
     </div>
   </div>
@@ -130,9 +140,6 @@
         <h1>Weather | UwU Apps</h1>
         <small>Made with <span class="heart" data-icon="heart" aria-label="love" role="img"></span> by Augy</small>
       </div>
-      <a class="icon-btn coffee-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" title="Buy Augy a Coffee" aria-label="Buy Augy a Coffee">
-        <span data-icon="coffee" aria-hidden="true"></span>
-      </a>
     </header>
 
     <!-- Where, on every page but the map. -->
@@ -445,6 +452,13 @@
         <a class="link" href="https://brightsky.dev/" target="_blank" rel="noreferrer">Bright Sky</a>;
         in England, rain gauges from the <a class="link" href="https://environment.data.gov.uk/" target="_blank" rel="noreferrer">Environment Agency</a>
         (contains public sector information licensed under the Open Government Licence v3.0);
+        in Ireland, <a class="link" href="https://www.met.ie/" target="_blank" rel="noreferrer">Met Éireann</a>
+        (copyright Met Éireann, CC BY 4.0; Met Éireann does not accept any liability whatsoever for any error or omission in the
+        data, their availability, or for any loss or damage arising from their use);
+        in Switzerland, source: <a class="link" href="https://www.meteoswiss.admin.ch/" target="_blank" rel="noreferrer">MeteoSwiss</a>,
+        its stations and its ICON-CH model via Open-Meteo;
+        across Europe, station readings and MeteoAlarm's warnings from EUMETNET's members via
+        <a class="link" href="https://meteogate.eu/" target="_blank" rel="noreferrer">MeteoGate</a> (CC BY 4.0);
         in China, <a class="link" href="https://www.seniverse.com/" target="_blank" rel="noreferrer">Seniverse</a>, and air quality from
         China's national monitoring network via the <a class="link" href="https://waqi.info/" target="_blank" rel="noreferrer">World Air Quality Index Project</a>.
         When Open-Meteo is down, <a class="link" href="https://www.weatherapi.com/" target="_blank" rel="noreferrer">WeatherAPI.com</a>,

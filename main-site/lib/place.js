@@ -9,7 +9,12 @@
 //   US  api.weather.gov            NO  api.met.no
 //   CA  api.weather.gc.ca          DE  api.brightsky.dev, opendata.dwd.de
 //   GB  environment.data.gov.uk    SG  NEA, drawn by the page from /api/sg
+//   IE  Met Éireann                CH  MeteoSwiss: SwissMetNet, ICON-CH
 //   CN  api.seniverse.com, with its keys set
+//
+// Across Europe, MeteoGate (lib/sources/meteogate.js) adds the nearest
+// station's reading where the national service has no station of its own here,
+// and MeteoAlarm's warnings where it sends none.
 //
 // A national value replaces Open-Meteo's for the same field and time; anything
 // it leaves out stays Open-Meteo's. Everything is metric until present().
@@ -20,9 +25,12 @@ import { canada } from './sources/canada.js';
 import { china } from './sources/china.js';
 import { fallbackForecast } from './sources/fallbacks.js';
 import { germany } from './sources/germany.js';
+import { ireland } from './sources/ireland.js';
 import { nearestFlash } from './sources/lightning-ca.js';
+import { EUROPE, observation, warningsAt } from './sources/meteogate.js';
 import { norway } from './sources/norway.js';
 import { forecast as openMeteo, marine } from './sources/openmeteo.js';
+import { switzerland } from './sources/switzerland.js';
 import { unitedKingdom } from './sources/uk.js';
 import { unitedStates } from './sources/us.js';
 import { dateKey } from './wx.js';
@@ -30,7 +38,15 @@ import { dateKey } from './wx.js';
 export const FRESH_MS = 10 * 60 * 1000;
 
 // A source may answer null when it isn't set up; the place is Open-Meteo's then.
-const NATIONAL = { US: unitedStates, NO: norway, CA: canada, DE: germany, GB: unitedKingdom, CN: china };
+const NATIONAL = {
+  US: unitedStates, NO: norway, CA: canada, DE: germany, GB: unitedKingdom, CN: china,
+  IE: ireland, CH: switzerland
+};
+
+// European countries whose own service gives the reading now: the DWD's and
+// MeteoSwiss's stations, MET Norway's nowcast. The rest take MeteoGate's
+// nearest station.
+const OWN_READING = new Set(['DE', 'CH', 'NO']);
 
 // About a kilometre: close enough that two searches for one town share a copy.
 export const placeKey = (lat, lon) => `place-${lat.toFixed(2)},${lon.toFixed(2)}`;
@@ -104,39 +120,61 @@ export async function buildPlace(lat, lon, code) {
   const country = countryCode(code, lat, lon);
   const national = NATIONAL[country];
 
-  const [om, nat, sea, flash] = await Promise.allSettled([
+  const europe = EUROPE.has(country);
+  const [om, nat, sea, flash, obs, warnings] = await Promise.allSettled([
     openMeteo(lat, lon),
     national ? national(lat, lon) : Promise.resolve(null),
     marine(lat, lon),
     // Lightning near the place, where a national network reports it and the
     // page doesn't already have it: NEA's comes through /api/sg.
     // GeoMet can take half a minute; the forecast doesn't wait past a few seconds.
-    country === 'CA' ? withTimeout(nearestFlash(lat, lon, 20), 6000) : Promise.resolve(null)
+    country === 'CA' ? withTimeout(nearestFlash(lat, lon, 20), 6000) : Promise.resolve(null),
+    europe && !OWN_READING.has(country) ? withTimeout(observation(lat, lon), 8000) : Promise.resolve(null),
+    europe ? warningsAt(lat, lon, country) : Promise.resolve([])
   ]);
   if (om.status === 'rejected') console.warn('Open-Meteo failed:', om.reason?.message);
   if (nat.status === 'rejected') console.warn(`${country} national service failed:`, nat.reason?.message);
+  if (obs.status === 'rejected') console.warn('MeteoGate observation failed:', obs.reason?.message);
+  if (warnings.status === 'rejected') console.warn('MeteoGate warnings failed:', warnings.reason?.message);
+
+  // MeteoGate's station reading goes over the national service's (its first
+  // forecast hour, in Ireland), keeping whatever the station doesn't measure.
+  // With no national service, MeteoGate stands as one.
+  let natValue = nat.value || null;
+  const station = obs.value;
+  if (station) {
+    const measured = Object.fromEntries(Object.entries(station).filter(([, v]) => v != null));
+    natValue = {
+      ...(natValue || { source: 'meteogate', name: 'MeteoGate', hourly: [], daily: [], alerts: [] }),
+      current: { ...natValue?.current, ...measured }
+    };
+  }
 
   const base = om.status === 'fulfilled' ? om.value : await fallbackForecast(lat, lon);
-  const { out, used } = nat.value ? overlay(base, nat.value) : { out: base, used: [] };
+  const { out, used } = natValue ? overlay(base, natValue) : { out: base, used: [] };
 
-  const c = nat.value?.current;
+  const c = natValue?.current;
+  // A national service's own warnings come first; MeteoAlarm's stand in for them.
+  const own = natValue?.alerts || [];
   return {
     ...out,
     country,
     builtAt: Date.now(),
-    national: nat.value ? {
-      source: nat.value.source,
-      name: nat.value.name,
+    national: natValue ? {
+      source: natValue.source,
+      name: natValue.name,
       used,
       station: c?.station || null,
+      // Who passed the station's reading on, when it isn't the service itself.
+      stationBy: station && natValue.source !== 'meteogate' ? 'MeteoGate' : null,
       stationLat: c?.stationLat ?? null,
       stationLon: c?.stationLon ?? null,
       stationKm: c?.stationKm ?? null,
       observedAt: c?.time ?? null
     } : null,
-    alerts: [...(nat.value?.alerts || []), ...(base.alerts || [])]
+    alerts: [...(own.length ? own : warnings.value || []), ...(base.alerts || [])]
       .filter((a) => !a.until || Date.parse(a.until) > Date.now()),
-    history: nat.value?.history || null,
+    history: natValue?.history || null,
     marine: sea.status === 'fulfilled' ? sea.value : null,
     // { km, t } for the nearest lit cell within 20 km in the last ten minutes.
     lightning: flash.status === 'fulfilled' && flash.value?.nearest

@@ -47,6 +47,10 @@ ul, ol { list-style: none; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+  /* The tray's stagger too: its state changes at once. */
+  .hud-right, .tray, .tray-tab, .tray-tab svg, .tray-buttons > *, .glass-btn, main, .brand {
+    transition-delay: 0s !important;
+  }
 }
 
 /* ---- brand colour tokens (7 swatches) ---- */
@@ -164,6 +168,9 @@ ul, ol { list-style: none; }
   --hud-edge-left: max(16px, calc(env(safe-area-inset-left) + 16px));
   --hud-bottom: max(14px, calc(env(safe-area-inset-bottom) + 10px));
   --glass-btn: 44px;
+  /* One pace for the tray, its buttons, its tab and the page making room. */
+  --tray-time: 0.34s;
+  --tray-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   --radius-sm: 12px;
 }
@@ -435,13 +442,13 @@ body.modal-open { overflow: hidden; }
 .hud-right > * { pointer-events: auto; }
 
 /* The tray: a column of glass buttons with an arrow tab beside it. Collapsed,
-   the buttons slide off the right edge and the tab is left peeking out. */
+   the whole thing shifts right until only the tab is left, flush with the edge. */
 .tray {
   --tray-shift: calc(var(--glass-btn) + 8px + var(--hud-edge));
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform var(--tray-time) var(--tray-ease);
 }
 .tray.collapsed { transform: translateX(var(--tray-shift)); }
 
@@ -458,13 +465,13 @@ body.modal-open { overflow: hidden; }
   border: 1px solid var(--surface-border);
   box-shadow: var(--shadow);
   color: var(--ink);
-  transition: border-radius 0.22s ease;
+  transition: border-radius var(--tray-time) var(--tray-ease);
 }
 .tray-tab > [data-icon] { display: inline-flex; }
 .tray-tab svg {
   width: 16px;
   height: 16px;
-  transition: transform 0.22s ease;
+  transition: transform var(--tray-time) var(--tray-ease);
 }
 /* At the edge it is a tab, flat on the side the screen cuts off. */
 .tray.collapsed .tray-tab { border-radius: 12px 0 0 12px; border-right: none; }
@@ -477,11 +484,72 @@ body.modal-open { overflow: hidden; }
   align-items: center;
   gap: 8px;
 }
-.tray-buttons {
-  margin-right: var(--hud-edge);
-  transition: opacity 0.22s ease;
+.tray-buttons { margin-right: var(--hud-edge); }
+
+/* The buttons unroll: each fades in, slides back from the edge and grows,
+   18 ms after the one above it. They move by `translate` and `scale`, leaving
+   `transform` to the hover lift, so the hover transitions are repeated here.
+   The nav of pages is one child, and moves as one step. */
+.tray-buttons > * {
+  transition:
+    opacity calc(var(--tray-time) * 0.8) ease,
+    translate var(--tray-time) var(--tray-ease),
+    scale var(--tray-time) var(--tray-ease),
+    transform 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+  /* Only opening is staggered: the delay comes from the state being entered. */
+  transition-delay: calc(var(--i, 0) * 18ms), calc(var(--i, 0) * 18ms), calc(var(--i, 0) * 18ms), 0s, 0s, 0s;
 }
-.tray.collapsed .tray-buttons { opacity: 0; }
+.tray-buttons > :nth-child(2) { --i: 1; }
+.tray-buttons > :nth-child(3) { --i: 2; }
+.tray-buttons > :nth-child(4) { --i: 3; }
+.tray-buttons > :nth-child(5) { --i: 4; }
+.tray-buttons > :nth-child(6) { --i: 5; }
+.tray-buttons > :nth-child(7) { --i: 6; }
+.tray-buttons > :nth-child(8) { --i: 7; }
+.tray-buttons > :nth-child(9) { --i: 8; }
+.tray.collapsed .tray-buttons > * {
+  opacity: 0;
+  translate: 12px 0;
+  scale: 0.85;
+  /* Collapsing, they all go at once. */
+  transition-delay: 0s;
+}
+
+/* A returning visitor who left the tray collapsed: drawn collapsed from the
+   first frame, without the slide (the head script in index.html). */
+.tray-start-collapsed .tray { transform: translateX(var(--tray-shift)); transition: none; }
+.tray-start-collapsed .tray-buttons > * { opacity: 0; translate: 12px 0; scale: 0.85; transition: none; }
+.tray-start-collapsed main.container, .tray-start-collapsed .brand { transition: none; }
+/* The body ships as tray-open; until script.js says otherwise, the page is
+   laid out as it will be collapsed. */
+@media (max-width: 920px) {
+  .tray-start-collapsed body.tray-open main.container { padding-right: 14px; }
+  .tray-start-collapsed .brand { padding-right: calc(24px + 10px - 14px); }
+}
+@media (max-width: 480px) {
+  .tray-start-collapsed body.tray-open main.container { padding-right: 10px; }
+  .tray-start-collapsed .brand { padding-right: calc(24px + 10px - 10px); }
+}
+.tray-start-collapsed .tray-tab { border-radius: 12px 0 0 12px; border-right: none; transition: none; }
+.tray-start-collapsed .tray-tab svg { transform: rotate(180deg); transition: none; }
+
+/* A screen too short for the column (a phone on its side) scrolls it rather
+   than running it into the map's scrubber. The padding keeps the shadows and
+   the hover lift from being clipped. */
+@media (max-height: 560px) {
+  .tray-buttons {
+    max-height: calc(100dvh - var(--hud-top) - 16px);
+    overflow-y: auto;
+    scrollbar-width: none;
+    padding: 4px 6px 12px;
+    margin: -4px calc(var(--hud-edge) - 6px) 0 -6px;
+  }
+  /* Scrolled, not squashed. */
+  .tray-buttons > * { flex-shrink: 0; }
+  .tray-buttons::-webkit-scrollbar { display: none; }
+}
 
 /* Between the pages and the panels. */
 .tray-rule {
@@ -499,13 +567,21 @@ body.modal-open { overflow: hidden; }
   padding-bottom: 48px;
 }
 
-/* Where the column would run under the open tray, it makes room for it; the
-   arrow tab alone only needs the brand line kept clear. */
+/* Where the column would run under the open tray, it makes room for it, and
+   only then. Collapsed, the page takes the full width and the tab floats over
+   its edge; only the brand line, level with the tab, steps in far enough to
+   clear it (24px) by 10px, less the column's own side padding. Both move at
+   the tray's pace. */
+main.container, .brand {
+  transition: padding-right var(--tray-time) var(--tray-ease), padding-left var(--tray-time) var(--tray-ease);
+}
 @media (max-width: 920px) {
   body.tray-open main.container { padding-right: calc(var(--glass-btn) + var(--hud-edge) + 12px); }
-  /* The arrow tab sits level with the brand line, open or closed. Qualified
-     so it outranks the .brand rule further down. */
-  body .brand { padding-right: 34px; }
+  /* Qualified so it outranks the .brand rule further down. */
+  body:not(.tray-open) .brand { padding-right: calc(24px + 10px - 14px); }
+}
+@media (max-width: 480px) {
+  body:not(.tray-open) .brand { padding-right: calc(24px + 10px - 10px); }
 }
 
 .view:not([hidden]) { animation: view-in 0.2s ease; }
