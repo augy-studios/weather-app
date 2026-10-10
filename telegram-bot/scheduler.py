@@ -80,7 +80,8 @@ async def _fire(client, schedule: dict) -> None:
 
 async def _send_digest(client, telegram_id: int, payload: dict) -> None:
     units = await db.get_units(telegram_id)
-    data, air = await asyncio.gather(weather.forecast(payload["lat"], payload["lon"], units),
+    data, air = await asyncio.gather(weather.forecast(payload["lat"], payload["lon"], units,
+                                                      payload["name"]),
                                      weather.air_quality(payload["lat"], payload["lon"],
                                                          payload["name"]))
 

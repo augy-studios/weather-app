@@ -34,7 +34,9 @@ VIEW_LABELS = [("Now", "current"), ("24 hours", "hourly"),
 ABOUT = (
     "Weather for anywhere, in the same words the web app uses. Current "
     "conditions with air quality, the next 24 hours, a five day outlook and a "
-    "two hour rain nowcast, from Open-Meteo, with NEA's PSI in Singapore.\n\n"
+    "two hour rain nowcast, from the national weather service where the web app "
+    "reads one and Open-Meteo everywhere, with any warnings in force and NEA's "
+    "PSI in Singapore.\n\n"
     "Send a city name on its own at any time and you get its weather back. "
     "Sharing a location pin works too."
 )
@@ -84,7 +86,7 @@ async def weather_view(telegram_id: int, place: dict, view: str, note: str | Non
     the way back survives switching views or saving and removing the place.
     """
     units = await db.get_units(telegram_id)
-    data, air = await asyncio.gather(weather.forecast(place["lat"], place["lon"], units),
+    data, air = await asyncio.gather(weather.forecast(place["lat"], place["lon"], units, place["name"]),
                                      weather.air_quality(place["lat"], place["lon"], place["name"]))
     name = ui.escape_md(place["name"])
 
@@ -122,7 +124,7 @@ async def weather_view(telegram_id: int, place: dict, view: str, note: str | Non
         "body": body,
         "fields": fields,
         "table": table,
-        "footer": note or weather.data_credit(air),
+        "footer": note or weather.data_credit(air, data),
         "buttons": [
             views_row,
             [action, {"label": "Open in the app",
@@ -185,7 +187,7 @@ async def on_start(event) -> None:
         title="Weather, in your pocket",
         body=ABOUT,
         table=(["What it does"], [[cmd, desc] for cmd, desc in COMMAND_LIST]),
-        footer="Made with love in Singapore. Weather data from Open-Meteo.",
+        footer="Made with love in Singapore. Weather data from Open-Meteo and the national weather services.",
         buttons=[
             [{"label": "Open the web app", "url": WEB_APP_URL},
              {"label": "Buy Augy a coffee", "url": DONATION_URL}],
@@ -374,7 +376,8 @@ async def apply_subscription(client, telegram_id: int, chat_id, place: dict,
                              hour: int, minute: int) -> tuple[str, str, list]:
     """Save the digest schedule and describe it. Shared by the command and the buttons."""
     try:
-        data = await weather.forecast(place["lat"], place["lon"], await db.get_units(telegram_id))
+        data = await weather.forecast(place["lat"], place["lon"], await db.get_units(telegram_id),
+                                      place["name"])
         offset = data.get("utc_offset_seconds") or 0
     except weather.WeatherError:
         offset = 0

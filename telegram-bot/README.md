@@ -1,9 +1,10 @@
 # UwU Weather, the Telegram bot
 
 The [weather.uwuapps.org](https://weather.uwuapps.org) weather app, in a chat. It reads the
-same Open-Meteo data the web app reads and describes it in the same words: current
-conditions with air quality, the next 24 hours, a five day outlook, and a two hour
-precipitation nowcast. Air quality is the reading for the place's region alongside the
+same forecast the web app reads, from the site itself, and describes it in the same words:
+Open-Meteo with the national weather service laid over it where there is one, and any
+warnings in force. Current conditions with air quality, the next 24 hours, a five day
+outlook, and a two hour precipitation nowcast. Air quality is the reading for the place's region alongside the
 range across the whole country: NEA's own PSI and PM2.5 for its five regions in Singapore,
 from data.gov.sg, and the US AQI elsewhere. It can also carry your saved places back and forth with the web app, and it
 can send you the day ahead every morning.
@@ -213,10 +214,11 @@ startup as a convenience, and never overrides a variable already exported in the
 | `TELEGRAM_API_ID` | yes | From [my.telegram.org/apps](https://my.telegram.org/apps) |
 | `TELEGRAM_API_HASH` | yes | From the same page |
 | `TELEGRAM_BOT_TOKEN` | yes | From BotFather |
+| `BOT_API_TOKEN` | yes | A long random string, the same as `BOT_API_TOKEN` on the Vercel project. The site's `/api/bot/*` routes, where all the weather comes from, refuse the bot without it |
 | `SUPABASE_URL` | for syncing | Your project URL |
 | `SUPABASE_SERVICE_KEY` | for syncing | The service role key. It bypasses row level security, so it belongs on the VPS and in Vercel, nowhere else |
 | `DONATION_URL` | yes | The link behind the coffee button in `/start` |
-| `WEB_APP_URL` | no | Defaults to `https://weather.uwuapps.org`. Air quality is read from its `/api/air` |
+| `WEB_APP_URL` | no | Defaults to `https://weather.uwuapps.org`. All the weather is read from its `/api/bot/*` |
 | `DB_PATH` | no | Defaults to `data/bot.db` next to the code |
 | `NOTICE_POLL_SECONDS` | no | How often to look for messages the web app has left, default 3 |
 | `SCHEDULER_TICK_SECONDS` | no | How often to look for due digests, default 30 |
@@ -237,7 +239,7 @@ telegram-bot/
 ├── config.py          environment, table names, defaults
 ├── db.py              SQLite: preferences, favourites, buttons, schedules
 ├── supabase_rest.py   a small PostgREST client, no supabase-js equivalent needed
-├── weather.py         Open-Meteo and data.gov.sg access, and every formatter
+├── weather.py         The web app's /api/bot/* routes, and every formatter
 ├── ui.py              one message shape: heading, body, fields, table, footer, buttons
 ├── reply.py           sends that shape as a Rich Message over raw MTProto requests
 ├── favourites.py      saved places, local first, synced when linked
@@ -276,17 +278,22 @@ send one morning never stops the following mornings.
 a note in Supabase and the bot picks it up, which is how you hear that a backup code
 was spent. Nothing has to reach the VPS from outside, so the firewall stays closed.
 
-Weather calls go straight to Open-Meteo rather than through the site's `/api` proxies,
-with a small cache that copies the lifetimes those proxies advertise: ten minutes for a
-forecast, a day for a geocode.
+**The weather comes from the web app.** The bot asks the site's `/api/bot/forecast`,
+`/api/bot/air` and `/api/bot/geocode`, sending `BOT_API_TOKEN`, and the site answers only
+with it. The forecast is the same bundle the page draws: Open-Meteo with the national
+service laid over it (the NWS, MET Norway, Environment Canada, the DWD, Met Éireann,
+MeteoSwiss, Seniverse, MeteoGate's stations across Europe), the warnings in force, and
+WeatherAPI.com, OpenWeather or Xweather standing in when Open-Meteo is down. It arrives
+in Open-Meteo's shape with ISO times on the place's clock. The keys, the caches and the
+national services all live on the site, in one place. The bot keeps a small cache of its
+own: ten minutes for a forecast or a reading, a day for a geocode.
 
-Air quality is the exception, read from the site's `/api/air` with the same ten minute
-cache. That route holds the data.gov.sg key and does the real work: the islandwide PSI
-and PM2.5 range in Singapore, and elsewhere a US AQI range from Open-Meteo read at sample
-points across the whole country. It also returns a reading per region: NEA's five in
-Singapore, and elsewhere north, south, east, west and central compass regions built
-from those sample points. A failed reading, or the site being down, drops the air
-quality out of the message rather than failing it.
+Air quality holds the data.gov.sg key and does the real work there: the islandwide PSI
+and PM2.5 range in Singapore, the measured index in Norway, Canada and China, and
+elsewhere a US AQI range from Open-Meteo read at sample points across the whole country,
+with a reading per region. A failed reading drops the air quality out of the message
+rather than failing it; the site being down fails the forecast with a message to try
+again shortly.
 
 ## Updating
 
@@ -349,4 +356,4 @@ every trace, locally and in the shared copy.
 
 ---
 
-Part of [UwU Weather](../README.md). Weather data by [Open-Meteo](https://open-meteo.com/).
+Part of [UwU Weather](../README.md). Weather data by [Open-Meteo](https://open-meteo.com/) and the national weather services the web app credits.

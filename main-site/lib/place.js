@@ -207,7 +207,7 @@ const F = (c) => (c == null ? c : Math.round((c * 1.8 + 32) * 10) / 10);
 const MPH = (kmh) => (kmh == null ? kmh : Math.round(kmh * 0.621371 * 10) / 10);
 
 const TEMP_FIELDS = ['temperature_2m', 'apparent_temperature', 'temperature_2m_max', 'temperature_2m_min'];
-const WIND_FIELDS = ['wind_speed_10m', 'wind_speed_10m_max'];
+const WIND_FIELDS = ['wind_speed_10m', 'wind_speed_10m_max', 'wind_gusts_10m'];
 
 function convertBlock(block) {
   if (!block) return block;

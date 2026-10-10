@@ -39,7 +39,7 @@ Looked at and left out: ICHEC (ichec.ie) runs Met Éireann's models on its super
 
 1. `npm install`, for `web-push` and `@vercel/blob`.
 2. Run `migrations/0001` and `0002` in the Supabase SQL editor. 0002 holds who asked for lightning alerts on Telegram.
-3. Set the variables in `.env.example` on the Vercel project: `CRON_SECRET`, the Upstash pair (`KV_REST_API_URL`, `KV_REST_API_TOKEN`), the VAPID trio (`npx web-push generate-vapid-keys`; a pair of this site's own, not sg-psi's), the keyed fallbacks (`WEATHER_API_KEY`, `OPEN_WEATHER_KEY`, `XWEATHER_CLIENT_ID`, `XWEATHER_CLIENT_SECRET`), for China `SENIVERSE_PUBLIC_KEY`, `SENIVERSE_PRIVATE_KEY` and `WAQI_TOKEN`, and for Europe `METEOGATE_KEY`.
+3. Set the variables in `.env.example` on the Vercel project: `CRON_SECRET`, `BOT_API_TOKEN` (the same value as the Telegram bot's, which reads its weather from `/api/bot/*` with it), the Upstash pair (`KV_REST_API_URL`, `KV_REST_API_TOKEN`), the VAPID trio (`npx web-push generate-vapid-keys`; a pair of this site's own, not sg-psi's), the keyed fallbacks (`WEATHER_API_KEY`, `OPEN_WEATHER_KEY`, `XWEATHER_CLIENT_ID`, `XWEATHER_CLIENT_SECRET`), for China `SENIVERSE_PUBLIC_KEY`, `SENIVERSE_PRIVATE_KEY` and `WAQI_TOKEN`, and for Europe `METEOGATE_KEY`.
 4. Create a Vercel Blob store and connect it to the project, which sets `BLOB_READ_WRITE_TOKEN`.
 5. `vercel.json` schedules four crons:
    - `/api/cron/collect`, every minute: checks for new lightning (NEA's every run, Environment Canada's grid three times in each ten minutes) and sends alerts, and stores a snapshot of every station each five minutes, so the map can go back three hours. Without Upstash, the map's scrubber carries rainfall only for earlier times, and alerts are off.

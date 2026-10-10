@@ -9,7 +9,9 @@
     "api/radar.js": { "maxDuration": 30 },
     "api/forecast.js": { "maxDuration": 30 },
     "api/air.js": { "maxDuration": 30 },
-    "api/gauges.js": { "maxDuration": 30 }
+    "api/gauges.js": { "maxDuration": 30 },
+    "api/bot/forecast.js": { "maxDuration": 30 },
+    "api/bot/air.js": { "maxDuration": 30 }
   },
   "crons": [
     { "path": "/api/cron/collect", "schedule": "* * * * *" },

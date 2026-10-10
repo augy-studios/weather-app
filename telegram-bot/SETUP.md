@@ -85,7 +85,7 @@ Send a city name and get current conditions, the next 24 hours, a five day outlo
 
 Save the places you check often, sync them with weather.uwuapps.org so one list follows you everywhere, and get the day ahead every morning at a time you pick.
 
-Data from Open-Meteo. Made with love in Singapore.
+Data from Open-Meteo and the national weather services. Made with love in Singapore.
 ```
 
 **The profile picture**:
@@ -220,12 +220,16 @@ Fill in (Ctrl+S saves, Ctrl+Q quits):
 TELEGRAM_API_ID=1234567
 TELEGRAM_API_HASH=0123456789abcdef0123456789abcdef
 TELEGRAM_BOT_TOKEN=1234567890:AAaaBBbbCCccDDddEEeeFFffGGgg
+BOT_API_TOKEN=the-same-long-random-string-as-on-vercel
 SUPABASE_URL=https://yourproject.supabase.co
 SUPABASE_SERVICE_KEY=eyJhbGciOi...
 DONATION_URL=https://donate.stripe.com/28o2akeAr3hv0DK6oo
 ```
 
-No quotes, no spaces around the equals sign. Then:
+No quotes, no spaces around the equals sign. `BOT_API_TOKEN` is how the web app knows
+the bot: make one with `openssl rand -hex 32`, set it here and as `BOT_API_TOKEN` on the
+Vercel project (Settings, Environment Variables), and redeploy the site. Every forecast
+comes from the site's `/api/bot/*`, which refuse the bot without it. Then:
 
 ```bash
 python3 -m venv .venv

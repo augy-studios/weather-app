@@ -6,12 +6,15 @@ import { fetchJSON } from '../wx.js';
 const FORECAST = 'https://api.open-meteo.com/v1/forecast';
 const MARINE = 'https://marine-api.open-meteo.com/v1/marine';
 
-// What the page draws. The fifteen-minute series runs three hours back as well
-// as two ahead, so the map's scrubber has a reading for the place at every step.
+// What the page draws, and the Telegram bot (gusts, cloud cover, sunrise and
+// sunset, through /api/bot/forecast). The fifteen-minute series runs three
+// hours back as well as two ahead, so the map's scrubber has a reading for the
+// place at every step.
 export const FIELDS = {
   current: [
     'temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'precipitation',
-    'weather_code', 'is_day', 'wind_speed_10m', 'wind_direction_10m', 'surface_pressure'
+    'weather_code', 'is_day', 'wind_speed_10m', 'wind_direction_10m', 'surface_pressure',
+    'wind_gusts_10m', 'cloud_cover'
   ],
   hourly: [
     'temperature_2m', 'apparent_temperature', 'precipitation_probability', 'precipitation',
@@ -19,7 +22,7 @@ export const FIELDS = {
   ],
   daily: [
     'weather_code', 'temperature_2m_max', 'temperature_2m_min', 'precipitation_sum',
-    'precipitation_probability_max', 'wind_speed_10m_max', 'uv_index_max'
+    'precipitation_probability_max', 'wind_speed_10m_max', 'uv_index_max', 'sunrise', 'sunset'
   ],
   minutely_15: ['precipitation', 'temperature_2m', 'relative_humidity_2m', 'wind_speed_10m', 'wind_direction_10m']
 };

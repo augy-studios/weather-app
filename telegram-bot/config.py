@@ -48,6 +48,11 @@ SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
 DONATION_URL = os.environ.get("DONATION_URL", "").strip() or "https://donate.stripe.com/28o2akeAr3hv0DK6oo"
 WEB_APP_URL = (os.environ.get("WEB_APP_URL", "").strip() or "https://weather.uwuapps.org").rstrip("/")
 
+# --- The web app's bot routes ---
+# Every forecast, place search and air quality reading comes from the site's
+# /api/bot/*, which answer only with this. The same value is set on Vercel.
+BOT_API_TOKEN = os.environ.get("BOT_API_TOKEN", "").strip()
+
 # --- Local storage ---
 _db_path = Path(os.environ.get("DB_PATH", "").strip() or "data/bot.db")
 DB_PATH = _db_path if _db_path.is_absolute() else BASE_DIR / _db_path
@@ -86,4 +91,6 @@ def validate() -> list[str]:
         problems.append("TELEGRAM_API_HASH is missing.")
     if not TELEGRAM_BOT_TOKEN:
         problems.append("TELEGRAM_BOT_TOKEN is missing.")
+    if not BOT_API_TOKEN:
+        problems.append("BOT_API_TOKEN is missing. Set the same value here and on the Vercel project.")
     return problems

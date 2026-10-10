@@ -1,32 +1,35 @@
-"""Open-Meteo access and formatting.
+"""Weather from the web app, and formatting.
 
 This mirrors main-site/script.js so the bot and the web app describe the same
 sky in the same words: the same WMO code table, the same smart search parsing,
 the same fields on the current conditions card.
 
-Open-Meteo needs no key. The site proxies it through /api only to add caching,
-so the bot calls the upstream directly and keeps a small cache of its own with
-the same lifetimes the proxies advertise.
+Everything comes from the site's /api/bot/* routes, with BOT_API_TOKEN, so the
+bot gets what the page gets: Open-Meteo with the national weather service laid
+over it (the NWS, MET Norway, Environment Canada, the DWD, Met Éireann,
+MeteoSwiss, Seniverse, MeteoGate's stations across Europe), the warnings in
+force, the keyed services standing in when Open-Meteo is down, and air quality
+from NEA, NILU, Environment Canada or WAQI where the site reads them. The
+forecast arrives in Open-Meteo's own shape, with ISO times on the place's
+clock, so the formatters below read it as they always have.
 
-Air quality is the one exception: it comes from the site's own /api/air, which
-does the real work (NEA's islandwide PSI and PM2.5 in Singapore from
-data.gov.sg, a countrywide US AQI range from Open-Meteo everywhere else, each
-broken down by region). That keeps the data.gov.sg key and the country sampling
-in one place.
+The bot keeps a small cache of its own with the same lifetimes the site's.
 """
 
 import logging
 import time
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
-from config import WEB_APP_URL
+import ui
+from config import BOT_API_TOKEN, WEB_APP_URL
 
 log = logging.getLogger(__name__)
 
-GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
-FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
-AIR_URL = f"{WEB_APP_URL}/api/air"
+GEOCODE_URL = f"{WEB_APP_URL}/api/bot/geocode"
+FORECAST_URL = f"{WEB_APP_URL}/api/bot/forecast"
+AIR_URL = f"{WEB_APP_URL}/api/bot/air"
 
 GEOCODE_TTL = 24 * 60 * 60
 FORECAST_TTL = 10 * 60
@@ -71,9 +74,12 @@ class WeatherError(RuntimeError):
 
 async def start() -> None:
     global _client
+    # The site builds a place's forecast once and keeps it; a first build, with
+    # every national service asked, can take a while.
     _client = httpx.AsyncClient(
-        timeout=httpx.Timeout(15.0),
-        headers={"User-Agent": "uwu-weather-telegram-bot"},
+        timeout=httpx.Timeout(30.0),
+        headers={"User-Agent": "uwu-weather-telegram-bot",
+                 "Authorization": f"Bearer {BOT_API_TOKEN}"},
     )
 
 
@@ -89,9 +95,13 @@ async def _get_json(url: str, params: dict, ttl: int) -> dict:
         return hit[1]
     try:
         res = await _client.get(url, params=params)
+        if res.status_code in (401, 503) and "/api/bot/" in url:
+            # Not a passing outage: the token is wrong, or not set on the site.
+            log.error("The web app refused the bot (%s): %s. Check BOT_API_TOKEN here and on Vercel.",
+                      res.status_code, res.text[:200])
         res.raise_for_status()
         data = res.json()
-    except httpx.HTTPError as err:
+    except (httpx.HTTPError, ValueError) as err:
         raise WeatherError("The weather service did not answer. Please try again shortly.") from err
     _cache[key] = (time.time() + ttl, data)
     if len(_cache) > 512:
@@ -179,7 +189,7 @@ async def search_city(query: str, count: int = 8) -> list[dict]:
     if not name:
         return []
 
-    params = {"name": name, "count": str(count), "language": "en", "format": "json"}
+    params = {"name": name, "count": str(count)}
     if country:
         params["countryCode"] = country
 
@@ -203,49 +213,39 @@ async def search_city(query: str, count: int = 8) -> list[dict]:
 
 
 async def reverse_label(lat: float, lon: float) -> str:
-    """Open-Meteo has no reverse geocoder, so a shared pin is labelled by its
-    coordinates. Kept in one place in case that changes."""
+    """The site's geocoder (Open-Meteo's) has no reverse lookup, so a shared pin
+    is labelled by its coordinates. Kept in one place in case that changes."""
     return f"{lat:.3f}, {lon:.3f}"
 
 
-async def forecast(lat: float, lon: float, units: str = "metric") -> dict:
+def _country(label: str) -> str:
+    """The label's trailing country code ("Cork, Munster, IE"), or "". A shared
+    pin has none, and the site works the country out from the point instead."""
+    tail = label.strip()[-2:]
+    return tail if label.strip()[-4:-2] == ", " and tail.isalpha() and tail.isupper() else ""
+
+
+async def forecast(lat: float, lon: float, units: str = "metric", label: str = "") -> dict:
+    """The place's forecast from the site's /api/bot/forecast: Open-Meteo's
+    shape, the national service already laid over it, plus `alerts` and
+    `national` (who the readings came from)."""
     params = {
-        "latitude": f"{lat:.4f}",
-        "longitude": f"{lon:.4f}",
-        "timezone": "auto",
-        "current": ",".join([
-            "temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation",
-            "weather_code", "cloud_cover", "wind_speed_10m", "wind_gusts_10m",
-            "wind_direction_10m", "surface_pressure",
-        ]),
-        "hourly": ",".join([
-            "temperature_2m", "precipitation_probability", "precipitation", "weather_code",
-            "wind_speed_10m", "cloud_cover", "surface_pressure",
-        ]),
-        "daily": ",".join([
-            "weather_code", "temperature_2m_max", "temperature_2m_min", "precipitation_sum",
-            "precipitation_probability_max", "wind_speed_10m_max", "sunrise", "sunset",
-        ]),
-        "minutely_15": "precipitation",
-        "forecast_days": "7",
-        "past_days": "0",
-        "temperature_unit": "fahrenheit" if units == "imperial" else "celsius",
-        "wind_speed_unit": "mph" if units == "imperial" else "kmh",
+        "latitude": f"{float(lat):.4f}",
+        "longitude": f"{float(lon):.4f}",
+        "units": "imperial" if units == "imperial" else "metric",
     }
+    if _country(label):
+        params["country"] = _country(label)
     return await _get_json(FORECAST_URL, params, FORECAST_TTL)
 
 
 async def air_quality(lat: float, lon: float, label: str = "") -> dict | None:
-    """The countrywide air quality range from the site's /api/air, with the
+    """The countrywide air quality range from the site's /api/bot/air, with the
     place's own region and every region's reading, or None. Never raises: a
-    missing reading leaves the weather to stand on its own.
-
-    The label's trailing country code, when it has one, names the country the
-    range covers. A shared pin has none, and the route works it out instead."""
+    missing reading leaves the weather to stand on its own."""
     params = {"latitude": f"{float(lat):.4f}", "longitude": f"{float(lon):.4f}"}
-    tail = label.strip()[-2:]
-    if label.strip()[-4:-2] == ", " and tail.isalpha() and tail.isupper():
-        params["country"] = tail
+    if _country(label):
+        params["country"] = _country(label)
     try:
         air = await _get_json(AIR_URL, params, AIR_TTL)
         if air.get("level") not in AIR_EMOJI:
@@ -298,13 +298,76 @@ def air_regions(air: dict | None) -> list[dict]:
 # Who measured the air, as /api/air names them.
 AIR_CREDITS = {
     "nea": "NEA", "nilu": "NILU", "met-norway": "MET Norway", "eccc": "Environment Canada",
-    "weatherapi": "WeatherAPI.com", "openweather": "OpenWeather", "xweather": "Xweather",
+    "waqi": "WAQI", "weatherapi": "WeatherAPI.com", "openweather": "OpenWeather", "xweather": "Xweather",
+}
+
+# The forecast's base, and the national services laid over it, as the site
+# names them (NATIONAL_SHORT in main-site/script.js).
+BASE_CREDITS = {
+    "open-meteo": "Open-Meteo", "weatherapi": "WeatherAPI.com",
+    "openweather": "OpenWeather", "xweather": "Xweather",
+}
+NATIONAL_CREDITS = {
+    "nws": "NWS", "met-norway": "MET Norway", "eccc": "Environment Canada", "dwd": "DWD",
+    "environment-agency": "Environment Agency", "seniverse": "Seniverse",
+    "met-eireann": "Met Éireann", "meteoswiss": "MeteoSwiss", "meteogate": "MeteoGate",
 }
 
 
-def data_credit(air: dict | None) -> str:
-    extra = AIR_CREDITS.get((air or {}).get("source"))
-    return f"Data from Open-Meteo and {extra}." if extra else "Data from Open-Meteo."
+def data_credit(air: dict | None, data: dict | None = None) -> str:
+    """Everyone whose numbers are in the message: the national service and the
+    station it came through, the forecast's base, and whoever measured the air."""
+    names = []
+    nat = (data or {}).get("national") or {}
+    if nat.get("used"):
+        names.append(NATIONAL_CREDITS.get(nat.get("source")) or nat.get("name") or "")
+    if nat.get("stationBy"):
+        names.append(nat["stationBy"])
+    names.append(BASE_CREDITS.get((data or {}).get("source"), "Open-Meteo"))
+    names.append(AIR_CREDITS.get((air or {}).get("source")) or "")
+    names = list(dict.fromkeys(n for n in names if n))
+    joined = names[0] if len(names) == 1 else f"{', '.join(names[:-1])} and {names[-1]}"
+    return f"Data from {joined}."
+
+
+def _clock(iso: str | None, offset: int) -> str | None:
+    """"Sat 18:00" on the place's clock, for a warning's end."""
+    try:
+        moment = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(timezone(timedelta(seconds=offset))).strftime("%a %H:%M")
+
+
+def _warnings(data: dict, limit: int = 3) -> str | None:
+    """The warnings in force for the place, worst first as the site sends
+    them, one line each. Their titles come from the weather services, so they
+    are escaped here."""
+    now = datetime.now(timezone.utc)
+    offset = data.get("utc_offset_seconds") or 0
+    alerts = []
+    for a in data.get("alerts") or []:
+        if not a.get("title"):
+            continue
+        until = a.get("until")
+        try:
+            if until and datetime.fromisoformat(str(until).replace("Z", "+00:00")) <= now:
+                continue
+        except ValueError:
+            pass
+        alerts.append(a)
+    if not alerts:
+        return None
+    lines = []
+    for a in alerts[:limit]:
+        until = _clock(a.get("until"), offset) if a.get("until") else None
+        lines.append(f"⚠️ **{ui.escape_md(a['title'])}**" + (f", until {until}" if until else ""))
+    if len(alerts) > limit:
+        lines.append(f"and {len(alerts) - limit} more.")
+    # Rich Markdown folds single newlines, so each line is a paragraph.
+    return "\n\n".join(lines)
 
 
 # --- formatting ------------------------------------------------------------
@@ -342,11 +405,13 @@ def _today(data: dict, units: str) -> dict:
         return values[0] if values else default
 
     sunrise, sunset = first("sunrise", ""), first("sunset", "")
+    pop = first("precipitation_probability_max")
     return {
         "code": first("weather_code"),
         "high": fmt_temp(first("temperature_2m_max"), units),
         "low": fmt_temp(first("temperature_2m_min"), units),
-        "pop": first("precipitation_probability_max"),
+        # A national service may give it to a decimal place.
+        "pop": None if pop is None else round(pop),
         "rain": first("precipitation_sum", 0) or 0,
         "wind": fmt_wind(first("wind_speed_10m_max"), None, units),
         "sun": f"{_local_time(sunrise)} to {_local_time(sunset)}" if sunrise and sunset else None,
@@ -371,6 +436,9 @@ def format_current(data: dict, place: str, units: str,
         body += f"\n\nToday runs {today['low']} to {today['high']}."
         if today["pop"]:
             body += f" Rain chance peaks at {today['pop']}%."
+    warnings = _warnings(data)
+    if warnings:
+        body += f"\n\n{warnings}"
 
     pressure = c.get("surface_pressure")
     fields = [
@@ -402,7 +470,7 @@ def format_hourly(data: dict, place: str, units: str,
         temp = fmt_temp((hourly.get("temperature_2m") or [None])[i], units)
         pop = (hourly.get("precipitation_probability") or [None])[i]
         rows.append([_local_time(hourly["time"][i]), wmo_emoji(code), temp,
-                     "" if pop is None else f"{pop}%"])
+                     "" if pop is None else f"{round(pop)}%"])
     if not rows:
         return f"Next 24 hours in {place}", "No hourly data came back for this place.", [], None
     return f"Next 24 hours in {place}", _air_line(air), [], (["Sky", "Temp", "Rain"], rows)
@@ -498,6 +566,9 @@ def format_digest(data: dict, place: str, units: str,
     if today["pop"]:
         # Markdown folds a single newline into the paragraph, so this is its own.
         body += f"\n\nRain chance peaks at {today['pop']}%."
+    warnings = _warnings(data)
+    if warnings:
+        body += f"\n\n{warnings}"
     fields = [
         ("Right now", f"{fmt_temp(c.get('temperature_2m'), units)}, {wmo_text(c.get('weather_code')).lower()}"),
         ("Rain total", f"{today['rain']:.1f} mm"),
