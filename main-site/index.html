@@ -77,7 +77,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
-  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/vendor/maplibre/maplibre-gl.css">
   <link rel="stylesheet" href="/style.css">
 </head>
 
@@ -108,6 +108,9 @@
         </button>
         <button class="glass-btn" id="syncBtn" type="button" aria-haspopup="dialog" aria-label="Sync favourites" title="Sync favourites">
           <span data-icon="sync"></span>
+        </button>
+        <button class="glass-btn" id="offlineBtn" type="button" aria-haspopup="dialog" aria-label="Offline maps" title="Offline maps">
+          <span data-icon="download"></span>
         </button>
         <button class="glass-btn" id="themeBtn" type="button" aria-haspopup="dialog" aria-label="Theme" title="Theme">
           <span data-icon="sun"></span>
@@ -465,7 +468,10 @@
         <a class="link" href="https://openweathermap.org/" target="_blank" rel="noreferrer">OpenWeather</a> or
         <a class="link" href="https://www.xweather.com/" target="_blank" rel="noreferrer">Xweather</a> stand in.
         Radar elsewhere from <a class="link" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a>.
-        Map tiles from <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>.
+        The map from <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer">OpenFreeMap</a>
+        (<a class="link" href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">OpenMapTiles</a>, data from
+        <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors),
+        drawn with <a class="link" href="https://maplibre.org/" target="_blank" rel="noreferrer">MapLibre</a>, and OpenStreetMap's own tiles when OpenFreeMap is down.
       </p>
       <p class="muted">
         <a class="link" href="https://augystudios.com/terms" target="_blank" rel="noopener noreferrer">Terms</a> ·
@@ -493,6 +499,23 @@
       <p class="mode-note" id="modeNote" hidden></p>
       <p class="modal-section-label">Brand colour</p>
       <div class="swatch-grid" id="swatchGrid"></div>
+    </div>
+  </div>
+
+  <!-- ---------- Offline maps (js/offline.js) ---------- -->
+  <div class="modal-backdrop hidden" id="offlineModal">
+    <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="offlineModalTitle">
+      <div class="modal-head">
+        <h2 id="offlineModalTitle">Offline maps</h2>
+        <button class="icon-btn small" type="button" data-close-modal="offlineModal" aria-label="Close">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <p class="muted">Keep the map of Singapore or Malaysia on this device, so the Map page still shows it with no connection. The radar, the readings and the weather on it still need one.</p>
+      <p class="modal-section-label">Maps</p>
+      <ul class="pack-list" id="offlinePacks"></ul>
+      <p class="muted fine" id="offlineStorage" hidden></p>
+      <p class="muted fine">From <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer">OpenFreeMap</a>, &copy; OpenMapTiles, data &copy; OpenStreetMap contributors.</p>
     </div>
   </div>
 
@@ -630,7 +653,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js" defer></script>
-  <script src="/vendor/leaflet/leaflet.js" defer></script>
+  <script src="/vendor/maplibre/maplibre-gl.js" defer></script>
   <script src="/vendor/chartjs/chart.umd.min.js" defer></script>
   <script src="/js/icons.js" defer></script>
   <script src="/js/ui.js" defer></script>
@@ -640,6 +663,7 @@
   <script src="/js/charts.js" defer></script>
   <script src="/js/map.js" defer></script>
   <script src="/js/alerts.js" defer></script>
+  <script src="/js/offline.js" defer></script>
   <script src="/script.js" defer></script>
   <script src="/js/update.js" defer></script>
 </body>

@@ -1,7 +1,18 @@
-// The Map page: Leaflet on OpenStreetMap's tiles, with the rain radar and every
-// other reading on one screen, and a scrubber along the bottom through the last
-// three hours.
+// The Map page: MapLibre on OpenFreeMap's vector map, in 3D, with the rain radar
+// and every other reading on one screen, and a scrubber along the bottom
+// through the last three hours.
 //
+// - The base map, made in one place (baseStyle):
+//   - OpenFreeMap's Liberty style in light mode and its Dark style in dark
+//     mode, with the buildings standing up from zoom 14. Right drag (or ctrl
+//     drag) tilts and turns the map, as does a two finger drag on a phone; the
+//     compass puts it back.
+//   - When OpenFreeMap doesn't answer (its style, or its tiles again and again,
+//     or nothing at all for a while), OpenStreetMap's own tiles instead, for
+//     the rest of the visit. Every layer over it stays.
+//   - Offline, the service worker answers with what it kept, or with the
+//     offline maps of Singapore and Malaysia (js/offline.js). OpenStreetMap
+//     is never kept, so offline the map doesn't fall back to it.
 // - Radar, three hours of it wherever a national service keeps that long:
 //   - NEA's own images round Singapore (roughly 480 km), from /api/radar, one
 //     every five minutes, kept by the sg cron. The 70, 240 or 480 km image is
@@ -24,9 +35,15 @@
 //   strikes in the half hour before the time on the scrubber, fading with age;
 //   in Canada, Environment Canada's grid of flashes in the ten minutes to it.
 //
-// OSM has no dark style, so in dark mode style.css turns the tiles down to match.
-// The radar sits in its own pane so it keeps its true colours.
-// Plain script, not a module: published on window.UwuMap. Leaflet is vendor/leaflet.
+// The radar and lightning layers sit over the roads and under the 3D buildings
+// and the labels. They are kept in `overlays` as well as on the map, so a new
+// base style (the other mode, or the fallback) gets them back as they were.
+// The pins are HTML markers, over everything.
+//
+// MapLibre's zoom levels are one below Leaflet's for the same scale (its tiles
+// are 512 px), which is why the zooms here are a step lower than they were.
+// Plain script, not a module: published on window.UwuMap. MapLibre is
+// vendor/maplibre.
 
 (function () {
   const W = window.UwuWx;
@@ -35,6 +52,11 @@
 
   const $ = (sel) => document.querySelector(sel);
 
+  const OFM_STYLES = {
+    light: "https://tiles.openfreemap.org/styles/liberty",
+    dark: "https://tiles.openfreemap.org/styles/dark",
+  };
+  const OFM_ATTRIBUTION = '<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
   const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
   const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
   const ATTRIBUTION = {
@@ -56,15 +78,24 @@
   const REFRESH_MS = 5 * 60 * 1000;
   const PLAY_MS = 450;
 
+  // How long OpenFreeMap's style may take, how many of its tiles may fail, and
+  // how long the map may go without one, before OpenStreetMap stands in.
+  const STYLE_TIMEOUT_MS = 8000;
+  const BASE_FAILURES = 6;
+  const BASE_TILE_TIMEOUT_MS = 15000;
+
   // NEA's three images, smallest first, with the box each covers.
   const NEA_RANGES = [
-    { range: "70km", minZoom: 9, box: [[0.719515, 103.342685], [1.97854, 104.602315]] },
-    { range: "240km", minZoom: 7, box: [[-0.809711, 101.810507], [3.506012, 106.130495]] },
+    { range: "70km", minZoom: 8, box: [[0.719515, 103.342685], [1.97854, 104.602315]] },
+    { range: "240km", minZoom: 6, box: [[-0.809711, 101.810507], [3.506012, 106.130495]] },
     { range: "480km", minZoom: 0, box: [[W.NEA_RADAR_BOX.south, W.NEA_RADAR_BOX.west], [W.NEA_RADAR_BOX.north, W.NEA_RADAR_BOX.east]] },
   ];
 
   // Roughly where GeoMet's Canadian radar has anything to show.
   const CANADA_BOX = [[41, -142], [72, -50]];
+
+  // The one radar image layer, for NEA's and the DWD's frames.
+  const IMAGE = "uwu-image";
 
   let map = null;
   let layers = {};
@@ -80,13 +111,14 @@
     source: null,
     neaRange: null,
     images: {}, // NEA range or "dwd" -> { frames, bounds, fetchedAt }
+    imageSrc: null, // the frame and corners the image layer was last given
     rv: null, // { host, frames: [{ t, path }], fetchedAt }
     msc: null, // { url, layer, frames: [{ t }], fetchedAt }
-    tileLayers: new Map(), // frame key -> Leaflet layer, for RainViewer, GeoMet and the keyed tiles
+    tileLayers: new Map(), // frame key -> overlay id, for RainViewer, GeoMet and the keyed tiles
     timeline: null, // Singapore's stations
     gauges: null, // England's rain gauges
     ltg: null, // Canada's lightning grid: { url, layer, frames: [{ t, iso }], fetchedAt }
-    ltgLayers: new Map(), // frame time -> WMS layer
+    ltgLayers: new Map(), // frame time -> overlay id
     steps: [],
     index: -1,
     live: true,
@@ -95,75 +127,347 @@
     failed: { radar: false, timeline: false, gauges: false },
   };
 
+  // The base map on screen.
+  const base = {
+    // "openfreemap", or "osm" once OpenFreeMap has failed, for the rest of the visit.
+    kind: "openfreemap",
+    mode: null, // the mode its style was made for
+    asked: 0, // the latest call to useBase, so a slow style doesn't land over a newer one
+    failures: 0,
+    watchdog: null,
+    offline: false, // on OpenStreetMap only because the connection was down
+  };
+
   const countryNow = () => forecast?.country || place?.name?.match(/,\s*([A-Z]{2})$/)?.[1] || null;
   const nearSg = () => place && W.inNeaRadar(place.lat, place.lon);
+  const modeNow = () => (document.documentElement.getAttribute("data-mode") === "dark" ? "dark" : "light");
+  // The image source and its frames want whole URLs.
+  const abs = (src) => new URL(src, location.href).href;
 
   // ---------- setup ----------
 
   function init() {
-    map = L.map("map", {
-      minZoom: 3,
+    map = new maplibregl.Map({
+      container: "map",
+      // Nothing until the base style arrives: the page's own background shows.
+      style: { version: 8, sources: {}, layers: [] },
+      center: place ? [place.lon, place.lat] : [103.8517, 1.2899],
+      zoom: 7,
+      minZoom: 2,
       maxZoom: 18,
-      zoomSnap: 0.5,
-      zoomControl: false,
-      worldCopyJump: true,
+      maxPitch: 60,
+      // Right drag and ctrl drag tilt and turn; on a phone, two fingers dragged
+      // up or down tilt, and twisted turn. MapLibre's own defaults, set here so
+      // nobody turns them off by accident.
+      dragRotate: true,
+      pitchWithRotate: true,
+      touchPitch: true,
+      touchZoomRotate: true,
+      attributionControl: false,
     });
-    L.control.zoom({ position: "bottomright" }).addTo(map);
-    map.attributionControl.setPrefix('<a href="https://leafletjs.com" target="_blank" rel="noopener noreferrer">Leaflet</a>');
+    // Bottom right, the zoom buttons and compass over the attribution. The
+    // compass turns the map back to north and lays it flat.
+    // On a phone the attribution folds into its (i) button once the map moves.
+    map.addControl(new maplibregl.AttributionControl({
+      customAttribution: '<a href="https://maplibre.org/" target="_blank" rel="noopener noreferrer">MapLibre</a>',
+    }), "bottom-right");
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: true, visualizePitch: true }), "bottom-right");
     // Measured again whenever the box changes: the update bar coming or going, a
     // phone turning, the scrubber growing a line.
-    new ResizeObserver(() => map.invalidateSize()).observe(map.getContainer());
+    new ResizeObserver(() => map.resize()).observe(map.getContainer());
     // The scrubber's height, as --tl-h, so the zoom buttons and attribution sit
     // above it rather than under it.
     new ResizeObserver(([entry]) => {
       document.documentElement.style.setProperty("--tl-h", `${entry.target.offsetHeight}px`);
     }).observe($("#timeline"));
 
-    L.tileLayer(OSM_URL, {
-      maxZoom: 18,
-      attribution: OSM_ATTRIBUTION,
-      // CORS, so the service worker can keep a copy that works offline.
-      crossOrigin: "anonymous",
-    }).addTo(map);
-
-    // Above the tiles, so the dark mode filter on the tile pane leaves it alone,
-    // and under the pins.
-    map.createPane("radar");
-    map.getPane("radar").style.zIndex = 350;
-    map.getPane("radar").style.pointerEvents = "none";
-    // Canada's lightning grid, over the radar and under the pins.
-    map.createPane("lightning");
-    map.getPane("lightning").style.zIndex = 360;
-    map.getPane("lightning").style.pointerEvents = "none";
-
     layers = {
-      stations: L.layerGroup().addTo(map),
-      areas: L.layerGroup().addTo(map),
-      strikes: L.layerGroup().addTo(map),
-      place: L.layerGroup().addTo(map),
-      image: null,
+      stations: markers(),
+      areas: markers(),
+      strikes: markers(),
+      place: markers(),
     };
 
-    map.on("moveend zoomend", () => {
+    map.on("style.load", restyled);
+    map.on("error", mapError);
+    // A few of the styles' shop and amenity icons aren't in OpenFreeMap's
+    // sprite; they go without rather than warning about it.
+    map.on("styleimagemissing", (e) => {
+      if (!map.hasImage(e.id)) map.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
+    });
+    // A base tile arrived: OpenFreeMap is answering.
+    map.on("sourcedata", (e) => {
+      if (e.tile && !overlays.has(e.sourceId)) clearTimeout(base.watchdog);
+    });
+    map.on("moveend", () => {
       pickNeaRange();
       crowding();
     });
+    // The other mode wants the other style.
+    new MutationObserver(() => useBase()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-mode"] });
+    window.addEventListener("online", () => {
+      if (!base.offline) return;
+      base.offline = false;
+      useBase({ force: true });
+    });
 
     wireControls();
+    useBase();
     if (place) centre();
   }
 
   // Zoomed out, labels give way so the pins don't pile up.
   function crowding() {
     const z = map.getZoom();
-    map.getContainer().classList.toggle("map-wide", z < 12);
-    map.getContainer().classList.toggle("map-far", z < 9.5);
+    map.getContainer().classList.toggle("map-wide", z < 11);
+    map.getContainer().classList.toggle("map-far", z < 8.5);
   }
 
   function centre() {
-    map.setView([place.lat, place.lon], W.inSingapore(place.lat, place.lon) ? 11 : 8);
+    map.jumpTo({ center: [place.lon, place.lat], zoom: W.inSingapore(place.lat, place.lon) ? 10 : 7 });
     drawPlace(state.steps[state.index]);
     crowding();
+  }
+
+  // ---------- the base map ----------
+
+  // The one place the base map's style is made: OpenFreeMap's for the mode,
+  // or OpenStreetMap's tiles once it has failed. The offline maps slot in here.
+  async function baseStyle(mode) {
+    if (base.kind === "openfreemap") {
+      try {
+        return standUp(await fetchStyle(OFM_STYLES[mode]), mode);
+      } catch (err) {
+        // Offline with nothing kept: OpenStreetMap for now, and OpenFreeMap
+        // again once the connection is back.
+        if (!navigator.onLine) {
+          base.offline = true;
+          return osmStyle(mode);
+        }
+        console.warn("OpenFreeMap unavailable, so OpenStreetMap's tiles instead:", err);
+        base.kind = "osm";
+      }
+    }
+    return osmStyle(mode);
+  }
+
+  async function fetchStyle(url) {
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), STYLE_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { signal: abort.signal });
+      if (!res.ok) throw new Error(`${url} replied ${res.status}`);
+      const style = await res.json();
+      if (!style?.sources || !style.layers?.length) throw new Error(`${url} sent no style`);
+      return style;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // The buildings in 3D. Liberty has them already; the Dark style gets the same
+  // layer in its own colours, over the roads and under the labels. A building
+  // with no height stands at none rather than filling the console.
+  const HEIGHT = ["coalesce", ["get", "render_height"], 0];
+  const BASE_HEIGHT = ["coalesce", ["get", "render_min_height"], 0];
+
+  function standUp(style, mode) {
+    const vector = Object.keys(style.sources).find((id) => style.sources[id].type === "vector");
+    if (!vector) return style;
+    style.sources[vector].attribution = OFM_ATTRIBUTION;
+    const standing = style.layers.filter((l) => l.type === "fill-extrusion");
+    for (const l of standing) Object.assign(l.paint, { "fill-extrusion-height": HEIGHT, "fill-extrusion-base": BASE_HEIGHT });
+    if (standing.length) return style;
+    const flat = style.layers.find((l) => l["source-layer"] === "building");
+    if (!flat) return style;
+    flat.maxzoom = 14;
+    style.layers.splice(groundTop(style.layers), 0, {
+      id: "building-3d",
+      type: "fill-extrusion",
+      source: vector,
+      "source-layer": "building",
+      minzoom: 14,
+      filter: ["!", ["has", "hide_3d"]],
+      paint: {
+        "fill-extrusion-color": mode === "dark" ? "rgb(34,34,38)" : "hsl(35,8%,85%)",
+        "fill-extrusion-height": HEIGHT,
+        "fill-extrusion-base": BASE_HEIGHT,
+        "fill-extrusion-opacity": 0.8,
+      },
+    });
+    return style;
+  }
+
+  // Just above the last layer drawn flat on the ground: under the labels.
+  function groundTop(list) {
+    let top = 0;
+    list.forEach((l, i) => {
+      if (l.type !== "symbol" && l.type !== "fill-extrusion") top = i + 1;
+    });
+    return top;
+  }
+
+  // OpenStreetMap's own tiles. It has no dark style, so in dark mode they are
+  // turned down to match: brightness the wrong way round inverts them, and a
+  // half turn of hue puts the colours back.
+  function osmStyle(mode) {
+    return {
+      version: 8,
+      sources: {
+        osm: { type: "raster", tiles: [OSM_URL], tileSize: 256, maxzoom: 19, attribution: OSM_ATTRIBUTION },
+      },
+      layers: [{
+        id: "osm",
+        type: "raster",
+        source: "osm",
+        paint: mode === "dark"
+          ? { "raster-brightness-min": 0.85, "raster-brightness-max": 0.05, "raster-hue-rotate": 180, "raster-contrast": -0.1 }
+          : {},
+      }],
+    };
+  }
+
+  async function useBase({ force = false } = {}) {
+    const mode = modeNow();
+    if (!force && mode === base.mode) return;
+    const asked = ++base.asked;
+    base.mode = mode;
+    const style = await baseStyle(mode);
+    if (asked !== base.asked) return;
+    clearTimeout(base.watchdog);
+    base.failures = 0;
+    styleReady = false;
+    // Not diffed: a whole new style, which restyled() then lays the overlays on.
+    map.setStyle(style, { diff: false });
+  }
+
+  function fallBack(why) {
+    if (base.kind !== "openfreemap") return;
+    console.warn(`OpenFreeMap ${why}, so OpenStreetMap's tiles instead.`);
+    base.kind = "osm";
+    useBase({ force: true });
+  }
+
+  // Nothing from OpenFreeMap for a while. Only while the map is on screen and
+  // online: a hidden map asks for nothing, and offline OpenStreetMap can't help.
+  function watch() {
+    clearTimeout(base.watchdog);
+    if (base.kind !== "openfreemap" || !map.getSource("openmaptiles")) return;
+    base.watchdog = setTimeout(() => {
+      if (document.body.classList.contains("view-map") && navigator.onLine) fallBack("sent no map for 15 seconds");
+      else watch();
+    }, BASE_TILE_TIMEOUT_MS);
+  }
+
+  function mapError(e) {
+    const o = e.sourceId && overlays.get(e.sourceId);
+    // Radar and lightning tiles that fail are left blank, as they always were;
+    // the keyed tiles count theirs.
+    if (o) return o.onError?.(e);
+    const fromOfm = e.sourceId || String(e.error?.url || "").includes("openfreemap.org");
+    if (base.kind === "openfreemap" && fromOfm) {
+      if (navigator.onLine && ++base.failures >= BASE_FAILURES) fallBack("keeps failing");
+      return;
+    }
+    if (!e.sourceId) console.warn("map:", e.error || e);
+  }
+
+  // ---------- overlays ----------
+
+  // Every layer laid over the base map, by id, in the order drawn:
+  // { kind: "radar" | "lightning", source, layer, attribution, onError }.
+  const overlays = new Map();
+  let styleReady = false;
+  let anchor = null; // the base layer the overlays go under
+
+  // A new base style is on: the overlays go back on it, radar under lightning,
+  // both under the 3D buildings (or, where those come after the last flat
+  // layer, the labels).
+  function restyled() {
+    const list = map.getStyle().layers;
+    const standing = list.findIndex((l) => l.type === "fill-extrusion");
+    anchor = list[standing >= 0 ? Math.min(standing, groundTop(list)) : groundTop(list)]?.id ?? null;
+    styleReady = true;
+    for (const kind of ["radar", "lightning"]) {
+      for (const o of overlays.values()) if (o.kind === kind) put(o);
+    }
+    watch();
+    drawStep();
+  }
+
+  function addOverlay(id, kind, { source, layer, attribution = null, onError = null }) {
+    const o = { kind, source, layer: { ...layer, id, source: id }, attribution, onError };
+    overlays.set(id, o);
+    if (styleReady) put(o);
+  }
+
+  function put(o) {
+    const id = o.layer.id;
+    map.addSource(id, o.source);
+    map.addLayer(o.layer, beforeOf(o.kind));
+    // An image source has no attribution of its own; the control reads this.
+    if (o.attribution) map.getSource(id).attribution = o.attribution;
+  }
+
+  // Radar under the lightning, both under the anchor.
+  function beforeOf(kind) {
+    if (kind === "radar") {
+      for (const [id, o] of overlays) if (o.kind === "lightning" && map.getLayer(id)) return id;
+    }
+    return anchor && map.getLayer(anchor) ? anchor : undefined;
+  }
+
+  function removeOverlay(id) {
+    if (!overlays.delete(id) || !styleReady) return;
+    if (map.getLayer(id)) map.removeLayer(id);
+    if (map.getSource(id)) map.removeSource(id);
+  }
+
+  function setOpacity(id, value) {
+    const o = overlays.get(id);
+    if (!o || o.layer.paint["raster-opacity"] === value) return;
+    o.layer.paint["raster-opacity"] = value;
+    if (styleReady && map.getLayer(id)) map.setPaintProperty(id, "raster-opacity", value);
+  }
+
+  // A tiled raster: RainViewer, GeoMet, the keyed tiles. Frames swap at once,
+  // with no fade between them.
+  function raster(tiles, { opacity, maxzoom, attribution, onError = null }) {
+    return {
+      source: { type: "raster", tiles: [tiles], tileSize: 256, maxzoom, attribution },
+      layer: { type: "raster", paint: { "raster-opacity": opacity, "raster-opacity-transition": { duration: 0 } } },
+      attribution,
+      onError,
+    };
+  }
+
+  // A GeoMet WMS layer at one time, as 256 px tiles in web mercator.
+  function wms(url, layer, iso) {
+    const params = new URLSearchParams({
+      service: "WMS", request: "GetMap", version: "1.3.0", layers: layer, styles: "",
+      format: "image/png", transparent: "true", width: "256", height: "256", crs: "EPSG:3857", TIME: iso,
+    });
+    return `${url}?${params}&bbox={bbox-epsg-3857}`;
+  }
+
+  // Leaflet's [[south, west], [north, east]] as the image source's four
+  // corners, clockwise from the top left.
+  const corners = ([[s, w], [n, e]]) => [[w, n], [e, n], [e, s], [w, s]];
+
+  // ---------- pins ----------
+
+  // A set of pins drawn together and cleared together.
+  function markers() {
+    const list = [];
+    return {
+      add(marker) {
+        if (marker) list.push(marker.addTo(map));
+        return marker;
+      },
+      clear() {
+        for (const marker of list.splice(0)) marker.remove();
+      },
+    };
   }
 
   // ---------- controls ----------
@@ -361,13 +665,10 @@
   }
 
   function clearRadar() {
-    for (const layer of state.tileLayers.values()) layer.remove();
+    for (const id of state.tileLayers.values()) removeOverlay(id);
     state.tileLayers.clear();
-    if (layers.image) {
-      layers.image.remove();
-      layers.image = null;
-      state.imageSrc = null;
-    }
+    removeOverlay(IMAGE);
+    state.imageSrc = null;
   }
 
   function radarFor() {
@@ -547,8 +848,8 @@
   function drawRadar(t) {
     const showing = state.radar && t != null;
     if (!showing) {
-      layers.image?.setOpacity(0);
-      for (const layer of state.tileLayers.values()) layer.setOpacity(0);
+      setOpacity(IMAGE, 0);
+      for (const id of state.tileLayers.values()) setOpacity(id, 0);
       return;
     }
 
@@ -557,20 +858,27 @@
       const entry = state.images[key];
       const frame = at(entry?.frames || [], t, 10 * 60 * 1000);
       if (!frame) {
-        layers.image?.setOpacity(0);
+        setOpacity(IMAGE, 0);
         return;
       }
-      const bounds = entry.bounds || NEA_RANGES.find((r) => r.range === state.neaRange)?.box;
-      if (!layers.image) {
-        layers.image = L.imageOverlay(frame.src, bounds, {
-          pane: "radar", opacity: 0.7, interactive: false, alt: "", attribution: ATTRIBUTION[state.source],
-        }).addTo(map);
-      } else {
-        layers.image.setBounds(L.latLngBounds(bounds));
-        if (state.imageSrc !== frame.src) layers.image.setUrl(frame.src);
-        layers.image.setOpacity(0.7);
+      const bounds = corners(entry.bounds || NEA_RANGES.find((r) => r.range === state.neaRange)?.box);
+      const wanted = JSON.stringify([frame.src, bounds]);
+      // One image layer, given the next frame: the last stays on screen until
+      // it has loaded, and the preloading above means it is usually cached.
+      if (!overlays.has(IMAGE)) {
+        addOverlay(IMAGE, "radar", {
+          source: { type: "image", url: abs(frame.src), coordinates: bounds },
+          layer: { type: "raster", paint: { "raster-opacity": 0.7, "raster-fade-duration": 0, "raster-opacity-transition": { duration: 0 } } },
+          attribution: ATTRIBUTION[state.source],
+        });
+      } else if (state.imageSrc !== wanted) {
+        const o = overlays.get(IMAGE);
+        o.source.url = abs(frame.src);
+        o.source.coordinates = bounds;
+        if (styleReady) map.getSource(IMAGE)?.updateImage({ url: o.source.url, coordinates: bounds });
       }
-      state.imageSrc = frame.src;
+      setOpacity(IMAGE, 0.7);
+      state.imageSrc = wanted;
       return;
     }
 
@@ -583,8 +891,8 @@
         const frame = at(state.rv?.frames || [], t, 20 * 60 * 1000);
         return frame && {
           key: `rv:${frame.path}`,
-          make: () => L.tileLayer(`${state.rv.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, {
-            pane: "radar", opacity: 0.75, maxNativeZoom: 7, maxZoom: 18, attribution: ATTRIBUTION.rainviewer,
+          make: () => raster(`${state.rv.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, {
+            opacity: 0.75, maxzoom: 7, attribution: ATTRIBUTION.rainviewer,
           }),
         };
       },
@@ -592,11 +900,8 @@
         const frame = at(state.msc?.frames || [], t, 12 * 60 * 1000);
         return frame && {
           key: `msc:${frame.iso}`,
-          make: () => L.tileLayer.wms(state.msc.url, {
-            layers: state.msc.layer, format: "image/png", transparent: true, version: "1.3.0",
-            TIME: frame.iso, pane: "radar", opacity: 0.75, maxZoom: 18, attribution: ATTRIBUTION.msc,
-            // CORS, so the service worker can keep frames for offline.
-            crossOrigin: "anonymous",
+          make: () => raster(wms(state.msc.url, state.msc.layer, frame.iso), {
+            opacity: 0.75, maxzoom: 18, attribution: ATTRIBUTION.msc,
           }),
         };
       },
@@ -604,9 +909,15 @@
       xweather: () => keyedTiles("xweather"),
     }[state.source];
     const want = tiled?.();
-    for (const [key, layer] of state.tileLayers) layer.setOpacity(want && key === want.key ? 0.75 : 0);
-    if (want && !state.tileLayers.has(want.key)) state.tileLayers.set(want.key, want.make().addTo(map));
+    for (const [key, id] of state.tileLayers) setOpacity(id, want && key === want.key ? 0.75 : 0);
+    if (want && !state.tileLayers.has(want.key)) {
+      const id = `uwu-radar-${++overlaySeq}`;
+      addOverlay(id, "radar", want.make());
+      state.tileLayers.set(want.key, id);
+    }
   }
+
+  let overlaySeq = 0;
 
   // Now only, so there is one layer. Too many failed tiles and the other
   // provider takes over.
@@ -615,30 +926,37 @@
       key: `keyed:${p}`,
       make: () => {
         let failures = 0;
-        const layer = L.tileLayer(`/api/tiles?p=${p}&z={z}&x={x}&y={y}`, {
-          pane: "radar", opacity: 0.75, maxNativeZoom: 7, maxZoom: 18, attribution: ATTRIBUTION[p],
+        return raster(`${location.origin}/api/tiles?p=${p}&z={z}&x={x}&y={y}`, {
+          opacity: 0.75, maxzoom: 7, attribution: ATTRIBUTION[p],
+          onError: () => {
+            if (++failures === 6 && p === "owm" && state.source === "owm") {
+              // Out of the map's own error handling before its source goes.
+              setTimeout(() => {
+                switchTo("xweather");
+                buildSteps();
+              });
+            }
+          },
         });
-        layer.on("tileerror", () => {
-          if (++failures === 6 && p === "owm" && state.source === "owm") {
-            switchTo("xweather");
-            buildSteps();
-          }
-        });
-        return layer;
       },
     };
   }
 
   const arrowSvg = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 18 15h-4.5v6h-3v-6H6z"/></svg>';
 
+  // An HTML pin. The outer element sits on the point with no size of its own;
+  // the pill inside centres on it, as the CSS says.
   function pin(lat, lon, html, title, popup, className = "station-pin") {
-    const marker = L.marker([lat, lon], {
-      icon: L.divIcon({ className, html, iconSize: null }),
-      title,
-      keyboard: true,
-      riseOnHover: true,
-    });
-    if (popup) marker.bindPopup(popup);
+    const el = document.createElement("div");
+    el.className = className;
+    el.innerHTML = html;
+    el.title = title;
+    el.setAttribute("aria-label", title);
+    hydrateIcons(el);
+    const marker = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([lon, lat]);
+    // With a popup it is a button, focusable, opened by Enter as well as a tap.
+    if (popup) marker.setPopup(new maplibregl.Popup({ offset: 16, maxWidth: "260px", focusAfterOpen: false }).setHTML(popup));
+    else el.setAttribute("role", "img");
     return marker;
   }
 
@@ -674,7 +992,7 @@
   }
 
   function drawStations(t) {
-    layers.stations.clearLayers();
+    layers.stations.clear();
     const metric = state.metric;
     if (t == null || metric === "none" || metric === "forecast") return;
 
@@ -688,7 +1006,7 @@
         const s = tl.stations[id];
         if (!s) continue;
         const value = metric === "temp" ? W.fromC(v) : v;
-        readingPin(metric, s[1], s[2], s[0], value, when, { dir: slot.windDir?.[id], knots: true })?.addTo(layers.stations);
+        layers.stations.add(readingPin(metric, s[1], s[2], s[0], value, when, { dir: slot.windDir?.[id], knots: true }));
       }
     }
 
@@ -699,43 +1017,34 @@
       const when = W.time(gslot.t + g.slotMinutes * 60 * 1000);
       for (const [id, mm] of Object.entries(gslot.rain || {})) {
         const s = g.stations[id];
-        if (s) readingPin("rain", s[1], s[2], s[0], mm, when, { minutes: g.slotMinutes })?.addTo(layers.stations);
+        if (s) layers.stations.add(readingPin("rain", s[1], s[2], s[0], mm, when, { minutes: g.slotMinutes }));
       }
     }
   }
 
   // The place itself: its pin, carrying the forecast's own reading for the time
   // on the scrubber. In Singapore the stations say it better, so it stays a pin.
+  // Either way it sits over the other pins.
   function drawPlace(t) {
     if (!map || !place) return;
-    layers.place.clearLayers();
+    layers.place.clear();
     const metric = state.metric;
     const reading = !nearSg() && t != null && !["none", "forecast"].includes(metric)
       ? at(placeSeries(), t, 15 * 60 * 1000)
       : null;
     // The series is in the units the page asked for, so no conversion here.
     const value = reading && { temp: reading.temp, humidity: reading.humidity, rain: reading.rain, wind: reading.windSpeed }[metric];
-    const marker = reading && Number.isFinite(value)
+    const marker = (reading && Number.isFinite(value)
       ? readingPin(metric, place.lat, place.lon, place.name, value, W.time(reading.t), { dir: reading.windDir, minutes: 15 })
-      : null;
-    if (marker) {
-      marker.setZIndexOffset(2000);
-      marker.addTo(layers.place);
-      return;
-    }
-    L.marker([place.lat, place.lon], {
-      icon: L.divIcon({ className: "place-pin", html: '<span class="pin place"><span data-icon="pin"></span></span>', iconSize: null }),
-      title: place.name,
-      keyboard: false,
-      zIndexOffset: 2000,
-    }).addTo(layers.place);
-    hydrateIcons(map.getPane("markerPane"));
+      : null) || pin(place.lat, place.lon, '<span class="pin place"><span data-icon="pin"></span></span>', place.name, null, "place-pin");
+    marker.getElement().classList.add("on-top");
+    layers.place.add(marker);
   }
 
   // NEA's 2-hour forecast for each area, as it stood at the time on the
   // scrubber when the sg cron has kept it, else the one in force now.
   function drawAreas(t) {
-    layers.areas.clearLayers();
+    layers.areas.clear();
     if (state.metric !== "forecast") return;
     const f = sg?.forecast2h;
     if (!f) return;
@@ -744,14 +1053,13 @@
     const valid = then ? then.valid : f.valid?.text;
     for (const a of f.areas) {
       const text = textOf(a);
-      pin(a.lat, a.lon,
+      layers.areas.add(pin(a.lat, a.lon,
         `<span class="pin area"><span data-icon="${W.neaIcon(text)}"></span><span>${esc(a.name)}</span></span>`,
         `${a.name}: ${W.neaText(text)}`,
         `<p class="popup-title">${esc(a.name)}</p><p>${esc(W.neaText(text))}</p><p class="muted">${esc(valid || "")}</p>`,
         "area-pin"
-      ).addTo(layers.areas);
+      ));
     }
-    hydrateIcons(map.getPane("markerPane"));
   }
 
   // The grid for the ten minutes to the time on the scrubber, one WMS layer per
@@ -760,23 +1068,23 @@
     // Each frame is the ten minutes to its time and arrives a few minutes after,
     // so the newest can be twenty minutes behind the radar's.
     const frame = state.lightning && t != null && state.ltg ? at(state.ltg.frames, t, 20 * 60 * 1000) : null;
-    for (const [iso, layer] of state.ltgLayers) layer.setOpacity(frame && iso === frame.iso ? 0.9 : 0);
+    for (const [iso, id] of state.ltgLayers) setOpacity(id, frame && iso === frame.iso ? 0.9 : 0);
     if (!frame || state.ltgLayers.has(frame.iso)) return;
-    state.ltgLayers.set(frame.iso, L.tileLayer.wms(state.ltg.url, {
-      layers: state.ltg.layer, format: "image/png", transparent: true, version: "1.3.0",
-      TIME: frame.iso, pane: "lightning", opacity: 0.9, maxZoom: 18, attribution: ATTRIBUTION.lightning,
-      crossOrigin: "anonymous",
-    }).addTo(map));
+    const id = `uwu-lightning-${++overlaySeq}`;
+    addOverlay(id, "lightning", raster(wms(state.ltg.url, state.ltg.layer, frame.iso), {
+      opacity: 0.9, maxzoom: 18, attribution: ATTRIBUTION.lightning,
+    }));
+    state.ltgLayers.set(frame.iso, id);
   }
 
   function clearCanadaLightning() {
-    for (const layer of state.ltgLayers.values()) layer.remove();
+    for (const id of state.ltgLayers.values()) removeOverlay(id);
     state.ltgLayers.clear();
     state.ltg = null;
   }
 
   function drawStrikes(t) {
-    layers.strikes.clearLayers();
+    layers.strikes.clear();
     drawCanadaLightning(t);
     const strikes = state.timeline?.strikes;
     if (!state.lightning || !strikes?.length || t == null) return;
@@ -785,14 +1093,13 @@
       if (age < 0 || age > STRIKE_WINDOW_MS) continue;
       // Newest at full strength, half an hour old at a quarter.
       const fade = 1 - (age / STRIKE_WINDOW_MS) * 0.75;
-      pin(s.lat, s.lon,
+      layers.strikes.add(pin(s.lat, s.lon,
         `<span class="strike${s.type === "ground" ? " ground" : ""}" style="opacity:${fade.toFixed(2)}"><span data-icon="bolt"></span></span>`,
         `Lightning, ${s.type === "ground" ? "cloud to ground" : "cloud to cloud"}, ${W.time(s.t)}`,
         `<p class="popup-title">Lightning</p><p>${s.type === "ground" ? "Cloud to ground" : "Cloud to cloud"}</p><p class="muted">${W.time(s.t)}, ${W.ago(s.t)}</p>`,
         "strike-pin"
-      ).addTo(layers.strikes);
+      ));
     }
-    hydrateIcons(map.getPane("markerPane"));
   }
 
   function drawStatus(t) {
@@ -841,14 +1148,14 @@
 
   // ---------- public ----------
 
-  // Called when the Map tab is shown. Leaflet measures its container, so it is
+  // Called when the Map tab is shown. MapLibre measures its container, so it is
   // only built once the container is on screen.
   function show() {
     if (!map) {
       init();
       load();
     } else {
-      map.invalidateSize();
+      map.resize();
       if (Date.now() - state.lastLoad > REFRESH_MS) load();
     }
   }

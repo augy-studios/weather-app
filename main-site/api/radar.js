@@ -14,7 +14,7 @@
 //
 // NEA's images are drawn in its azimuthal equidistant projection and placed on
 // the map by their EPSG:4326 corners. Near the equator, over these distances,
-// the difference from Leaflet's projection is a few hundred metres at the edge of
+// the difference from the map's Web Mercator is a few hundred metres at the edge of
 // the 70 km image and a few kilometres at the edge of the 480 km one.
 
 import { blobConfigured, getBytes, putBytes } from '../lib/blob.js';
