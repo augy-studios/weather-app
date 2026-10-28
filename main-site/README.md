@@ -7,13 +7,15 @@ Currently live on [weather.uwuapps.org](https://weather.uwuapps.org)
 Get the latest weather information based on your current location or the city you searched for. Four pages, picked from the tray on the right:
 
 - **Now**: current conditions, air quality and UV, any weather warnings in force, and the sea for places on the coast. In Singapore, the nearest NEA station's readings and NEA's 2-hour forecast for the area, plus a warning when lightning is close. In the US, Norway, Canada, Germany, Ireland and Switzerland, the national weather service's own station and forecast. Elsewhere in Europe, the nearest station's reading through MeteoGate, and MeteoAlarm's warnings for the place.
-- **Map**: the rain radar, three hours of it in Singapore (NEA), Germany (DWD) and Canada (MSC), with a scrubber through them. In Singapore, every station's temperature, humidity, rainfall and wind, NEA's forecast areas as they stood at the time, and lightning; in England, the rain gauges round the place; everywhere, the place's own readings every fifteen minutes.
+- **Map**: the rain radar, three hours of it in Singapore (NEA), Germany (DWD) and Canada (MSC), with a scrubber through them, on OpenFreeMap's map with the buildings in 3D: right drag (or ctrl drag) tilts and turns it, as does a two finger drag on a phone, and the compass puts it back. In Singapore, every station's temperature, humidity, rainfall and wind, NEA's forecast areas as they stood at the time, and lightning; in England, the rain gauges round the place; everywhere, the place's own readings every fifteen minutes.
 - **Forecast**: rain over the next 2 hours, the next 24 hours, and the days ahead. In Singapore, NEA's 24-hour forecast and 4-day outlook lead. In England, the nearest rain gauge's last week.
 - **Air & heat**: NEA's PSI by region and its pollutants in Singapore, the Norwegian index in Norway, the AQHI in Canada, the US AQI at the stations round the place in China, US AQI by region elsewhere; the UV index through the day; and WBGT heat stress in Singapore, or the feels like temperature everywhere else.
 
 Lightning alerts notify you when lightning is detected near a saved place, by web push and, for browsers linked to the bot, on Telegram. They cover the countries with an open lightning network: Singapore (NEA's strikes, about every two minutes) and Canada (Environment Canada's 2.5 km flash grid, every ten minutes). The bell only shows once a saved place is in one of them. Nothing open covers anywhere else: MET Norway retired its lightning product, and the DWD and the NWS don't publish one.
 
 The last weather seen for each place, and for every saved place, is kept on the device, so the site opens offline with what it last knew.
+
+**Offline maps** (the download button in the tray) keep OpenFreeMap's map of Singapore, down to street level with its buildings, or Malaysia (Peninsular, Sabah and Sarawak), down to town level, on the device, so the Map page still draws it with no connection. Each is about a 32 MB download, and 45 to 48 MB on the device, light and dark styles both. The radar and the readings over it still need a connection, and OpenStreetMap's tiles, the map's fallback, are never kept: its rules don't allow it. OpenFreeMap allows offline downloads of at most 3,000 tiles or 50 MB, four requests at a time, with a User-Agent naming the app, so they come through `/api/maptile`, which sets one and only fetches what a pack lists. Singapore is 615 tiles and Malaysia 1,953, listed by `lib/build-map-packs.mjs` from the country outlines; run it again if the packs change.
 
 ### Where the data comes from
 
@@ -31,7 +33,7 @@ The last weather seen for each place, and for every saved place, is kept on the 
 - The World Air Quality Index Project (api.waqi.info) for China's air quality, from the national monitoring stations round the place, with `WAQI_TOKEN`.
 - WeatherAPI.com, OpenWeather and Xweather, in that order, when Open-Meteo doesn't answer, each held to its free plan's budget (`QUOTAS` in `lib/cache.js`).
 - RainViewer's radar elsewhere, the last 2 hours, with OpenWeather's or Xweather's current radar when it doesn't answer. RainViewer's API is for personal and educational use only.
-- OpenStreetMap tiles under Leaflet.
+- The map: OpenFreeMap's vector tiles (tiles.openfreemap.org, the OpenMapTiles schema over OpenStreetMap's data), its Liberty style in light mode and Dark in dark mode, drawn by MapLibre GL JS 5.24.0 (`vendor/maplibre`, BSD 3-Clause). When OpenFreeMap doesn't answer, OpenStreetMap's own tiles (tile.openstreetmap.org) for the rest of the visit. No key for either. The offline maps are OpenFreeMap's, through `/api/maptile`, within its terms for offline downloads (openfreemap.org/tos).
 
 Looked at and left out: ICHEC (ichec.ie) runs Met Éireann's models on its supercomputers but publishes no API of its own; the Copernicus Climate Data Store serves climate reanalysis through a queue that takes minutes, not weather now.
 

@@ -1,21 +1,27 @@
 // Bump on every deploy that changes anything this worker serves. The browser
 // compares this file byte for byte, so an unchanged VERSION means no update
 // reaches anybody and the update bar never appears.
-const VERSION = "v14";
+const VERSION = "v16";
 const CACHE = `weather-${VERSION}`;
 
 // Kept across versions, so an update doesn't throw away what makes the site
-// work offline: the last weather, the radar frames, and the map tiles already
-// looked at.
+// work offline: the last weather, the radar frames, the map tiles already
+// looked at, and the map's fonts and icons.
 const DATA_CACHE = "weather-data";
 const RADAR_CACHE = "weather-radar";
 const TILE_CACHE = "weather-tiles";
-const KEEP = [CACHE, DATA_CACHE, RADAR_CACHE, TILE_CACHE];
+const MAP_CACHE = "weather-map";
+const KEEP = [CACHE, DATA_CACHE, RADAR_CACHE, TILE_CACHE, MAP_CACHE];
+// The offline maps (js/offline.js), one cache each, kept until deleted there
+// and never trimmed.
+const PACK_PREFIX = "weather-offline-";
+const kept = (key) => KEEP.includes(key) || key.startsWith(PACK_PREFIX);
 
-// About 15 MB of tiles at most, and three hours of radar with room to spare:
+// About 25 MB of map tiles at most (OpenFreeMap's run to about 60 KB each,
+// OpenStreetMap's to 20 KB), and three hours of radar with room to spare:
 // NEA's frames at all three ranges, the DWD's, and the tiled radars' tiles for
 // a view or two. The oldest go first.
-const MAX_TILES = 800;
+const MAX_TILES = 400;
 const MAX_FRAMES = 600;
 // How long the weather may take before the last saved copy is shown instead.
 const NETWORK_TIMEOUT_MS = 6000;
@@ -37,8 +43,9 @@ const ASSETS = [
   "/js/map.js",
   "/js/alerts.js",
   "/js/update.js",
-  "/vendor/leaflet/leaflet.js",
-  "/vendor/leaflet/leaflet.css",
+  "/js/offline.js",
+  "/vendor/maplibre/maplibre-gl.js",
+  "/vendor/maplibre/maplibre-gl.css",
   "/vendor/chartjs/chart.umd.min.js",
   "/manifest.json",
   "/favicon.ico",
@@ -54,7 +61,23 @@ const DATA_PATHS = ["/api/forecast", "/api/air", "/api/sg", "/api/timeline", "/a
 // Cached on first use: the Jua font, and html2canvas for the share image.
 const STATIC_HOSTS = ["fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.net"];
 
-const isTile = (url) => url.hostname === "tile.openstreetmap.org";
+// The base map. OpenFreeMap's style and its tile list name this week's tiles,
+// so they come from the network first and from the last copy offline, which
+// names the tiles kept here. Its fonts and icons never change at a given
+// address. Its tiles, and OpenStreetMap's when it stands in, are kept like the
+// radar's.
+const OFM = "tiles.openfreemap.org";
+const isMapStyle = (url) => url.hostname === OFM && (url.pathname.startsWith("/styles/") || url.pathname === "/planet");
+const isMapStatic = (url) => url.hostname === OFM && (url.pathname.startsWith("/fonts/") || url.pathname.startsWith("/sprites/"));
+const isTile = (url) => url.hostname === "tile.openstreetmap.org" || url.hostname === OFM;
+// An offline map keeps its vector tiles with no week in the address, so they
+// serve whichever week's tiles the map asks for. Keep in step with tileKey in
+// js/offline.js.
+const VECTOR_TILE = /^\/planet\/[^/]+\/(\d+\/\d+\/\d+)\.pbf$/;
+const packKey = (url) => {
+  const m = url.hostname === OFM && url.pathname.match(VECTOR_TILE);
+  return m ? `https://${OFM}/planet/any/${m[1]}.pbf` : null;
+};
 // A single radar frame never changes. The frame list does, every five minutes.
 const isFrame = (url) => url.pathname === "/api/radar" && url.searchParams.has("at");
 // Canada's GeoMet radar: one WMS tile per frame time, so it never changes either.
@@ -74,7 +97,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then(async (keys) => {
-      const stale = keys.filter((key) => !KEEP.includes(key));
+      const stale = keys.filter((key) => !kept(key));
       await Promise.all(stale.map((key) => caches.delete(key)));
 
       // First install only: no earlier version's shell, so there is nothing on
@@ -143,7 +166,11 @@ self.addEventListener("fetch", (event) => {
 
   if (url.origin !== self.location.origin) {
     if (STATIC_HOSTS.includes(url.hostname)) event.respondWith(cacheFirst(request, CACHE));
-    else if (isTile(url)) event.respondWith(capped(event, request, TILE_CACHE, MAX_TILES));
+    else if (isMapStyle(url)) event.respondWith(networkFirst(event, request));
+    // An offline map's copy first, online or not: it is the same map, and
+    // spares OpenFreeMap the request.
+    else if (isMapStatic(url)) event.respondWith(packed(request, url).then((r) => r || cacheFirst(request, MAP_CACHE)));
+    else if (isTile(url)) event.respondWith(packed(request, url).then((r) => r || capped(event, request, TILE_CACHE, MAX_TILES)));
     else if (isGeoMet(url)) event.respondWith(capped(event, request, RADAR_CACHE, MAX_FRAMES));
     // RainViewer, analytics and ads go straight to the network, untouched.
     return;
@@ -174,6 +201,19 @@ async function shell(request, url) {
   return fetch(request);
 }
 
+// From an offline map, if one holds it. A vector tile by z/x/y; anything else,
+// its fonts, icons and shaded relief, by its own address.
+async function packed(request, url) {
+  const key = packKey(url);
+  if (!key && url.hostname !== OFM) return null;
+  for (const name of await caches.keys()) {
+    if (!name.startsWith(PACK_PREFIX)) continue;
+    const hit = await (await caches.open(name)).match(key || request);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 async function cacheFirst(request, name) {
   const cache = await caches.open(name);
   const cached = await cache.match(request);
@@ -201,7 +241,8 @@ async function networkFirst(event, request) {
   } catch {
     // Offline: fall through to the copy.
   }
-  const cached = await cache.match(request);
+  // The last copy, or an offline map's: OpenFreeMap's style and tile list.
+  const cached = (await cache.match(request)) || (await packed(request, new URL(request.url)));
   if (cached) return cached;
   return network;
 }

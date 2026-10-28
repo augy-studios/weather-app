@@ -1173,61 +1173,77 @@ input[type="range"]::-moz-range-thumb {
 }
 .radar-legend li { display: inline-flex; align-items: center; gap: 5px; }
 
-/* Leaflet, in the theme. */
-.leaflet-container { font-family: "Jua", "Segoe UI", sans-serif; font-size: 0.8rem; }
-.leaflet-bar {
-  border: 1px solid var(--surface-border) !important;
-  border-radius: 14px !important;
-  box-shadow: var(--shadow) !important;
+/* MapLibre, in the theme. */
+.maplibregl-map { font-family: "Jua", "Segoe UI", sans-serif; font-size: 0.8rem; }
+.maplibregl-ctrl-group {
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
   overflow: hidden;
-}
-.leaflet-bar a,
-.leaflet-bar a:hover {
-  width: 40px !important;
-  height: 40px !important;
-  line-height: 40px !important;
   background: var(--surface-solid);
-  color: var(--ink);
-  border-bottom-color: var(--surface-border);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
-.leaflet-bar a.leaflet-disabled { background: var(--surface-solid); color: var(--muted); }
+.maplibregl-ctrl-group:not(:empty) { box-shadow: var(--shadow); }
+.maplibregl-ctrl-group button { width: 40px; height: 40px; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid var(--surface-border); }
+.maplibregl-ctrl-group button:not(:disabled):hover { background-color: color-mix(in srgb, var(--ink) 8%, transparent); }
+/* MapLibre's icons are dark grey; in dark mode they turn light, and the
+   compass keeps its red north. */
+:root[data-mode="dark"] .maplibregl-ctrl-group .maplibregl-ctrl-icon { filter: invert(1) hue-rotate(180deg); }
 /* Above the scrubber. */
-.leaflet-bottom.leaflet-right { bottom: calc(var(--tl-h, 90px) + var(--hud-bottom) + 6px); }
-.leaflet-bottom.leaflet-right .leaflet-bar { margin-right: var(--hud-edge); }
-.leaflet-control-attribution {
-  background: var(--surface-solid) !important;
+.maplibregl-ctrl-bottom-right { bottom: calc(var(--tl-h, 90px) + var(--hud-bottom) + 6px); }
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-group { margin-right: var(--hud-edge); }
+.maplibregl-ctrl-bottom-right .maplibregl-ctrl-attrib { margin: 0 0 6px; }
+.maplibregl-ctrl.maplibregl-ctrl-attrib {
+  background: var(--surface-solid);
   color: var(--muted-strong);
   border-radius: 10px 0 0 10px;
-  padding: 2px 8px !important;
+  padding: 2px 8px;
 }
-.leaflet-control-attribution a { color: var(--brand-ink); }
+.maplibregl-ctrl-attrib.maplibregl-compact { border-radius: 12px 0 0 12px; min-height: 24px; }
+.maplibregl-ctrl-attrib.maplibregl-compact-show { padding: 2px 28px 2px 8px; }
+.maplibregl-ctrl-attrib a { color: var(--brand-ink); }
+:root[data-mode="dark"] .maplibregl-ctrl-attrib-button { filter: invert(1); }
 
-.leaflet-popup-content-wrapper,
-.leaflet-popup-tip {
+.maplibregl-popup-content {
   background: var(--surface-solid);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   color: var(--ink);
   box-shadow: var(--shadow);
+  border-radius: 14px;
+  border: 1px solid var(--surface-border);
+  padding: 10px 28px 10px 14px;
+  line-height: 1.5;
 }
-.leaflet-popup-content-wrapper { border-radius: 14px; border: 1px solid var(--surface-border); }
-.leaflet-popup-content { margin: 10px 14px; line-height: 1.5; }
-.leaflet-popup-content p { margin: 0; }
-.leaflet-popup-content strong { font-weight: normal; font-size: 1.05rem; }
-.leaflet-container a.leaflet-popup-close-button { color: var(--muted-strong); }
+.maplibregl-popup-content p { margin: 0; }
+.maplibregl-popup-content strong { font-weight: normal; font-size: 1.05rem; }
+.maplibregl-popup-close-button { color: var(--muted-strong); font-size: 1.1rem; width: 26px; height: 26px; border-radius: 0 14px 0 8px; }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--surface-solid); }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--surface-solid); }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--surface-solid); }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--surface-solid); }
 .popup-title { color: var(--brand-ink); }
 
-/* OpenStreetMap has no dark style, so in dark mode its tiles are turned down to
-   match. Only the tile pane: the radar, pins and controls keep their colours. */
-:root[data-mode="dark"] .leaflet-tile-pane {
-  filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9);
-}
+/* The vector map has a dark style of its own, and OpenStreetMap's fallback
+   tiles are turned down in map.js, so nothing here filters the map. */
 
-/* Pins. Leaflet places the outer element; the pill inside centres on the point. */
+/* Pins. MapLibre places the outer element, which has no size of its own; the
+   pill inside centres on the point. A pin hovered or focused comes to the top,
+   and the place's own pin stays over the rest. */
 .station-pin,
 .area-pin,
 .strike-pin,
-.place-pin { background: none; border: none; }
+.place-pin { background: none; border: none; width: 0; height: 0; cursor: pointer; }
+.place-pin { cursor: default; }
+.maplibregl-marker.on-top { z-index: 2; }
+.maplibregl-marker:hover,
+.maplibregl-marker:focus-visible { z-index: 3; }
 .pin {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -1290,6 +1306,26 @@ input[type="range"]::-moz-range-thumb {
 .map-wide .pin.value > span,
 .map-far .pin.area > span:last-child { display: none; }
 .map-far .pin.wind > span:last-child { display: none; }
+
+/* ---- offline maps modal ---- */
+.pack-list { display: flex; flex-direction: column; gap: 8px; }
+.pack {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--surface-strong);
+  border: 1px solid var(--surface-border);
+}
+.pack-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 200px; }
+.pack-text strong { font-weight: normal; font-size: 1rem; color: var(--ink); }
+.pack-state { color: var(--ink); }
+.pack progress { width: 100%; height: 6px; margin-top: 4px; accent-color: var(--brand-ink); }
+.pack-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.pack-actions .btn { padding: 6px 14px; font-size: 0.85rem; }
 
 /* ---- alerts modal ---- */
 .watch-list {
