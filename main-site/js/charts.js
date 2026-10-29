@@ -9,6 +9,7 @@
 // Plain script, not a module: published on window.UwuCharts. Chart.js is vendor/chartjs.
 
 (function () {
+  const { t, onChange } = window.UwuI18n;
   const charts = new Map();
 
   const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -28,7 +29,7 @@
    * bars: [{ label, value, token }], token naming the bar's colour custom
    * property; format(value) for the tooltip and axis.
    */
-  function bars(canvas, { bars: data, format, label, yMin = 1, yTitle = "" }) {
+  function bars(canvas, { bars: data, format, label, yMin = 1, yTitle = "" }, build = null) {
     charts.get(canvas)?.destroy();
 
     const ink = css("--ink");
@@ -92,8 +93,9 @@
       },
     });
     charts.set(canvas, chart);
-    // Kept so a theme change can draw it again with the new colours.
-    chart.$uwu = { canvas, opts: { bars: data, format, label, yMin, yTitle } };
+    // Kept so a theme or language change can draw it again. `build` makes the
+    // options afresh, so the words follow the language.
+    chart.$uwu = { canvas, build, opts: { bars: data, format, label, yMin, yTitle } };
     return chart;
   }
 
@@ -102,27 +104,30 @@
   // Per fifteen minutes. Fixed-meaning colours (--rain-1 to --rain-4 in style.css),
   // like NEA's radar legend: they say how hard it rains, not which theme is on.
   const RAIN_STEPS = [
-    { max: 0.05, label: "Dry", token: "--rain-0" },
-    { max: 0.5, label: "Light", token: "--rain-1" },
-    { max: 2, label: "Moderate", token: "--rain-2" },
-    { max: 5, label: "Heavy", token: "--rain-3" },
-    { max: Infinity, label: "Very heavy", token: "--rain-4" },
+    { max: 0.05, get label() { return t("chart.rain.dry"); }, token: "--rain-0" },
+    { max: 0.5, get label() { return t("chart.rain.light"); }, token: "--rain-1" },
+    { max: 2, get label() { return t("chart.rain.moderate"); }, token: "--rain-2" },
+    { max: 5, get label() { return t("chart.rain.heavy"); }, token: "--rain-3" },
+    { max: Infinity, get label() { return t("chart.rain.very-heavy"); }, token: "--rain-4" },
   ];
   const rainStep = (mm) => RAIN_STEPS.find((s) => mm <= s.max);
 
   /** points: [{ t, label, mm }] */
   function rain(canvas, points) {
-    const fmt = (v) => `${Math.round(v * 10) / 10} mm`;
-    const wet = points.filter((p) => p.mm > 0.05);
-    const summary = wet.length
-      ? `Rain expected in ${wet.length} of the next ${points.length} quarter hours, up to ${fmt(Math.max(...wet.map((p) => p.mm)))} in fifteen minutes.`
-      : `No rain expected in the next ${points.length / 4} hours.`;
-    return bars(canvas, {
-      bars: points.map((p) => ({ label: p.label, value: p.mm, token: rainStep(p.mm).token })),
-      format: (v) => (v === 0 ? "0" : fmt(v)),
-      label: `Rain, every fifteen minutes. ${summary}`,
-      yMin: 1,
-    });
+    const build = () => {
+      const fmt = (v) => `${Math.round(v * 10) / 10} mm`;
+      const wet = points.filter((p) => p.mm > 0.05);
+      const summary = wet.length
+        ? t("chart.rain.summary-wet", { wet: wet.length, total: points.length, max: fmt(Math.max(...wet.map((p) => p.mm))) })
+        : t("chart.rain.summary-dry", { count: points.length / 4 });
+      return {
+        bars: points.map((p) => ({ label: p.label, value: p.mm, token: rainStep(p.mm).token })),
+        format: (v) => (v === 0 ? "0" : fmt(v)),
+        label: t("chart.rain.label", { summary }),
+        yMin: 1,
+      };
+    };
+    return bars(canvas, build(), build);
   }
 
   // ---------- UV ----------
@@ -130,26 +135,31 @@
   /** hours: [{ label, value, band }] where band is from UwuWx.uvBand */
   function uv(canvas, hours) {
     const peak = hours.reduce((a, h) => (h.value > (a?.value ?? -1) ? h : a), null);
-    return bars(canvas, {
+    const build = () => ({
       bars: hours.map((h) => ({ label: h.label, value: h.value, token: `--band-${h.band?.level ?? 1}` })),
       format: (v) => String(Math.round(v)),
-      label: `UV index by hour.${peak ? ` Highest ${Math.round(peak.value)} at ${peak.label}.` : ""}`,
+      label: peak
+        ? t("chart.uv.label-peak", { value: Math.round(peak.value), time: peak.label })
+        : t("chart.uv.label"),
       yMin: 6,
     });
+    return bars(canvas, build(), build);
   }
 
-  // Colours are baked into each chart, so a theme change draws them again.
+  // Colours and labels are baked into each chart, so a theme or language change draws them again.
   function redrawAll() {
     for (const chart of [...charts.values()]) {
-      const { canvas, opts } = chart.$uwu;
+      const { canvas, opts, build } = chart.$uwu;
       if (!canvas.isConnected) {
         chart.destroy();
         charts.delete(canvas);
         continue;
       }
-      bars(canvas, opts);
+      bars(canvas, build ? build() : opts, build);
     }
   }
+  // The labels are words: draw them again in the new language.
+  onChange(redrawAll);
 
   window.UwuCharts = { rain, uv, rainStep, RAIN_STEPS, redrawAll };
 })();

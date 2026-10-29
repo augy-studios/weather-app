@@ -1,7 +1,7 @@
 // Bump on every deploy that changes anything this worker serves. The browser
 // compares this file byte for byte, so an unchanged VERSION means no update
 // reaches anybody and the update bar never appears.
-const VERSION = "v16";
+const VERSION = "v17";
 const CACHE = `weather-${VERSION}`;
 
 // Kept across versions, so an update doesn't throw away what makes the site
@@ -44,6 +44,13 @@ const ASSETS = [
   "/js/alerts.js",
   "/js/update.js",
   "/js/offline.js",
+  // The i18n runtime and every language, so the switcher works offline. Add a
+  // language's file here when it goes into i18n/locales.js.
+  "/i18n/boot.js",
+  "/i18n/i18n.js",
+  "/i18n/locales.js",
+  "/i18n/switcher.js",
+  "/i18n/en.json",
   "/vendor/maplibre/maplibre-gl.js",
   "/vendor/maplibre/maplibre-gl.css",
   "/vendor/chartjs/chart.umd.min.js",

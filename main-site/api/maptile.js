@@ -1,6 +1,6 @@
 // OpenFreeMap's files for the offline maps (js/offline.js):
 //
-//   GET /api/maptile?pack=sg|my       what the pack holds: its tiles, fonts and styles
+//   GET /api/maptile?pack=sg|paris|…  what the pack holds: its tiles, fonts and styles
 //   GET /api/maptile?path=/planet/…   one file from tiles.openfreemap.org
 //
 // OpenFreeMap allows offline downloads of at most 3,000 tiles or 50 MB, with at
@@ -27,11 +27,17 @@ const FONTS = ['Noto Sans Regular', 'Noto Sans Bold', 'Noto Sans Italic'];
 // Singapore and Malaysia at every zoom, in both styles. Latin and its accents,
 // Cyrillic, Arabic (Jawi), Tamil, Devanagari, Malayalam, Thai, Tibetan,
 // Myanmar and Khmer for the neighbours' names at the wider zooms, Vietnamese
-// accents, and punctuation. Chinese is drawn from the device's own fonts, so
-// none of its ranges are needed.
+// accents, and punctuation; and for the cities, the modifier letters and
+// superscripts in romanised names and in Paris's arrondissements (1ᵉʳ), and
+// letterlike symbols (№). Chinese, Japanese and Korean, the city packs' names
+// in Taipei, Hong Kong, Kyoto, Tokyo and Seoul, are drawn from the device's
+// own fonts (MapLibre's localIdeographFontFamily), so none of their ranges are
+// needed. A range that isn't kept is drawn from the device's fonts offline
+// too, with a warning in the console.
 export const GLYPHS = [
-  '0-255', '256-511', '768-1023', '1024-1279', '1536-1791', '2304-2559', '2816-3071',
-  '3328-3583', '3584-3839', '3840-4095', '4096-4351', '5888-6143', '7680-7935', '8192-8447'
+  '0-255', '256-511', '512-767', '768-1023', '1024-1279', '1536-1791', '2304-2559', '2816-3071',
+  '3328-3583', '3584-3839', '3840-4095', '4096-4351', '5888-6143', '7424-7679', '7680-7935', '8192-8447',
+  '8448-8703'
 ];
 
 const VECTOR = new Set(Object.values(packs).flatMap((p) => p.vector));
@@ -67,7 +73,7 @@ function allowed(path) {
 export default async function handler(req, res) {
   if (req.query.pack) {
     const p = packs[req.query.pack];
-    if (!p) return res.status(404).json({ error: 'pack must be sg or my' });
+    if (!p) return res.status(404).json({ error: `pack must be one of ${Object.keys(packs).join(', ')}` });
     res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=86400');
     return res.status(200).json({ id: req.query.pack, ...p, styles: STYLES, fonts: FONTS, glyphs: GLYPHS });
   }

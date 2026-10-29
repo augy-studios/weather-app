@@ -12,6 +12,7 @@
 // Plain script, not a module: published on window.UwuSync.
 
 (function () {
+  const { t } = window.UwuI18n;
   const APP_KEY = "uwuweather";
   const PORTAL_KEY = `${APP_KEY}.portalId`;
   const SAVED_KEY = `${APP_KEY}.saved`;
@@ -83,10 +84,10 @@
         body: JSON.stringify({ ...body, portal_id: portalId(), label: deviceLabel() })
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { error: data.error || "That did not work. Please try again." };
+      if (!res.ok) return { error: data.error || t("sync.error.failed-retry") };
       return data;
     } catch {
-      return { error: "No connection. Please try again in a moment." };
+      return { error: t("sync.error.offline-retry") };
     }
   }
 
@@ -94,10 +95,10 @@
     try {
       const res = await fetch(path, { headers: { "x-portal-id": portalId() } });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { error: data.error || "That did not work." };
+      if (!res.ok) return { error: data.error || t("sync.error.failed") };
       return data;
     } catch {
-      return { error: "No connection." };
+      return { error: t("sync.error.offline") };
     }
   }
 
