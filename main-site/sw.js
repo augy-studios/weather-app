@@ -1,7 +1,7 @@
 // Bump on every deploy that changes anything this worker serves. The browser
 // compares this file byte for byte, so an unchanged VERSION means no update
 // reaches anybody and the update bar never appears.
-const VERSION = "v17";
+const VERSION = "v18";
 const CACHE = `weather-${VERSION}`;
 
 // Kept across versions, so an update doesn't throw away what makes the site
@@ -44,6 +44,7 @@ const ASSETS = [
   "/js/alerts.js",
   "/js/update.js",
   "/js/offline.js",
+  "/js/info.js",
   // The i18n runtime and every language, so the switcher works offline. Add a
   // language's file here when it goes into i18n/locales.js.
   "/i18n/boot.js",
@@ -51,6 +52,37 @@ const ASSETS = [
   "/i18n/locales.js",
   "/i18n/switcher.js",
   "/i18n/en.json",
+  "/i18n/zh-CN.json",
+  "/i18n/ms.json",
+  "/i18n/id.json",
+  "/i18n/ta.json",
+  "/i18n/zh-TW.json",
+  "/i18n/ja.json",
+  "/i18n/ko.json",
+  "/i18n/th.json",
+  "/i18n/tl.json",
+  "/i18n/vi.json",
+  "/i18n/fr.json",
+  "/i18n/es.json",
+  "/i18n/nb.json",
+  "/i18n/en-pirate.json",
+  "/i18n/hnr.json",
+  // The switcher's flags (vendor/flags, from flag-icons), one per language in
+  // i18n/locales.js.
+  "/vendor/flags/gb.svg",
+  "/vendor/flags/cn.svg",
+  "/vendor/flags/my.svg",
+  "/vendor/flags/in.svg",
+  "/vendor/flags/id.svg",
+  "/vendor/flags/tw.svg",
+  "/vendor/flags/jp.svg",
+  "/vendor/flags/kr.svg",
+  "/vendor/flags/th.svg",
+  "/vendor/flags/ph.svg",
+  "/vendor/flags/vn.svg",
+  "/vendor/flags/fr.svg",
+  "/vendor/flags/es.svg",
+  "/vendor/flags/no.svg",
   "/vendor/maplibre/maplibre-gl.js",
   "/vendor/maplibre/maplibre-gl.css",
   "/vendor/chartjs/chart.umd.min.js",
@@ -126,6 +158,9 @@ self.addEventListener("message", (event) => {
   if (type === "skip-waiting") {
     event.waitUntil(self.skipWaiting().then(() => self.clients.claim()));
   }
+
+  // The info modal's version button (js/info.js) asks which version this is.
+  if (type === "version") event.ports[0]?.postMessage(VERSION);
 });
 
 /* -- Lightning alerts, sent by the collect cron (api/cron/collect.js) -- */

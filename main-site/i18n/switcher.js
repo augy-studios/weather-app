@@ -2,15 +2,39 @@
 // the tray, the globe and the language's code, and the langModal in index.html listing every
 // language by its own name. Picking one switches the page in place; Escape, Close or the backdrop
 // (wired by script.js like every other modal) leave it as it was.
+//
+// Each language has its country's flag on the left (locales.js's `flag`), and the secret ones a
+// yellow star. Those are listed only once unlockSecrets() has run (the info modal's version
+// button, js/info.js), remembered on this device.
 
 import { getLocale, getLocales, onChange, setLocale, t } from "./i18n.js";
 
 const MODAL_ID = "langModal";
+const SECRET_KEY = "uwuweather.secret-languages";
+// For a browser that won't store it: unlocked until the page closes.
+let unlockedNow = false;
+
+export function secretsUnlocked() {
+  try { return localStorage.getItem(SECRET_KEY) === "1"; } catch { return false; }
+}
+export function unlockSecrets() {
+  try { localStorage.setItem(SECRET_KEY, "1"); } catch { /* unlocked for this page view only */ }
+  unlockedNow = true;
+}
+
+// A star rather than a flag: the secret languages have no country. Filled in the CSS (.lang-star).
+const STAR = '<svg class="lang-flag lang-star" viewBox="0 0 24 24" width="24" height="18" aria-hidden="true"><path d="m12 2.6 2.9 5.9 6.5.9-4.7 4.6 1.1 6.4L12 17.4l-5.8 3 1.1-6.4-4.7-4.6 6.5-.9z"/></svg>';
+
+function flagOf(l) {
+  if (l.secret) return STAR;
+  if (!l.flag) return "";
+  return `<img class="lang-flag" src="/vendor/flags/${l.flag}.svg" alt="" width="24" height="18" decoding="async">`;
+}
 
 function renderButton(btn) {
   const { icon } = window.UwuIcons;
   const entry = getLocales().find((l) => l.code === getLocale());
-  btn.innerHTML = `${icon("globe")}<span class="lang-code">${entry ? entry.code.toUpperCase() : ""}</span>`;
+  btn.innerHTML = `${icon("globe")}<span class="lang-code">${entry ? (entry.short || entry.code).toUpperCase() : ""}</span>`;
   const label = t("a11y.language-switcher", { name: entry?.name || "" });
   btn.setAttribute("aria-label", label);
   btn.title = label;
@@ -19,8 +43,10 @@ function renderButton(btn) {
 function renderList(list) {
   const { icon } = window.UwuIcons;
   const active = getLocale();
+  const unlocked = unlockedNow || secretsUnlocked();
   list.innerHTML = "";
-  for (const l of getLocales()) {
+  // The language in use is always listed, secret or not, so the list never loses its selection.
+  for (const l of getLocales().filter((l) => !l.secret || unlocked || l.code === active)) {
     const li = document.createElement("li");
     li.setAttribute("role", "option");
     li.dataset.locale = l.code;
@@ -28,7 +54,7 @@ function renderList(list) {
     li.dir = l.dir;
     li.tabIndex = l.code === active ? 0 : -1;
     li.setAttribute("aria-selected", String(l.code === active));
-    li.innerHTML = `<span>${l.name.replace(/[&<>]/g, "")}</span>${l.code === active ? icon("check") : ""}`;
+    li.innerHTML = `<span class="lang-label">${flagOf(l)}<span>${l.name.replace(/[&<>]/g, "")}</span></span>${l.code === active ? icon("check") : ""}`;
     list.appendChild(li);
   }
 }

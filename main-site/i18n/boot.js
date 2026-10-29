@@ -7,8 +7,8 @@
 // window.UwuI18n, and this has window.UwuIcons and window.UwuUI.
 import { applyTo, getLocale, getLocales, init, onChange, setLocale, t } from "./i18n.js";
 import { locales, registry } from "./locales.js";
-import { mountSwitcher } from "./switcher.js";
+import { mountSwitcher, secretsUnlocked, unlockSecrets } from "./switcher.js";
 
 init({ locales, registry });
-window.UwuI18n = { t, applyTo, onChange, setLocale, getLocale, getLocales };
+window.UwuI18n = { t, applyTo, onChange, setLocale, getLocale, getLocales, secretsUnlocked, unlockSecrets };
 mountSwitcher(document.querySelector("[data-language-switcher]"));

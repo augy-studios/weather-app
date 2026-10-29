@@ -84,8 +84,9 @@
 <!-- Ships open, like the tray; script.js sets the real state. -->
 <body class="tray-open">
   <!-- The nav, sg-psi's and wordrain-game's floating tray (edge-tray-spec.md):
-       the pages, then alerts, share, sync, theme and the coffee link, as glass
-       buttons top right. Slides off the right edge, leaving the arrow tab. -->
+       the pages, then alerts, share, sync, offline maps, language, theme, info
+       and the coffee link, as glass buttons top right. Slides off the right
+       edge, leaving the arrow tab. -->
   <div class="hud-right">
     <div id="tray" class="tray">
       <button id="trayTab" class="tray-tab" type="button" aria-controls="trayButtons" aria-expanded="true" aria-label="Hide menu">
@@ -116,6 +117,9 @@
         <button class="glass-btn lang-btn" id="langBtn" type="button" data-language-switcher aria-label="Change language" title="Change language"></button>
         <button class="glass-btn" id="themeBtn" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:tray.theme, title:tray.theme" aria-label="Theme" title="Theme">
           <span data-icon="sun"></span>
+        </button>
+        <button class="glass-btn" id="infoBtn" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:tray.info, title:tray.info" aria-label="Info and credits" title="Info and credits">
+          <span data-icon="info"></span>
         </button>
         <a class="glass-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" data-i18n-attr="aria-label:tray.coffee, title:tray.coffee" aria-label="Buy Augy a Coffee" title="Buy Augy a Coffee">
           <span data-icon="coffee"></span>
@@ -445,40 +449,6 @@
 
     <footer class="site-footer">
       <p class="muted">
-        <span data-i18n="footer.credits.01">Forecasts from</span>
-        <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.open-meteo">Open-Meteo</a><span data-i18n="footer.credits.02">, with the national weather service laid over them where there is one: in Singapore, readings, forecasts, radar and lightning from NEA via</span>
-        <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer" data-i18n="footer.link.data-gov-sg">data.gov.sg</a><span data-i18n="footer.credits.03">; in the US, the</span>
-        <a class="link" href="https://www.weather.gov/" target="_blank" rel="noreferrer" data-i18n="footer.link.national-weather-service">National Weather Service</a><span data-i18n="footer.credits.04">; in Norway,</span>
-        <a class="link" href="https://api.met.no/" target="_blank" rel="noreferrer" data-i18n="footer.link.met-norway">MET Norway</a>
-        <span data-i18n="footer.credits.05">and</span>
-        <a class="link" href="https://www.nilu.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.nilu">NILU</a>
-        <span data-i18n="footer.credits.06">(CC BY 4.0); in Canada,</span>
-        <a class="link" href="https://eccc-msc.github.io/open-data/" target="_blank" rel="noreferrer" data-i18n="footer.link.environment-and-climate-change-canada">Environment and Climate Change Canada</a><span data-i18n="footer.credits.07">; in Germany, the</span>
-        <a class="link" href="https://www.dwd.de/" target="_blank" rel="noreferrer" data-i18n="footer.link.deutscher-wetterdienst">Deutscher Wetterdienst</a>
-        <span data-i18n="footer.credits.08">(CC BY 4.0) via</span>
-        <a class="link" href="https://brightsky.dev/" target="_blank" rel="noreferrer" data-i18n="footer.link.bright-sky">Bright Sky</a><span data-i18n="footer.credits.09">; in England, rain gauges from the</span>
-        <a class="link" href="https://environment.data.gov.uk/" target="_blank" rel="noreferrer" data-i18n="footer.link.environment-agency">Environment Agency</a>
-        <span data-i18n="footer.credits.10">(contains public sector information licensed under the Open Government Licence v3.0); in Ireland,</span>
-        <a class="link" href="https://www.met.ie/" target="_blank" rel="noreferrer" data-i18n="footer.link.met-ireann">Met Éireann</a>
-        <span data-i18n="footer.credits.11">(copyright Met Éireann, CC BY 4.0; Met Éireann does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use); in Switzerland, source:</span>
-        <a class="link" href="https://www.meteoswiss.admin.ch/" target="_blank" rel="noreferrer" data-i18n="footer.link.meteoswiss">MeteoSwiss</a><span data-i18n="footer.credits.12">, its stations and its ICON-CH model via Open-Meteo; across Europe, station readings and MeteoAlarm's warnings from EUMETNET's members via</span>
-        <a class="link" href="https://meteogate.eu/" target="_blank" rel="noreferrer" data-i18n="footer.link.meteogate">MeteoGate</a>
-        <span data-i18n="footer.credits.13">(CC BY 4.0); in China,</span>
-        <a class="link" href="https://www.seniverse.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.seniverse">Seniverse</a><span data-i18n="footer.credits.14">, and air quality from China's national monitoring network via the</span>
-        <a class="link" href="https://waqi.info/" target="_blank" rel="noreferrer" data-i18n="footer.link.world-air-quality-index-project">World Air Quality Index Project</a><span data-i18n="footer.credits.15">. When Open-Meteo is down,</span>
-        <a class="link" href="https://www.weatherapi.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.weatherapi-com">WeatherAPI.com</a><span data-i18n="footer.credits.16">,</span>
-        <a class="link" href="https://openweathermap.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openweather">OpenWeather</a>
-        <span data-i18n="footer.credits.17">or</span>
-        <a class="link" href="https://www.xweather.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.xweather">Xweather</a>
-        <span data-i18n="footer.credits.18">stand in. Radar elsewhere from</span>
-        <a class="link" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.rainviewer">RainViewer</a><span data-i18n="footer.credits.19">. The map from</span>
-        <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openfreemap">OpenFreeMap</a>
-        <span data-i18n="footer.credits.20">(</span><a class="link" href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openmaptiles">OpenMapTiles</a><span data-i18n="footer.credits.21">, data from</span>
-        <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" data-i18n="footer.link.openstreetmap">OpenStreetMap</a>
-        <span data-i18n="footer.credits.22">contributors), drawn with</span>
-        <a class="link" href="https://maplibre.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.maplibre">MapLibre</a><span data-i18n="footer.credits.23">, and OpenStreetMap's own tiles when OpenFreeMap is down.</span>
-      </p>
-      <p class="muted">
         <a class="link" href="https://augystudios.com/terms" target="_blank" rel="noopener noreferrer" data-i18n="footer.terms">Terms</a> ·
         <a class="link" href="https://augystudios.com/privacy" target="_blank" rel="noopener noreferrer" data-i18n="footer.privacy">Privacy</a> ·
         <a class="link" href="mailto:augy@augystudios.com?subject=UwU%20Weather%3A%20an%20issue" data-i18n="footer.report">Report an issue</a>
@@ -517,6 +487,54 @@
         </button>
       </div>
       <ul class="lang-list" role="listbox" aria-labelledby="langModalTitle"></ul>
+    </div>
+  </div>
+
+  <!-- ---------- Info (js/info.js): the credits, and the service worker's version ---------- -->
+  <div class="modal-backdrop hidden" id="infoModal">
+    <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="infoModalTitle">
+      <div class="modal-head">
+        <h2 id="infoModalTitle" data-i18n="info.title">Credits</h2>
+        <button class="icon-btn small" type="button" data-close-modal="infoModal" data-i18n-attr="aria-label:common.close" aria-label="Close">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <p class="muted info-credits">
+        <span data-i18n="footer.credits.01">Forecasts from</span>
+        <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.open-meteo">Open-Meteo</a><span data-i18n="footer.credits.02">, with the national weather service laid over them where there is one: in Singapore, readings, forecasts, radar and lightning from NEA via</span>
+        <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer" data-i18n="footer.link.data-gov-sg">data.gov.sg</a><span data-i18n="footer.credits.03">; in the US, the</span>
+        <a class="link" href="https://www.weather.gov/" target="_blank" rel="noreferrer" data-i18n="footer.link.national-weather-service">National Weather Service</a><span data-i18n="footer.credits.04">; in Norway,</span>
+        <a class="link" href="https://api.met.no/" target="_blank" rel="noreferrer" data-i18n="footer.link.met-norway">MET Norway</a>
+        <span data-i18n="footer.credits.05">and</span>
+        <a class="link" href="https://www.nilu.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.nilu">NILU</a>
+        <span data-i18n="footer.credits.06">(CC BY 4.0); in Canada,</span>
+        <a class="link" href="https://eccc-msc.github.io/open-data/" target="_blank" rel="noreferrer" data-i18n="footer.link.environment-and-climate-change-canada">Environment and Climate Change Canada</a><span data-i18n="footer.credits.07">; in Germany, the</span>
+        <a class="link" href="https://www.dwd.de/" target="_blank" rel="noreferrer" data-i18n="footer.link.deutscher-wetterdienst">Deutscher Wetterdienst</a>
+        <span data-i18n="footer.credits.08">(CC BY 4.0) via</span>
+        <a class="link" href="https://brightsky.dev/" target="_blank" rel="noreferrer" data-i18n="footer.link.bright-sky">Bright Sky</a><span data-i18n="footer.credits.09">; in England, rain gauges from the</span>
+        <a class="link" href="https://environment.data.gov.uk/" target="_blank" rel="noreferrer" data-i18n="footer.link.environment-agency">Environment Agency</a>
+        <span data-i18n="footer.credits.10">(contains public sector information licensed under the Open Government Licence v3.0); in Ireland,</span>
+        <a class="link" href="https://www.met.ie/" target="_blank" rel="noreferrer" data-i18n="footer.link.met-ireann">Met Éireann</a>
+        <span data-i18n="footer.credits.11">(copyright Met Éireann, CC BY 4.0; Met Éireann does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use); in Switzerland, source:</span>
+        <a class="link" href="https://www.meteoswiss.admin.ch/" target="_blank" rel="noreferrer" data-i18n="footer.link.meteoswiss">MeteoSwiss</a><span data-i18n="footer.credits.12">, its stations and its ICON-CH model via Open-Meteo; across Europe, station readings and MeteoAlarm's warnings from EUMETNET's members via</span>
+        <a class="link" href="https://meteogate.eu/" target="_blank" rel="noreferrer" data-i18n="footer.link.meteogate">MeteoGate</a>
+        <span data-i18n="footer.credits.13">(CC BY 4.0); in China,</span>
+        <a class="link" href="https://www.seniverse.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.seniverse">Seniverse</a><span data-i18n="footer.credits.14">, and air quality from China's national monitoring network via the</span>
+        <a class="link" href="https://waqi.info/" target="_blank" rel="noreferrer" data-i18n="footer.link.world-air-quality-index-project">World Air Quality Index Project</a><span data-i18n="footer.credits.15">. When Open-Meteo is down,</span>
+        <a class="link" href="https://www.weatherapi.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.weatherapi-com">WeatherAPI.com</a><span data-i18n="footer.credits.16">,</span>
+        <a class="link" href="https://openweathermap.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openweather">OpenWeather</a>
+        <span data-i18n="footer.credits.17">or</span>
+        <a class="link" href="https://www.xweather.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.xweather">Xweather</a>
+        <span data-i18n="footer.credits.18">stand in. Radar elsewhere from</span>
+        <a class="link" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.rainviewer">RainViewer</a><span data-i18n="footer.credits.19">. The map from</span>
+        <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openfreemap">OpenFreeMap</a>
+        <span data-i18n="footer.credits.20">(</span><a class="link" href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openmaptiles">OpenMapTiles</a><span data-i18n="footer.credits.21">, data from</span>
+        <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" data-i18n="footer.link.openstreetmap">OpenStreetMap</a>
+        <span data-i18n="footer.credits.22">contributors), drawn with</span>
+        <a class="link" href="https://maplibre.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.maplibre">MapLibre</a><span data-i18n="footer.credits.23">, and OpenStreetMap's own tiles when OpenFreeMap is down.</span>
+      </p>
+      <!-- Drawn by js/info.js. Clicking it does nothing much; three clicks in a row do. -->
+      <button class="version-btn" id="versionBtn" type="button"></button>
     </div>
   </div>
 
@@ -685,6 +703,7 @@
   <script src="/js/map.js" defer></script>
   <script src="/js/alerts.js" defer></script>
   <script src="/js/offline.js" defer></script>
+  <script src="/js/info.js" defer></script>
   <script src="/script.js" defer></script>
   <script src="/js/update.js" defer></script>
 </body>

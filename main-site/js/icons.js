@@ -26,6 +26,7 @@
     chevron: `<svg ${A}><path d="m9 5 7 7-7 7"/></svg>`,
     bell: `<svg ${A}><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/></svg>`,
     "bell-on": `<svg ${A}><path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15z"/><path d="M10 21a2.2 2.2 0 0 0 4 0"/><path d="M3.2 8.5a9.5 9.5 0 0 1 2.6-4.3M20.8 8.5a9.5 9.5 0 0 0-2.6-4.3"/></svg>`,
+    info: `<svg ${A}><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6v.1"/></svg>`,
     globe: `<svg ${A}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>`,
     check: `<svg ${A}><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>`,
     refresh: `<svg ${A}><path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v4.5h-4.5"/></svg>`,
