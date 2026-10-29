@@ -1307,6 +1307,29 @@ input[type="range"]::-moz-range-thumb {
 .map-far .pin.area > span:last-child { display: none; }
 .map-far .pin.wind > span:last-child { display: none; }
 
+/* ---- language switcher (i18n/switcher.js) ---- */
+/* The globe over the language's code, in the tray's glass button. */
+.lang-btn { flex-direction: column; gap: 0; }
+.lang-btn svg { width: 18px; height: 18px; }
+.lang-code { font-size: 0.62rem; line-height: 1; letter-spacing: 0.04em; }
+
+.lang-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.lang-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  background: var(--surface-strong);
+  border: 1px solid var(--surface-border);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: start;
+}
+.lang-list li[aria-selected="true"] { background: var(--brand-fill); color: var(--on-brand); }
+.lang-list li svg { width: 18px; height: 18px; }
+
 /* ---- offline maps modal ---- */
 .pack-list { display: flex; flex-direction: column; gap: 8px; }
 .pack {

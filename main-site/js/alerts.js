@@ -13,6 +13,7 @@
 (function () {
   const W = window.UwuWx;
   const { esc, hydrateIcons } = window.UwuUI;
+  const { t, onChange } = window.UwuI18n;
   const Sync = window.UwuSync;
 
   const API_BASE = "/api/push";
@@ -23,11 +24,8 @@
 
   const $ = (sel) => document.querySelector(sel);
 
-  const PROBLEMS = {
-    unsupported: "This browser can't receive notifications. On iPhone or iPad, add UwU Weather to your Home Screen, open it from there, and try again.",
-    denied: "Notifications are blocked for this site. Allow them in your browser's site settings, then try again.",
-    failed: "Couldn't reach the alerts server. Try again in a minute.",
-  };
+  // Looked up when shown, so a language change reads the new words.
+  const problemText = (problem) => t(`alerts.problem.${problem}`);
 
   function prefs() {
     try {
@@ -62,28 +60,30 @@
   const watched = () => Sync.readLocal().filter((p) => W.lightningCountry(p, countryHint(p)));
 
   // "Singapore or Canada", for the panel's wording.
-  const COVERED = ["Singapore", "Canada"];
-  const coveredText = (joiner) => COVERED.join(` ${joiner} `);
+  const coveredText = (joiner) => t(`alerts.covered.${joiner}`);
 
   const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
   // ---------- drawing ----------
 
   function noteFor(p, places) {
-    if (!places.length) return `Save a place in ${coveredText("or")} first: search for it, then press the star.`;
-    if (!p.on) return "Alerts are off. Pick how close counts, then turn them on.";
-    return `You'll be notified when lightning is detected within ${p.radiusKm} km of ${places.length === 1 ? "this place" : `any of these ${places.length} places`}, at most once every half hour for each.`;
+    if (!places.length) return t("alerts.note.no-places", { countries: coveredText("or") });
+    if (!p.on) return t("alerts.note.off");
+    return t("alerts.note.on", { km: p.radiusKm, count: places.length });
   }
 
+  let lastProblem = null;
+
   function show(p, problem) {
+    lastProblem = problem || null;
     const places = watched();
     const others = Sync.readLocal().length - places.length;
     $("#alertPlaces").innerHTML = places.length
-      ? places.map((pl) => `<li><span data-icon="pin"></span>${esc(pl.name)}</li>`).join("")
-      : `<li class="muted">No saved places in ${coveredText("or")} yet.</li>`;
+      ? places.map((pl) => `<li><span data-icon="pin"></span>${esc(pl.name === "My location" ? t("places.my-location") : pl.name)}</li>`).join("")
+      : `<li class="muted">${esc(t("alerts.places.empty", { countries: coveredText("or") }))}</li>`;
     $("#alertPlaces").hidden = false;
     $("#alertOthers").hidden = !others;
-    $("#alertOthers").textContent = `${others} saved place${others === 1 ? " is" : "s are"} outside ${coveredText("and")}, where no open network reports lightning, so ${others === 1 ? "it isn't" : "they aren't"} watched.`;
+    $("#alertOthers").textContent = t("alerts.others", { count: others, countries: coveredText("and") });
     hydrateIcons($("#alertPlaces"));
 
     document.querySelectorAll("[data-radius]").forEach((btn) => {
@@ -92,11 +92,11 @@
       btn.setAttribute("aria-pressed", String(on));
     });
     const toggle = $("#alertsToggle");
-    toggle.textContent = p.on ? "Turn alerts off" : "Turn alerts on";
+    toggle.textContent = t(p.on ? "alerts.toggle.turn-off" : "alerts.toggle.turn-on");
     toggle.classList.toggle("secondary", p.on);
     toggle.disabled = !p.on && !places.length;
     $("#alertsTest").hidden = !p.on;
-    note(problem ? PROBLEMS[problem] : noteFor(p, places), problem ? "bad" : "");
+    note(() => (problem ? problemText(problem) : noteFor(p, places)), problem ? "bad" : "");
 
     // Alerts can only watch saved places in a covered country. With none saved, the bell
     // would open a panel with nothing to turn on, so it stays out of the tray.
@@ -104,12 +104,17 @@
 
     const icon = $("#alertsBtn [data-icon]");
     icon.setAttribute("data-icon", p.on || tg.enabled ? "bell-on" : "bell");
-    $("#alertsBtn").setAttribute("aria-label", p.on || tg.enabled ? "Lightning alerts, on" : "Lightning alerts");
+    $("#alertsBtn").setAttribute("aria-label", t(p.on || tg.enabled ? "alerts.bell.on" : "alerts.bell.off"));
     hydrateIcons($("#alertsBtn"));
   }
 
-  function note(text, tone) {
-    $("#alertsNote").textContent = text;
+  // `make` returns the words, so a language change can draw the note again. A
+  // pinned note (a test result) survives that redraw; show() clears it.
+  let pinned = null;
+
+  function note(make, tone, pin = false) {
+    pinned = pin ? { make, tone } : null;
+    $("#alertsNote").textContent = make();
     $("#alertsNote").dataset.tone = tone;
   }
 
@@ -214,16 +219,16 @@
         res = await postTest();
       }
       if (res.ok) {
-        note("Test alert sent. Nothing within a minute? Check that notifications from this browser aren't muted or held back by Do Not Disturb.", "");
+        note(() => t("alerts.test.sent"), "", true);
       } else if (res.status === 429) {
-        note("A test alert was just sent. Try again in a few seconds.", "");
+        note(() => t("alerts.test.too-soon"), "", true);
       } else {
         const { error } = await res.json().catch(() => ({}));
-        note(`Couldn't send a test alert: ${error || `the server replied ${res.status}`}.`, "bad");
+        note(() => t("alerts.test.failed", { reason: error || t("alerts.server-replied", { status: res.status }) }), "bad", true);
       }
     } catch (err) {
       console.warn("test alert failed:", err);
-      note(PROBLEMS.failed, "bad");
+      note(() => problemText("failed"), "bad", true);
     } finally {
       busy = false;
       $("#alertsTest").disabled = false;
@@ -247,6 +252,8 @@
   // ---------- Telegram ----------
 
   const tg = { linked: false, enabled: false, places: 0, busy: false };
+  // Makes the last error words, so a language change can say them again.
+  let tgProblem = null;
 
   async function tgCall(body) {
     const res = await fetch("/api/lightning", {
@@ -255,22 +262,24 @@
       body: JSON.stringify({ ...body, portal_id: Sync.portalId() }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || `the server replied ${res.status}`);
+    if (!res.ok) throw new Error(data.error || t("alerts.server-replied", { status: res.status }));
     return data;
   }
 
   function showTelegram(problem) {
+    tgProblem = problem || null;
     $("#tgLinked").hidden = !tg.linked;
     $("#tgUnlinked").hidden = tg.linked;
     if (!tg.linked) return;
     const btn = $("#tgToggle");
-    btn.textContent = tg.enabled ? "Stop Telegram messages" : "Send them on Telegram too";
+    btn.textContent = t(tg.enabled ? "alerts.telegram.stop" : "alerts.telegram.start");
     btn.classList.toggle("secondary", tg.enabled);
     btn.disabled = tg.busy;
     $("#tgNote").textContent = problem
-      || (tg.enabled
-        ? `The bot messages you about lightning within ${prefs().radiusKm} km of your synced places in ${coveredText("and")} (${tg.places} of them).`
-        : `Uses the places synced with the bot, ${tg.places} of them in ${coveredText("or")}.`);
+      ? problem()
+      : tg.enabled
+        ? t("alerts.telegram.note-on", { km: prefs().radiusKm, countries: coveredText("and"), places: tg.places })
+        : t("alerts.telegram.note-off", { countries: coveredText("or"), places: tg.places });
     $("#tgNote").dataset.tone = problem ? "bad" : "";
     show(prefs());
   }
@@ -283,7 +292,7 @@
       tg.linked = tg.linked !== false;
       showTelegram();
     } catch (err) {
-      showTelegram(`Couldn't check the Telegram setting: ${err.message}.`);
+      showTelegram(() => t("alerts.telegram.check-error", { message: err.message }));
     }
   }
 
@@ -297,7 +306,7 @@
       showTelegram();
     } catch (err) {
       tg.busy = false;
-      showTelegram(`Couldn't change it: ${err.message}.`);
+      showTelegram(() => t("alerts.telegram.change-error", { message: err.message }));
     }
   }
 
@@ -320,6 +329,14 @@
     $("#alertsToggle").addEventListener("click", () => apply({ on: !prefs().on }));
     $("#alertsTest").addEventListener("click", test);
     $("#tgToggle").addEventListener("click", () => setTelegram(!tg.enabled));
+
+    // A language change: the words drawn so far are drawn again.
+    onChange(() => {
+      const keep = pinned;
+      if (tg.linked) showTelegram(tgProblem);
+      else show(prefs(), lastProblem);
+      if (keep) note(keep.make, keep.tone, true);
+    });
 
     show(prefs());
     resync();

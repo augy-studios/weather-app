@@ -58,9 +58,9 @@
 
   <link rel="manifest" href="/manifest.json" />
   <meta charset="utf-8">
-  <title>Weather | UwU Apps</title>
+  <title data-i18n="app.title">Weather | UwU Apps</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Today's weather at a glance, with live rain radar and lightning alerts.">
+  <meta name="description" data-i18n-attr="content:app.description" content="Today's weather at a glance, with live rain radar and lightning alerts.">
   <meta name="theme-color" content="#ccffcc" id="meta-theme-color">
 
   <meta property="og:type" content="website">
@@ -92,30 +92,32 @@
         <span data-icon="chevron"></span>
       </button>
       <div id="trayButtons" class="tray-buttons">
-        <nav class="tray-views" role="tablist" aria-label="Pages" aria-orientation="vertical">
-          <button class="glass-btn" type="button" role="tab" id="tab-now" data-view="now" aria-controls="view-now" aria-selected="true" aria-label="Now" title="Now"><span data-icon="now"></span></button>
-          <button class="glass-btn" type="button" role="tab" id="tab-map" data-view="map" aria-controls="view-map" aria-selected="false" tabindex="-1" aria-label="Map" title="Map"><span data-icon="map"></span></button>
-          <button class="glass-btn" type="button" role="tab" id="tab-forecast" data-view="forecast" aria-controls="view-forecast" aria-selected="false" tabindex="-1" aria-label="Forecast" title="Forecast"><span data-icon="calendar"></span></button>
-          <button class="glass-btn" type="button" role="tab" id="tab-air" data-view="air" aria-controls="view-air" aria-selected="false" tabindex="-1" aria-label="Air and heat" title="Air and heat"><span data-icon="leaf"></span></button>
+        <nav class="tray-views" role="tablist" data-i18n-attr="aria-label:tray.pages" aria-label="Pages" aria-orientation="vertical">
+          <button class="glass-btn" type="button" role="tab" id="tab-now" data-view="now" aria-controls="view-now" aria-selected="true" data-i18n-attr="aria-label:tray.now, title:tray.now" aria-label="Now" title="Now"><span data-icon="now"></span></button>
+          <button class="glass-btn" type="button" role="tab" id="tab-map" data-view="map" aria-controls="view-map" aria-selected="false" tabindex="-1" data-i18n-attr="aria-label:tray.map, title:tray.map" aria-label="Map" title="Map"><span data-icon="map"></span></button>
+          <button class="glass-btn" type="button" role="tab" id="tab-forecast" data-view="forecast" aria-controls="view-forecast" aria-selected="false" tabindex="-1" data-i18n-attr="aria-label:tray.forecast, title:tray.forecast" aria-label="Forecast" title="Forecast"><span data-icon="calendar"></span></button>
+          <button class="glass-btn" type="button" role="tab" id="tab-air" data-view="air" aria-controls="view-air" aria-selected="false" tabindex="-1" data-i18n-attr="aria-label:tray.air, title:tray.air" aria-label="Air and heat" title="Air and heat"><span data-icon="leaf"></span></button>
         </nav>
         <span class="tray-rule" aria-hidden="true"></span>
         <!-- Shown by js/alerts.js only once a saved place is in Singapore or Canada. -->
-        <button class="glass-btn" id="alertsBtn" type="button" aria-haspopup="dialog" aria-label="Lightning alerts" title="Lightning alerts" hidden>
+        <button class="glass-btn" id="alertsBtn" type="button" aria-haspopup="dialog" data-i18n-attr="title:tray.alerts" aria-label="Lightning alerts" title="Lightning alerts" hidden>
           <span data-icon="bell"></span>
         </button>
-        <button class="glass-btn" id="shareBtn" type="button" aria-haspopup="dialog" aria-label="Share" title="Share">
+        <button class="glass-btn" id="shareBtn" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:tray.share, title:tray.share" aria-label="Share" title="Share">
           <span data-icon="share"></span>
         </button>
-        <button class="glass-btn" id="syncBtn" type="button" aria-haspopup="dialog" aria-label="Sync favourites" title="Sync favourites">
+        <button class="glass-btn" id="syncBtn" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:tray.sync, title:tray.sync" aria-label="Sync favourites" title="Sync favourites">
           <span data-icon="sync"></span>
         </button>
-        <button class="glass-btn" id="offlineBtn" type="button" aria-haspopup="dialog" aria-label="Offline maps" title="Offline maps">
+        <button class="glass-btn" id="offlineBtn" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:tray.offline, title:tray.offline" aria-label="Offline maps" title="Offline maps">
           <span data-icon="download"></span>
         </button>
-        <button class="glass-btn" id="themeBtn" type="button" aria-haspopup="dialog" aria-label="Theme" title="Theme">
+        <!-- Its globe and the language's code are drawn by i18n/switcher.js. -->
+        <button class="glass-btn lang-btn" id="langBtn" type="button" data-language-switcher aria-label="Change language" title="Change language"></button>
+        <button class="glass-btn" id="themeBtn" type="button" aria-haspopup="dialog" data-i18n-attr="aria-label:tray.theme, title:tray.theme" aria-label="Theme" title="Theme">
           <span data-icon="sun"></span>
         </button>
-        <a class="glass-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" aria-label="Buy Augy a Coffee" title="Buy Augy a Coffee">
+        <a class="glass-btn" href="https://donate.stripe.com/28o2akeAr3hv0DK6oo" target="_blank" rel="noopener noreferrer" data-i18n-attr="aria-label:tray.coffee, title:tray.coffee" aria-label="Buy Augy a Coffee" title="Buy Augy a Coffee">
           <span data-icon="coffee"></span>
         </a>
       </div>
@@ -140,39 +142,39 @@
         </svg>
       </div>
       <div class="brand-text">
-        <h1>Weather | UwU Apps</h1>
-        <small>Made with <span class="heart" data-icon="heart" aria-label="love" role="img"></span> by Augy</small>
+        <h1 data-i18n="app.title">Weather | UwU Apps</h1>
+        <small><span data-i18n="app.made-with.before">Made with</span> <span class="heart" data-icon="heart" data-i18n-attr="aria-label:app.made-with.love" aria-label="love" role="img"></span> <span data-i18n="app.made-with.after">by Augy</span></small>
       </div>
     </header>
 
     <!-- Where, on every page but the map. -->
-    <section class="placebar" aria-label="Place">
+    <section class="placebar" data-i18n-attr="aria-label:search.place" aria-label="Place">
       <form class="searchbar" id="searchForm" role="search">
-        <label for="query" class="sr-only">Search for a place</label>
-        <input id="query" type="search" placeholder="Search a city, e.g. Singapore, Tokyo" autocomplete="off" list="suggestions" enterkeyhint="search" />
+        <label for="query" class="sr-only" data-i18n="search.label">Search for a place</label>
+        <input id="query" type="search" data-i18n-attr="placeholder:search.placeholder" placeholder="Search a city, e.g. Singapore, Tokyo" autocomplete="off" list="suggestions" enterkeyhint="search" />
         <datalist id="suggestions"></datalist>
-        <button class="icon-btn" type="submit" title="Search" aria-label="Search">
+        <button class="icon-btn" type="submit" data-i18n-attr="aria-label:search.button, title:search.button" title="Search" aria-label="Search">
           <span data-icon="search"></span>
         </button>
       </form>
       <div class="place-actions">
-        <button class="icon-btn" id="btn-current" type="button" title="Use my location" aria-label="Use my location">
+        <button class="icon-btn" id="btn-current" type="button" data-i18n-attr="aria-label:search.current, title:search.current" title="Use my location" aria-label="Use my location">
           <span data-icon="crosshair"></span>
         </button>
-        <button class="icon-btn units-btn" id="btn-units" type="button" title="Switch °C and °F" aria-label="Switch °C and °F">
+        <button class="icon-btn units-btn" id="btn-units" type="button" data-i18n-attr="aria-label:search.units, title:search.units" title="Switch °C and °F" aria-label="Switch °C and °F">
           <span id="units-label">°C</span>
         </button>
         <button class="icon-btn" id="btn-save" type="button" title="Save this place" aria-label="Save this place" aria-pressed="false">
           <span data-icon="star"></span>
         </button>
       </div>
-      <div class="chips" id="saved" aria-label="Saved places"></div>
+      <div class="chips" id="saved" data-i18n-attr="aria-label:search.saved-places" aria-label="Saved places"></div>
     </section>
 
     <!-- Over the map on the Map page, at the top of the column everywhere else. -->
     <div class="status" id="status">
       <p id="statusText" role="status">Loading the weather.</p>
-      <button class="icon-btn small" id="refreshBtn" type="button" aria-label="Refresh" title="Refresh">
+      <button class="icon-btn small" id="refreshBtn" type="button" data-i18n-attr="aria-label:search.refresh, title:search.refresh" aria-label="Refresh" title="Refresh">
         <span data-icon="refresh"></span>
       </button>
     </div>
@@ -193,12 +195,12 @@
             <span class="big" id="icon" data-icon="clear" role="img" aria-label="Weather icon"></span>
           </div>
           <div class="metrics" id="metrics">
-            <div class="metric"><span>Feels like</span><b id="apparent">--</b><small id="apparent-note"></small></div>
-            <div class="metric"><span>Humidity</span><b id="humidity">--</b><small id="humidity-note"></small></div>
-            <div class="metric"><span>Wind</span><b id="wind">--</b><small id="wind-note"></small></div>
-            <div class="metric"><span id="rain-label">Rain</span><b id="rain-now">--</b><small id="rain-note"></small></div>
+            <div class="metric"><span data-i18n="now.feels-like">Feels like</span><b id="apparent">--</b><small id="apparent-note"></small></div>
+            <div class="metric"><span data-i18n="now.humidity">Humidity</span><b id="humidity">--</b><small id="humidity-note"></small></div>
+            <div class="metric"><span data-i18n="now.wind">Wind</span><b id="wind">--</b><small id="wind-note"></small></div>
+            <div class="metric"><span id="rain-label" data-i18n="now.rain">Rain</span><b id="rain-now">--</b><small id="rain-note"></small></div>
             <div class="metric"><span id="aqi-label">Air quality</span><b id="aqi" class="has-dot" data-level="">--</b><small id="aqi-band"></small></div>
-            <div class="metric"><span>UV index</span><b id="uv-now" class="has-dot" data-level="">--</b><small id="uv-now-band"></small></div>
+            <div class="metric"><span data-i18n="now.uv-index">UV index</span><b id="uv-now" class="has-dot" data-level="">--</b><small id="uv-now-band"></small></div>
           </div>
           <p class="fine muted" id="now-source"></p>
         </div>
@@ -217,7 +219,7 @@
       <!-- NEA's 2-hour forecast for the area, Singapore only. -->
       <article class="card glass" id="nowcast-card" hidden>
         <div class="card-header">
-          <h2 class="card-title">Next 2 hours</h2>
+          <h2 class="card-title" data-i18n="now.nowcast.title">Next 2 hours</h2>
           <span class="muted" id="nowcast-valid"></span>
         </div>
         <div class="card-body">
@@ -245,17 +247,17 @@
       <!-- The sea, for places on the coast. -->
       <article class="card glass" id="sea-card" hidden>
         <div class="card-header">
-          <h2 class="card-title">The sea</h2>
+          <h2 class="card-title" data-i18n="sea.title">The sea</h2>
           <span class="muted" id="sea-time"></span>
         </div>
         <div class="card-body">
           <div class="metrics">
-            <div class="metric"><span>Waves</span><b id="sea-waves">--</b><small id="sea-waves-note"></small></div>
-            <div class="metric"><span>Period</span><b id="sea-period">--</b><small>between waves</small></div>
-            <div class="metric"><span>Water</span><b id="sea-temp">--</b><small>at the surface</small></div>
+            <div class="metric"><span data-i18n="sea.waves">Waves</span><b id="sea-waves">--</b><small id="sea-waves-note"></small></div>
+            <div class="metric"><span data-i18n="sea.period">Period</span><b id="sea-period">--</b><small data-i18n="sea.period-note">between waves</small></div>
+            <div class="metric"><span data-i18n="sea.water">Water</span><b id="sea-temp">--</b><small data-i18n="sea.water-note">at the surface</small></div>
           </div>
           <p class="muted" id="sea-outlook"></p>
-          <p class="fine muted">From Open-Meteo's marine model, for the nearest stretch of sea.</p>
+          <p class="fine muted" data-i18n="sea.source">From Open-Meteo's marine model, for the nearest stretch of sea.</p>
         </div>
       </article>
     </section>
@@ -263,21 +265,21 @@
     <!-- ---------- Map ---------- -->
     <!-- Fills the screen. The map sits behind everything; the controls float on it. -->
     <section class="view" id="view-map" role="tabpanel" aria-labelledby="tab-map" hidden>
-      <div id="map" role="region" aria-label="Map with rain radar, station readings and lightning. The scrubber at the bottom moves through the last three hours."></div>
+      <div id="map" role="region" data-i18n-attr="aria-label:map.region" aria-label="Map with rain radar, station readings and lightning. The scrubber at the bottom moves through the last three hours."></div>
       <div class="map-controls">
         <div class="map-status glass" id="mapStatus">
           <p id="mapStatusText" role="status">Loading the radar.</p>
         </div>
-        <div class="segmented solid" id="mapMetric" role="group" aria-label="Readings on the pins">
-          <button type="button" data-metric="temp" aria-pressed="true" class="active"><span data-icon="thermometer"></span><span class="lbl">Temp</span></button>
-          <button type="button" data-metric="humidity" aria-pressed="false"><span data-icon="droplet"></span><span class="lbl">Humidity</span></button>
-          <button type="button" data-metric="rain" aria-pressed="false"><span data-icon="rain"></span><span class="lbl">Rain</span></button>
-          <button type="button" data-metric="wind" aria-pressed="false"><span data-icon="wind"></span><span class="lbl">Wind</span></button>
-          <button type="button" data-metric="forecast" aria-pressed="false"><span data-icon="partly-cloudy"></span><span class="lbl">Forecast</span></button>
+        <div class="segmented solid" id="mapMetric" role="group" data-i18n-attr="aria-label:map.readings" aria-label="Readings on the pins">
+          <button type="button" data-metric="temp" aria-pressed="true" class="active"><span data-icon="thermometer"></span><span class="lbl" data-i18n="map.metric.temp">Temp</span></button>
+          <button type="button" data-metric="humidity" aria-pressed="false"><span data-icon="droplet"></span><span class="lbl" data-i18n="map.metric.humidity">Humidity</span></button>
+          <button type="button" data-metric="rain" aria-pressed="false"><span data-icon="rain"></span><span class="lbl" data-i18n="map.metric.rain">Rain</span></button>
+          <button type="button" data-metric="wind" aria-pressed="false"><span data-icon="wind"></span><span class="lbl" data-i18n="map.metric.wind">Wind</span></button>
+          <button type="button" data-metric="forecast" aria-pressed="false"><span data-icon="partly-cloudy"></span><span class="lbl" data-i18n="map.metric.forecast">Forecast</span></button>
         </div>
         <div class="map-toggles">
-          <button type="button" class="toggle-btn solid active" id="mapRadar" aria-pressed="true"><span data-icon="radar"></span><span class="lbl">Radar</span></button>
-          <button type="button" class="toggle-btn solid active" id="mapLightning" aria-pressed="true"><span data-icon="bolt"></span><span class="lbl">Lightning</span></button>
+          <button type="button" class="toggle-btn solid active" id="mapRadar" aria-pressed="true"><span data-icon="radar"></span><span class="lbl" data-i18n="map.radar">Radar</span></button>
+          <button type="button" class="toggle-btn solid active" id="mapLightning" aria-pressed="true"><span data-icon="bolt"></span><span class="lbl" data-i18n="map.lightning">Lightning</span></button>
         </div>
         <p class="map-note" id="forecastNote" hidden></p>
       </div>
@@ -289,7 +291,7 @@
             <span data-icon="play"></span>
           </button>
           <div class="tl-track">
-            <label for="tlRange" class="sr-only">Time on the map</label>
+            <label for="tlRange" class="sr-only" data-i18n="map.time">Time on the map</label>
             <input type="range" id="tlRange" min="0" max="0" step="1" value="0">
             <div class="tl-scale" aria-hidden="true"><span id="tlStart"></span><span id="tlEnd"></span></div>
           </div>
@@ -297,13 +299,13 @@
             <strong id="tlTime">--</strong>
             <span id="tlAgo"></span>
           </div>
-          <button class="toggle-btn" id="tlLive" type="button" disabled>Now</button>
+          <button class="toggle-btn" id="tlLive" type="button" data-i18n="map.now" disabled>Now</button>
         </div>
-        <ul class="radar-legend" id="radarLegend" aria-label="Radar rain intensity" hidden>
-          <li><span class="swatch-key" style="background:var(--radar-light)"></span>Light</li>
-          <li><span class="swatch-key" style="background:var(--radar-moderate)"></span>Moderate</li>
-          <li><span class="swatch-key" style="background:var(--radar-heavy)"></span>Heavy</li>
-          <li><span class="swatch-key" style="background:var(--radar-intense)"></span>Very heavy</li>
+        <ul class="radar-legend" id="radarLegend" data-i18n-attr="aria-label:map.legend" aria-label="Radar rain intensity" hidden>
+          <li><span class="swatch-key" style="background:var(--radar-light)"></span><span data-i18n="map.intensity.light">Light</span></li>
+          <li><span class="swatch-key" style="background:var(--radar-moderate)"></span><span data-i18n="map.intensity.moderate">Moderate</span></li>
+          <li><span class="swatch-key" style="background:var(--radar-heavy)"></span><span data-i18n="map.intensity.heavy">Heavy</span></li>
+          <li><span class="swatch-key" style="background:var(--radar-intense)"></span><span data-i18n="map.intensity.very-heavy">Very heavy</span></li>
         </ul>
       </div>
     </section>
@@ -312,27 +314,27 @@
     <section class="view" id="view-forecast" role="tabpanel" aria-labelledby="tab-forecast" hidden>
       <article class="card glass">
         <div class="card-header">
-          <h2 class="card-title">Rain, next 2 hours</h2>
+          <h2 class="card-title" data-i18n="forecast.rain.title">Rain, next 2 hours</h2>
           <span class="muted" id="rain-range"></span>
         </div>
         <div class="card-body">
           <p class="muted" id="rain-summary"></p>
           <div class="chart-box"><canvas id="rainChart"></canvas></div>
-          <ul class="chart-legend" aria-label="Rain intensity, per fifteen minutes">
-            <li><span class="swatch-key" style="background:var(--rain-1)"></span>Light, under 0.5 mm</li>
-            <li><span class="swatch-key" style="background:var(--rain-2)"></span>Moderate</li>
-            <li><span class="swatch-key" style="background:var(--rain-3)"></span>Heavy, over 2 mm</li>
-            <li><span class="swatch-key" style="background:var(--rain-4)"></span>Very heavy, over 5 mm</li>
+          <ul class="chart-legend" data-i18n-attr="aria-label:forecast.rain.legend" aria-label="Rain intensity, per fifteen minutes">
+            <li><span class="swatch-key" style="background:var(--rain-1)"></span><span data-i18n="forecast.rain.light">Light, under 0.5 mm</span></li>
+            <li><span class="swatch-key" style="background:var(--rain-2)"></span><span data-i18n="forecast.rain.moderate">Moderate</span></li>
+            <li><span class="swatch-key" style="background:var(--rain-3)"></span><span data-i18n="forecast.rain.heavy">Heavy, over 2 mm</span></li>
+            <li><span class="swatch-key" style="background:var(--rain-4)"></span><span data-i18n="forecast.rain.very-heavy">Very heavy, over 5 mm</span></li>
           </ul>
         </div>
       </article>
 
       <article class="card glass">
         <div class="card-header">
-          <h2 class="card-title">Next 24 hours</h2>
+          <h2 class="card-title" data-i18n="forecast.hourly.title">Next 24 hours</h2>
         </div>
         <div class="card-body">
-          <div class="scroller" id="hourly" tabindex="0" aria-label="Hourly forecast, scrolls sideways"></div>
+          <div class="scroller" id="hourly" tabindex="0" data-i18n-attr="aria-label:forecast.hourly.label" aria-label="Hourly forecast, scrolls sideways"></div>
         </div>
       </article>
 
@@ -350,7 +352,7 @@
 
       <article class="card glass">
         <div class="card-header">
-          <h2 class="card-title">Next days</h2>
+          <h2 class="card-title" data-i18n="forecast.days.title">Next days</h2>
           <span class="muted" id="daily-source"></span>
         </div>
         <div class="card-body">
@@ -361,7 +363,7 @@
       <!-- The nearest rain gauge's daily totals, England only. -->
       <article class="card glass" id="history-card" hidden>
         <div class="card-header">
-          <h2 class="card-title">Rain, past week</h2>
+          <h2 class="card-title" data-i18n="forecast.history.title">Rain, past week</h2>
           <span class="muted" id="history-total"></span>
         </div>
         <div class="card-body">
@@ -396,7 +398,7 @@
 
       <article class="card glass">
         <div class="card-header">
-          <h2 class="card-title">UV index</h2>
+          <h2 class="card-title" data-i18n="air.uv.title">UV index</h2>
           <span class="muted" id="uv-time"></span>
         </div>
         <div class="card-body">
@@ -412,7 +414,7 @@
 
       <article class="card glass">
         <div class="card-header">
-          <h2 class="card-title">Heat stress</h2>
+          <h2 class="card-title" data-i18n="air.heat.title">Heat stress</h2>
           <span class="muted" id="heat-time"></span>
         </div>
         <div class="card-body">
@@ -429,10 +431,10 @@
           <div id="heat-elsewhere" hidden>
             <div class="hero">
               <p class="hero-value huge" id="heat-feels">--</p>
-              <p class="band-chip" id="heat-feels-chip">Feels like</p>
+              <p class="band-chip" id="heat-feels-chip" data-i18n="now.feels-like">Feels like</p>
             </div>
             <p class="muted" id="heat-feels-note"></p>
-            <p class="fine muted">
+            <p class="fine muted" data-i18n="air.heat.note">
               Wet bulb globe temperature, which counts sun, wind and humidity as well as heat,
               is measured by NEA in Singapore only. Feels like is the nearest thing everywhere else.
             </p>
@@ -443,40 +445,43 @@
 
     <footer class="site-footer">
       <p class="muted">
-        Forecasts from <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a>, with the national
-        weather service laid over them where there is one:
-        in Singapore, readings, forecasts, radar and lightning from NEA via
-        <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer">data.gov.sg</a>;
-        in the US, the <a class="link" href="https://www.weather.gov/" target="_blank" rel="noreferrer">National Weather Service</a>;
-        in Norway, <a class="link" href="https://api.met.no/" target="_blank" rel="noreferrer">MET Norway</a> and
-        <a class="link" href="https://www.nilu.com/" target="_blank" rel="noreferrer">NILU</a> (CC BY 4.0);
-        in Canada, <a class="link" href="https://eccc-msc.github.io/open-data/" target="_blank" rel="noreferrer">Environment and Climate Change Canada</a>;
-        in Germany, the <a class="link" href="https://www.dwd.de/" target="_blank" rel="noreferrer">Deutscher Wetterdienst</a> (CC BY 4.0) via
-        <a class="link" href="https://brightsky.dev/" target="_blank" rel="noreferrer">Bright Sky</a>;
-        in England, rain gauges from the <a class="link" href="https://environment.data.gov.uk/" target="_blank" rel="noreferrer">Environment Agency</a>
-        (contains public sector information licensed under the Open Government Licence v3.0);
-        in Ireland, <a class="link" href="https://www.met.ie/" target="_blank" rel="noreferrer">Met Éireann</a>
-        (copyright Met Éireann, CC BY 4.0; Met Éireann does not accept any liability whatsoever for any error or omission in the
-        data, their availability, or for any loss or damage arising from their use);
-        in Switzerland, source: <a class="link" href="https://www.meteoswiss.admin.ch/" target="_blank" rel="noreferrer">MeteoSwiss</a>,
-        its stations and its ICON-CH model via Open-Meteo;
-        across Europe, station readings and MeteoAlarm's warnings from EUMETNET's members via
-        <a class="link" href="https://meteogate.eu/" target="_blank" rel="noreferrer">MeteoGate</a> (CC BY 4.0);
-        in China, <a class="link" href="https://www.seniverse.com/" target="_blank" rel="noreferrer">Seniverse</a>, and air quality from
-        China's national monitoring network via the <a class="link" href="https://waqi.info/" target="_blank" rel="noreferrer">World Air Quality Index Project</a>.
-        When Open-Meteo is down, <a class="link" href="https://www.weatherapi.com/" target="_blank" rel="noreferrer">WeatherAPI.com</a>,
-        <a class="link" href="https://openweathermap.org/" target="_blank" rel="noreferrer">OpenWeather</a> or
-        <a class="link" href="https://www.xweather.com/" target="_blank" rel="noreferrer">Xweather</a> stand in.
-        Radar elsewhere from <a class="link" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer">RainViewer</a>.
-        The map from <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer">OpenFreeMap</a>
-        (<a class="link" href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">OpenMapTiles</a>, data from
-        <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors),
-        drawn with <a class="link" href="https://maplibre.org/" target="_blank" rel="noreferrer">MapLibre</a>, and OpenStreetMap's own tiles when OpenFreeMap is down.
+        <span data-i18n="footer.credits.01">Forecasts from</span>
+        <a class="link" href="https://open-meteo.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.open-meteo">Open-Meteo</a><span data-i18n="footer.credits.02">, with the national weather service laid over them where there is one: in Singapore, readings, forecasts, radar and lightning from NEA via</span>
+        <a class="link" href="https://data.gov.sg/" target="_blank" rel="noreferrer" data-i18n="footer.link.data-gov-sg">data.gov.sg</a><span data-i18n="footer.credits.03">; in the US, the</span>
+        <a class="link" href="https://www.weather.gov/" target="_blank" rel="noreferrer" data-i18n="footer.link.national-weather-service">National Weather Service</a><span data-i18n="footer.credits.04">; in Norway,</span>
+        <a class="link" href="https://api.met.no/" target="_blank" rel="noreferrer" data-i18n="footer.link.met-norway">MET Norway</a>
+        <span data-i18n="footer.credits.05">and</span>
+        <a class="link" href="https://www.nilu.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.nilu">NILU</a>
+        <span data-i18n="footer.credits.06">(CC BY 4.0); in Canada,</span>
+        <a class="link" href="https://eccc-msc.github.io/open-data/" target="_blank" rel="noreferrer" data-i18n="footer.link.environment-and-climate-change-canada">Environment and Climate Change Canada</a><span data-i18n="footer.credits.07">; in Germany, the</span>
+        <a class="link" href="https://www.dwd.de/" target="_blank" rel="noreferrer" data-i18n="footer.link.deutscher-wetterdienst">Deutscher Wetterdienst</a>
+        <span data-i18n="footer.credits.08">(CC BY 4.0) via</span>
+        <a class="link" href="https://brightsky.dev/" target="_blank" rel="noreferrer" data-i18n="footer.link.bright-sky">Bright Sky</a><span data-i18n="footer.credits.09">; in England, rain gauges from the</span>
+        <a class="link" href="https://environment.data.gov.uk/" target="_blank" rel="noreferrer" data-i18n="footer.link.environment-agency">Environment Agency</a>
+        <span data-i18n="footer.credits.10">(contains public sector information licensed under the Open Government Licence v3.0); in Ireland,</span>
+        <a class="link" href="https://www.met.ie/" target="_blank" rel="noreferrer" data-i18n="footer.link.met-ireann">Met Éireann</a>
+        <span data-i18n="footer.credits.11">(copyright Met Éireann, CC BY 4.0; Met Éireann does not accept any liability whatsoever for any error or omission in the data, their availability, or for any loss or damage arising from their use); in Switzerland, source:</span>
+        <a class="link" href="https://www.meteoswiss.admin.ch/" target="_blank" rel="noreferrer" data-i18n="footer.link.meteoswiss">MeteoSwiss</a><span data-i18n="footer.credits.12">, its stations and its ICON-CH model via Open-Meteo; across Europe, station readings and MeteoAlarm's warnings from EUMETNET's members via</span>
+        <a class="link" href="https://meteogate.eu/" target="_blank" rel="noreferrer" data-i18n="footer.link.meteogate">MeteoGate</a>
+        <span data-i18n="footer.credits.13">(CC BY 4.0); in China,</span>
+        <a class="link" href="https://www.seniverse.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.seniverse">Seniverse</a><span data-i18n="footer.credits.14">, and air quality from China's national monitoring network via the</span>
+        <a class="link" href="https://waqi.info/" target="_blank" rel="noreferrer" data-i18n="footer.link.world-air-quality-index-project">World Air Quality Index Project</a><span data-i18n="footer.credits.15">. When Open-Meteo is down,</span>
+        <a class="link" href="https://www.weatherapi.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.weatherapi-com">WeatherAPI.com</a><span data-i18n="footer.credits.16">,</span>
+        <a class="link" href="https://openweathermap.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openweather">OpenWeather</a>
+        <span data-i18n="footer.credits.17">or</span>
+        <a class="link" href="https://www.xweather.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.xweather">Xweather</a>
+        <span data-i18n="footer.credits.18">stand in. Radar elsewhere from</span>
+        <a class="link" href="https://www.rainviewer.com/" target="_blank" rel="noreferrer" data-i18n="footer.link.rainviewer">RainViewer</a><span data-i18n="footer.credits.19">. The map from</span>
+        <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openfreemap">OpenFreeMap</a>
+        <span data-i18n="footer.credits.20">(</span><a class="link" href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openmaptiles">OpenMapTiles</a><span data-i18n="footer.credits.21">, data from</span>
+        <a class="link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer" data-i18n="footer.link.openstreetmap">OpenStreetMap</a>
+        <span data-i18n="footer.credits.22">contributors), drawn with</span>
+        <a class="link" href="https://maplibre.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.maplibre">MapLibre</a><span data-i18n="footer.credits.23">, and OpenStreetMap's own tiles when OpenFreeMap is down.</span>
       </p>
       <p class="muted">
-        <a class="link" href="https://augystudios.com/terms" target="_blank" rel="noopener noreferrer">Terms</a> ·
-        <a class="link" href="https://augystudios.com/privacy" target="_blank" rel="noopener noreferrer">Privacy</a> ·
-        <a class="link" href="mailto:augy@augystudios.com?subject=UwU%20Weather%3A%20an%20issue">Report an issue</a>
+        <a class="link" href="https://augystudios.com/terms" target="_blank" rel="noopener noreferrer" data-i18n="footer.terms">Terms</a> ·
+        <a class="link" href="https://augystudios.com/privacy" target="_blank" rel="noopener noreferrer" data-i18n="footer.privacy">Privacy</a> ·
+        <a class="link" href="mailto:augy@augystudios.com?subject=UwU%20Weather%3A%20an%20issue" data-i18n="footer.report">Report an issue</a>
       </p>
     </footer>
   </main>
@@ -485,20 +490,33 @@
   <div class="modal-backdrop hidden" id="themeModal">
     <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="themeModalTitle">
       <div class="modal-head">
-        <h2 id="themeModalTitle">Theme</h2>
-        <button class="icon-btn small" type="button" data-close-modal="themeModal" aria-label="Close">
+        <h2 id="themeModalTitle" data-i18n="theme.title">Theme</h2>
+        <button class="icon-btn small" type="button" data-close-modal="themeModal" data-i18n-attr="aria-label:common.close" aria-label="Close">
           <span data-icon="close"></span>
         </button>
       </div>
-      <p class="modal-section-label">Mode</p>
+      <p class="modal-section-label" data-i18n="theme.mode">Mode</p>
       <div class="mode-toggle" id="modeToggle">
-        <button class="mode-btn" type="button" data-mode="light" aria-pressed="false"><span data-icon="sun"></span>Light</button>
-        <button class="mode-btn" type="button" data-mode="dark" aria-pressed="false"><span data-icon="moon"></span>Dark</button>
-        <button class="mode-btn mode-btn-wide" type="button" data-mode="time" aria-pressed="false"><span data-icon="clock"></span>Time-based</button>
+        <button class="mode-btn" type="button" data-mode="light" aria-pressed="false"><span data-icon="sun"></span><span data-i18n="theme.light">Light</span></button>
+        <button class="mode-btn" type="button" data-mode="dark" aria-pressed="false"><span data-icon="moon"></span><span data-i18n="theme.dark">Dark</span></button>
+        <button class="mode-btn mode-btn-wide" type="button" data-mode="time" aria-pressed="false"><span data-icon="clock"></span><span data-i18n="theme.time-based">Time-based</span></button>
       </div>
       <p class="mode-note" id="modeNote" hidden></p>
-      <p class="modal-section-label">Brand colour</p>
+      <p class="modal-section-label" data-i18n="theme.brand-colour">Brand colour</p>
       <div class="swatch-grid" id="swatchGrid"></div>
+    </div>
+  </div>
+
+  <!-- ---------- Language (i18n/switcher.js fills the list) ---------- -->
+  <div class="modal-backdrop hidden" id="langModal">
+    <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="langModalTitle">
+      <div class="modal-head">
+        <h2 id="langModalTitle" data-i18n="language.modal.title">Choose a language</h2>
+        <button class="icon-btn small" type="button" data-close-modal="langModal" data-i18n-attr="aria-label:common.close" aria-label="Close">
+          <span data-icon="close"></span>
+        </button>
+      </div>
+      <ul class="lang-list" role="listbox" aria-labelledby="langModalTitle"></ul>
     </div>
   </div>
 
@@ -506,16 +524,16 @@
   <div class="modal-backdrop hidden" id="offlineModal">
     <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="offlineModalTitle">
       <div class="modal-head">
-        <h2 id="offlineModalTitle">Offline maps</h2>
-        <button class="icon-btn small" type="button" data-close-modal="offlineModal" aria-label="Close">
+        <h2 id="offlineModalTitle" data-i18n="offline.title">Offline maps</h2>
+        <button class="icon-btn small" type="button" data-close-modal="offlineModal" data-i18n-attr="aria-label:common.close" aria-label="Close">
           <span data-icon="close"></span>
         </button>
       </div>
-      <p class="muted">Keep the map of Singapore or Malaysia on this device, so the Map page still shows it with no connection. The radar, the readings and the weather on it still need one.</p>
-      <p class="modal-section-label">Maps</p>
-      <ul class="pack-list" id="offlinePacks"></ul>
+      <p class="muted" data-i18n="offline.intro">Keep a country's map, or a city's with its buildings in 3D, on this device, so the Map page still shows it with no connection. The radar, the readings and the weather on it still need one.</p>
+      <!-- js/offline.js fills it: the countries, then the cities, each under its own label. -->
+      <div id="offlinePacks"></div>
       <p class="muted fine" id="offlineStorage" hidden></p>
-      <p class="muted fine">From <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer">OpenFreeMap</a>, &copy; OpenMapTiles, data &copy; OpenStreetMap contributors.</p>
+      <p class="muted fine"><span data-i18n="offline.source.before">From</span> <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openfreemap">OpenFreeMap</a><span data-i18n="offline.source.after">, &copy; OpenMapTiles, data &copy; OpenStreetMap contributors.</span></p>
     </div>
   </div>
 
@@ -523,34 +541,34 @@
   <div class="modal-backdrop hidden" id="alertsModal">
     <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="alertsModalTitle">
       <div class="modal-head">
-        <h2 id="alertsModalTitle">Lightning alerts</h2>
-        <button class="icon-btn small" type="button" data-close-modal="alertsModal" aria-label="Close">
+        <h2 id="alertsModalTitle" data-i18n="alerts.title">Lightning alerts</h2>
+        <button class="icon-btn small" type="button" data-close-modal="alertsModal" data-i18n-attr="aria-label:common.close" aria-label="Close">
           <span data-icon="close"></span>
         </button>
       </div>
-      <p class="muted">A notification when lightning is detected near your saved places in Singapore (by NEA) or Canada (by Environment Canada), even with UwU Weather closed.</p>
+      <p class="muted" data-i18n="alerts.intro">A notification when lightning is detected near your saved places in Singapore (by NEA) or Canada (by Environment Canada), even with UwU Weather closed.</p>
 
-      <p class="modal-section-label">Watching</p>
+      <p class="modal-section-label" data-i18n="alerts.watching">Watching</p>
       <ul class="watch-list" id="alertPlaces" hidden></ul>
       <p class="muted fine" id="alertOthers" hidden></p>
 
-      <p class="modal-section-label">When lightning is within</p>
-      <div class="choice-grid thirds" id="alertRadius" role="group" aria-label="Distance">
+      <p class="modal-section-label" data-i18n="alerts.within">When lightning is within</p>
+      <div class="choice-grid thirds" id="alertRadius" role="group" data-i18n-attr="aria-label:alerts.distance" aria-label="Distance">
         <button type="button" class="choice" data-radius="5" aria-pressed="false">5 km</button>
         <button type="button" class="choice" data-radius="10" aria-pressed="false">10 km</button>
         <button type="button" class="choice" data-radius="20" aria-pressed="false">20 km</button>
       </div>
 
       <button type="button" class="btn alerts-toggle" id="alertsToggle">Turn alerts on</button>
-      <button type="button" class="btn secondary" id="alertsTest" hidden>Send test alert</button>
+      <button type="button" class="btn secondary" id="alertsTest" data-i18n="alerts.test" hidden>Send test alert</button>
       <p class="alerts-note" id="alertsNote" role="status"></p>
 
-      <p class="modal-section-label">Telegram</p>
+      <p class="modal-section-label" data-i18n="alerts.telegram">Telegram</p>
       <div id="tgLinked" hidden>
         <button type="button" class="btn secondary" id="tgToggle">Send them on Telegram too</button>
         <p class="alerts-note" id="tgNote" role="status"></p>
       </div>
-      <p class="muted fine" id="tgUnlinked">Link this browser to the Telegram bot under Sync favourites, and the bot can send these too.</p>
+      <p class="muted fine" id="tgUnlinked" data-i18n="alerts.telegram-unlinked">Link this browser to the Telegram bot under Sync favourites, and the bot can send these too.</p>
     </div>
   </div>
 
@@ -558,14 +576,14 @@
   <div class="modal-backdrop hidden" id="shareModal">
     <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
       <div class="modal-head">
-        <h2 id="shareModalTitle">Share</h2>
-        <button class="icon-btn small" type="button" data-close-modal="shareModal" aria-label="Close">
+        <h2 id="shareModalTitle" data-i18n="share.title">Share</h2>
+        <button class="icon-btn small" type="button" data-close-modal="shareModal" data-i18n-attr="aria-label:common.close" aria-label="Close">
           <span data-icon="close"></span>
         </button>
       </div>
       <div id="share-card">
         <div class="brandline">
-          <strong>Weather | UwU Apps</strong>
+          <strong data-i18n="app.title">Weather | UwU Apps</strong>
           <span id="share-place">--</span>
         </div>
         <div id="share-art" aria-hidden="true"></div>
@@ -582,12 +600,12 @@
         </footer>
       </div>
       <div class="share-actions">
-        <button class="icon-btn" id="share-device" type="button" title="Share via device" aria-label="Share via device"><span data-icon="share"></span></button>
-        <button class="icon-btn" data-share="tg" type="button" title="Share via Telegram" aria-label="Share via Telegram"><span data-icon="telegram"></span></button>
-        <button class="icon-btn" data-share="x" type="button" title="Share via X" aria-label="Share via X"><span data-icon="x"></span></button>
-        <button class="icon-btn" data-share="wa" type="button" title="Share via WhatsApp" aria-label="Share via WhatsApp"><span data-icon="whatsapp"></span></button>
-        <button class="icon-btn" data-share="fb" type="button" title="Share via Facebook" aria-label="Share via Facebook"><span data-icon="facebook"></span></button>
-        <button class="icon-btn" id="save-image" type="button" title="Save image" aria-label="Save image"><span data-icon="image"></span></button>
+        <button class="icon-btn" id="share-device" type="button" data-i18n-attr="aria-label:share.device, title:share.device" title="Share via device" aria-label="Share via device"><span data-icon="share"></span></button>
+        <button class="icon-btn" data-share="tg" type="button" data-i18n-attr="aria-label:share.telegram, title:share.telegram" title="Share via Telegram" aria-label="Share via Telegram"><span data-icon="telegram"></span></button>
+        <button class="icon-btn" data-share="x" type="button" data-i18n-attr="aria-label:share.x, title:share.x" title="Share via X" aria-label="Share via X"><span data-icon="x"></span></button>
+        <button class="icon-btn" data-share="wa" type="button" data-i18n-attr="aria-label:share.whatsapp, title:share.whatsapp" title="Share via WhatsApp" aria-label="Share via WhatsApp"><span data-icon="whatsapp"></span></button>
+        <button class="icon-btn" data-share="fb" type="button" data-i18n-attr="aria-label:share.facebook, title:share.facebook" title="Share via Facebook" aria-label="Share via Facebook"><span data-icon="facebook"></span></button>
+        <button class="icon-btn" id="save-image" type="button" data-i18n-attr="aria-label:share.save-image, title:share.save-image" title="Save image" aria-label="Save image"><span data-icon="image"></span></button>
       </div>
     </div>
   </div>
@@ -596,8 +614,8 @@
   <div class="modal-backdrop hidden" id="syncModal">
     <div class="modal glass" role="dialog" aria-modal="true" aria-labelledby="syncModalTitle">
       <div class="modal-head">
-        <h2 id="syncModalTitle">Sync favourites</h2>
-        <button class="icon-btn small" type="button" data-close-modal="syncModal" aria-label="Close">
+        <h2 id="syncModalTitle" data-i18n="sync.title">Sync favourites</h2>
+        <button class="icon-btn small" type="button" data-close-modal="syncModal" data-i18n-attr="aria-label:common.close" aria-label="Close">
           <span data-icon="close"></span>
         </button>
       </div>
@@ -605,47 +623,47 @@
       <p class="muted" id="sync-status">Checking whether this browser is linked.</p>
 
       <div id="sync-setup" hidden>
-        <p class="modal-section-label">Link with Telegram</p>
+        <p class="modal-section-label" data-i18n="sync.link-telegram">Link with Telegram</p>
         <button class="btn" id="sync-open-telegram" type="button">
           <span data-icon="telegram" aria-hidden="true"></span>
-          <span>Open the chat</span>
+          <span data-i18n="sync.open-chat">Open the chat</span>
         </button>
 
-        <p class="modal-section-label">Or type a code</p>
+        <p class="modal-section-label" data-i18n="sync.or-code">Or type a code</p>
         <div class="sync-row">
           <input id="sync-code" type="text" autocomplete="one-time-code" spellcheck="false"
-            placeholder="123456, or a backup code" aria-label="Sync code" />
-          <button class="btn" id="sync-use-code" type="button">Use</button>
+            data-i18n-attr="placeholder:sync.code-placeholder, aria-label:sync.code-label" placeholder="123456, or a backup code" aria-label="Sync code" />
+          <button class="btn" id="sync-use-code" type="button" data-i18n="sync.use">Use</button>
         </div>
-        <p class="muted sync-hint">
+        <p class="muted sync-hint" data-i18n="sync.code-hint">
           Send the bot /code for six digits, or use one of your backup codes when
           Telegram is out of reach.
         </p>
       </div>
 
       <div id="sync-linked" hidden>
-        <p class="modal-section-label">Saved places</p>
-        <p class="muted sync-hint">
+        <p class="modal-section-label" data-i18n="sync.saved-places">Saved places</p>
+        <p class="muted sync-hint" data-i18n="sync.saved-hint">
           This browser and the bot keep one list. Saving a place in either shows up in
           the other.
         </p>
 
-        <p class="modal-section-label">Backup codes</p>
+        <p class="modal-section-label" data-i18n="sync.backup-codes">Backup codes</p>
         <p class="muted sync-hint" id="sync-backup-status">None yet.</p>
-        <button class="btn secondary" id="sync-backup-new" type="button">
+        <button class="btn secondary" id="sync-backup-new" type="button" data-i18n="sync.backup-new">
           Create a new set
         </button>
-        <p class="muted sync-hint">
+        <p class="muted sync-hint" data-i18n="sync.backup-hint">
           Single use codes for getting back in when Telegram is out of reach. Approve
           the request in the chat, then the codes appear here once.
         </p>
         <div id="sync-codes" hidden>
           <ol class="code-list" id="sync-code-list"></ol>
-          <button class="btn" id="sync-copy-codes" type="button">Copy all</button>
+          <button class="btn" id="sync-copy-codes" type="button" data-i18n="sync.copy-all">Copy all</button>
         </div>
 
-        <p class="modal-section-label">This browser</p>
-        <button class="btn secondary" id="sync-unlink" type="button">Stop syncing</button>
+        <p class="modal-section-label" data-i18n="sync.this-browser">This browser</p>
+        <button class="btn secondary" id="sync-unlink" type="button" data-i18n="sync.stop">Stop syncing</button>
       </div>
 
       <p class="sync-message" id="sync-message" role="status" hidden></p>
@@ -657,6 +675,9 @@
   <script src="/vendor/chartjs/chart.umd.min.js" defer></script>
   <script src="/js/icons.js" defer></script>
   <script src="/js/ui.js" defer></script>
+  <!-- A module, so deferred too, and run in this order: after icons.js and ui.js, which it uses,
+       and before everything that calls window.UwuI18n.t. -->
+  <script type="module" src="/i18n/boot.js"></script>
   <script src="/js/theme.js" defer></script>
   <script src="/js/wx.js" defer></script>
   <script src="/js/sync.js" defer></script>

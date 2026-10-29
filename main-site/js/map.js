@@ -11,7 +11,7 @@
 //     or nothing at all for a while), OpenStreetMap's own tiles instead, for
 //     the rest of the visit. Every layer over it stays.
 //   - Offline, the service worker answers with what it kept, or with the
-//     offline maps of Singapore and Malaysia (js/offline.js). OpenStreetMap
+//     offline maps of countries and cities (js/offline.js). OpenStreetMap
 //     is never kept, so offline the map doesn't fall back to it.
 // - Radar, three hours of it wherever a national service keeps that long:
 //   - NEA's own images round Singapore (roughly 480 km), from /api/radar, one
@@ -49,6 +49,7 @@
   const W = window.UwuWx;
   const { esc, hydrateIcons } = window.UwuUI;
   const Charts = window.UwuCharts;
+  const { t, onChange } = window.UwuI18n;
 
   const $ = (sel) => document.querySelector(sel);
 
@@ -59,17 +60,26 @@
   const OFM_ATTRIBUTION = '<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">&copy; OpenMapTiles</a> Data from <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
   const OSM_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
   const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
-  const ATTRIBUTION = {
-    nea: 'Radar and stations: <a href="https://data.gov.sg/" target="_blank" rel="noopener noreferrer">NEA</a>',
-    dwd: 'Radar: <a href="https://www.dwd.de/" target="_blank" rel="noopener noreferrer">DWD</a> via <a href="https://brightsky.dev/" target="_blank" rel="noopener noreferrer">Bright Sky</a>',
-    msc: 'Radar: <a href="https://eccc-msc.github.io/open-data/" target="_blank" rel="noopener noreferrer">ECCC</a>',
-    rainviewer: 'Radar: <a href="https://www.rainviewer.com/" target="_blank" rel="noopener noreferrer">RainViewer</a>',
-    owm: 'Radar: <a href="https://openweathermap.org/" target="_blank" rel="noopener noreferrer">OpenWeather</a>',
-    xweather: 'Radar: <a href="https://www.xweather.com/" target="_blank" rel="noopener noreferrer">Xweather</a>',
-    gauges: 'Rain gauges: <a href="https://environment.data.gov.uk/" target="_blank" rel="noopener noreferrer">Environment Agency</a>',
-    lightning: 'Lightning: <a href="https://eccc-msc.github.io/open-data/" target="_blank" rel="noopener noreferrer">ECCC</a>',
-  };
-  const SOURCE_NAMES = { nea: "NEA", dwd: "the DWD", msc: "Environment Canada", rainviewer: "RainViewer", owm: "OpenWeather", xweather: "Xweather" };
+  const link = (href, name) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${name}</a>`;
+  // Made when asked for, so a layer added after a language change has the new words.
+  const attribution = (id) => ({
+    nea: () => t("map.attribution.nea", { link: link("https://data.gov.sg/", "NEA") }),
+    dwd: () => t("map.attribution.dwd", { link: link("https://www.dwd.de/", "DWD"), via: link("https://brightsky.dev/", "Bright Sky") }),
+    msc: () => t("map.attribution.radar", { link: link("https://eccc-msc.github.io/open-data/", "ECCC") }),
+    rainviewer: () => t("map.attribution.radar", { link: link("https://www.rainviewer.com/", "RainViewer") }),
+    owm: () => t("map.attribution.radar", { link: link("https://openweathermap.org/", "OpenWeather") }),
+    xweather: () => t("map.attribution.radar", { link: link("https://www.xweather.com/", "Xweather") }),
+    gauges: () => t("map.attribution.gauges", { link: link("https://environment.data.gov.uk/", "Environment Agency") }),
+    lightning: () => t("map.attribution.lightning", { link: link("https://eccc-msc.github.io/open-data/", "ECCC") }),
+  })[id]();
+  const sourceName = (id) => ({
+    nea: () => t("map.source.nea"),
+    dwd: () => t("map.source.dwd"),
+    msc: () => t("map.source.msc"),
+    rainviewer: () => t("map.source.rainviewer"),
+    owm: () => t("map.source.owm"),
+    xweather: () => t("map.source.xweather"),
+  })[id]();
   const RV_INDEX = "https://api.rainviewer.com/public/weather-maps.json";
 
   const STEP_MS = 5 * 60 * 1000;
@@ -138,6 +148,9 @@
     offline: false, // on OpenStreetMap only because the connection was down
   };
 
+  // The place's name as shown. script.js keeps "My location" in English as a
+  // marker; it's shown in the page's language.
+  const placeName = () => (place.name === "My location" ? t("places.my-location") : place.name);
   const countryNow = () => forecast?.country || place?.name?.match(/,\s*([A-Z]{2})$/)?.[1] || null;
   const nearSg = () => place && W.inNeaRadar(place.lat, place.lon);
   const modeNow = () => (document.documentElement.getAttribute("data-mode") === "dark" ? "dark" : "light");
@@ -639,7 +652,7 @@
       state.failed.radar = false;
       buildSteps();
     } catch (err) {
-      console.warn(`${SOURCE_NAMES[source]} radar unavailable:`, err);
+      console.warn(`${sourceName(source)} radar unavailable:`, err);
       state.failed.radar = true;
       await useFallbacks();
     }
@@ -797,7 +810,7 @@
   function play() {
     if (state.steps.length < 2) return;
     if (state.index >= state.steps.length - 1) setIndex(0);
-    $("#tlPlay").setAttribute("aria-label", "Pause");
+    $("#tlPlay").setAttribute("aria-label", t("map.scrubber.pause"));
     $("#tlPlay [data-icon]").dataset.icon = "pause";
     hydrateIcons($("#tlPlay"));
     state.playing = setInterval(() => {
@@ -810,7 +823,7 @@
     if (!state.playing) return;
     clearInterval(state.playing);
     state.playing = null;
-    $("#tlPlay").setAttribute("aria-label", "Play the last three hours");
+    $("#tlPlay").setAttribute("aria-label", t("map.scrubber.play"));
     $("#tlPlay [data-icon]").dataset.icon = "play";
     hydrateIcons($("#tlPlay"));
   }
@@ -822,11 +835,13 @@
     range.value = Math.max(0, state.index);
     range.disabled = n < 2;
     $("#tlPlay").disabled = n < 2;
-    const t = state.steps[state.index];
-    $("#tlTime").textContent = t ? W.time(t) : "--";
-    $("#tlAgo").textContent = !t ? "No readings yet" : state.live ? "Latest" : W.ago(t);
+    const cur = state.steps[state.index];
+    $("#tlTime").textContent = cur ? W.time(cur) : "--";
+    $("#tlAgo").textContent = !cur ? t("map.scrubber.none") : state.live ? t("map.scrubber.latest") : W.ago(cur);
     $("#tlLive").disabled = state.live || !n;
-    range.setAttribute("aria-valuetext", t ? `${W.time(t)}, ${state.live ? "latest" : W.ago(t)}` : "No readings");
+    range.setAttribute("aria-valuetext", cur
+      ? t("map.scrubber.value", { time: W.time(cur), ago: state.live ? t("map.scrubber.latest-short") : W.ago(cur) })
+      : t("map.scrubber.value-none"));
     // Where the scale starts and ends, under the track.
     $("#tlStart").textContent = n ? W.time(state.steps[0]) : "";
     $("#tlEnd").textContent = n ? W.time(state.steps[n - 1]) : "";
@@ -842,7 +857,7 @@
     drawAreas(t);
     drawStrikes(t);
     drawPlace(t);
-    drawStatus(t);
+    drawStatus();
   }
 
   function drawRadar(t) {
@@ -869,7 +884,7 @@
         addOverlay(IMAGE, "radar", {
           source: { type: "image", url: abs(frame.src), coordinates: bounds },
           layer: { type: "raster", paint: { "raster-opacity": 0.7, "raster-fade-duration": 0, "raster-opacity-transition": { duration: 0 } } },
-          attribution: ATTRIBUTION[state.source],
+          attribution: attribution(state.source),
         });
       } else if (state.imageSrc !== wanted) {
         const o = overlays.get(IMAGE);
@@ -892,7 +907,7 @@
         return frame && {
           key: `rv:${frame.path}`,
           make: () => raster(`${state.rv.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, {
-            opacity: 0.75, maxzoom: 7, attribution: ATTRIBUTION.rainviewer,
+            opacity: 0.75, maxzoom: 7, attribution: attribution("rainviewer"),
           }),
         };
       },
@@ -901,7 +916,7 @@
         return frame && {
           key: `msc:${frame.iso}`,
           make: () => raster(wms(state.msc.url, state.msc.layer, frame.iso), {
-            opacity: 0.75, maxzoom: 18, attribution: ATTRIBUTION.msc,
+            opacity: 0.75, maxzoom: 18, attribution: attribution("msc"),
           }),
         };
       },
@@ -927,7 +942,7 @@
       make: () => {
         let failures = 0;
         return raster(`${location.origin}/api/tiles?p=${p}&z={z}&x={x}&y={y}`, {
-          opacity: 0.75, maxzoom: 7, attribution: ATTRIBUTION[p],
+          opacity: 0.75, maxzoom: 7, attribution: attribution(p),
           onError: () => {
             if (++failures === 6 && p === "owm" && state.source === "owm") {
               // Out of the map's own error handling before its source goes.
@@ -969,8 +984,8 @@
       // The direction is where the wind comes from; the arrow points where it goes.
       return pin(lat, lon,
         `<span class="pin wind"><span class="wind-arrow" style="transform:rotate(${(dir + 180) % 360}deg)">${arrowSvg}</span><span>${Math.round(speed)}</span></span>`,
-        `${name}: ${Math.round(speed)} ${W.windUnit()} from the ${W.compass(dir)}`,
-        `<p class="popup-title">${esc(name)}</p><p><strong>${Math.round(speed)}</strong> ${W.windUnit()} from the ${W.compass(dir)}</p><p class="muted">${knots ? `${v} knots, ` : ""}${when}</p>`);
+        t("map.pin.wind-title", { name, speed: Math.round(speed), unit: W.windUnit(), dir: W.compass(dir) }),
+        `<p class="popup-title">${esc(name)}</p><p>${t("map.popup.wind", { speed: `<strong>${Math.round(speed)}</strong>`, unit: W.windUnit(), dir: W.compass(dir) })}</p><p class="muted">${knots ? t("map.popup.knots", { knots: v, when }) : when}</p>`);
     }
     if (metric === "rain") {
       if (!Number.isFinite(v)) return null;
@@ -979,16 +994,16 @@
       const wet = mm > 0;
       return pin(lat, lon,
         `<span class="pin rain${wet ? "" : " dry"}"><span class="rain-dot" style="background:var(${step.token})"></span>${wet ? `<span>${mm}</span>` : ""}</span>`,
-        `${name}: ${mm} mm in ${minutes} minutes`,
-        `<p class="popup-title">${esc(name)}</p><p><strong>${mm}</strong> mm in the ${minutes} minutes to ${when}</p>`);
+        t("map.pin.rain-title", { name, mm, minutes }),
+        `<p class="popup-title">${esc(name)}</p><p>${t("map.popup.rain", { mm: `<strong>${mm}</strong>`, minutes, when })}</p>`);
     }
     if (!Number.isFinite(v)) return null;
     const fmt = metric === "temp" ? (x) => W.fmtDeg(x) : (x) => W.fmtPerc(x);
-    const label = metric === "temp" ? "Temperature" : "Humidity";
+    const kind = metric === "temp" ? "temp" : "humidity";
     return pin(lat, lon,
       `<span class="pin value"><strong>${fmt(v)}</strong><span>${esc(name)}</span></span>`,
-      `${name}: ${label.toLowerCase()} ${fmt(v)}`,
-      `<p class="popup-title">${esc(name)}</p><p>${label} <strong>${fmt(v)}</strong></p><p class="muted">${when}</p>`);
+      t(kind === "temp" ? "map.pin.temp-title" : "map.pin.humidity-title", { name, value: fmt(v) }),
+      `<p class="popup-title">${esc(name)}</p><p>${t(kind === "temp" ? "map.popup.temp" : "map.popup.humidity", { value: `<strong>${fmt(v)}</strong>` })}</p><p class="muted">${when}</p>`);
   }
 
   function drawStations(t) {
@@ -1035,8 +1050,8 @@
     // The series is in the units the page asked for, so no conversion here.
     const value = reading && { temp: reading.temp, humidity: reading.humidity, rain: reading.rain, wind: reading.windSpeed }[metric];
     const marker = (reading && Number.isFinite(value)
-      ? readingPin(metric, place.lat, place.lon, place.name, value, W.time(reading.t), { dir: reading.windDir, minutes: 15 })
-      : null) || pin(place.lat, place.lon, '<span class="pin place"><span data-icon="pin"></span></span>', place.name, null, "place-pin");
+      ? readingPin(metric, place.lat, place.lon, placeName(), value, W.time(reading.t), { dir: reading.windDir, minutes: 15 })
+      : null) || pin(place.lat, place.lon, '<span class="pin place"><span data-icon="pin"></span></span>', placeName(), null, "place-pin");
     marker.getElement().classList.add("on-top");
     layers.place.add(marker);
   }
@@ -1072,7 +1087,7 @@
     if (!frame || state.ltgLayers.has(frame.iso)) return;
     const id = `uwu-lightning-${++overlaySeq}`;
     addOverlay(id, "lightning", raster(wms(state.ltg.url, state.ltg.layer, frame.iso), {
-      opacity: 0.9, maxzoom: 18, attribution: ATTRIBUTION.lightning,
+      opacity: 0.9, maxzoom: 18, attribution: attribution("lightning"),
     }));
     state.ltgLayers.set(frame.iso, id);
   }
@@ -1083,35 +1098,35 @@
     state.ltg = null;
   }
 
-  function drawStrikes(t) {
+  function drawStrikes(time) {
     layers.strikes.clear();
-    drawCanadaLightning(t);
+    drawCanadaLightning(time);
     const strikes = state.timeline?.strikes;
-    if (!state.lightning || !strikes?.length || t == null) return;
+    if (!state.lightning || !strikes?.length || time == null) return;
     for (const s of strikes) {
-      const age = t - s.t;
+      const age = time - s.t;
       if (age < 0 || age > STRIKE_WINDOW_MS) continue;
       // Newest at full strength, half an hour old at a quarter.
       const fade = 1 - (age / STRIKE_WINDOW_MS) * 0.75;
       layers.strikes.add(pin(s.lat, s.lon,
         `<span class="strike${s.type === "ground" ? " ground" : ""}" style="opacity:${fade.toFixed(2)}"><span data-icon="bolt"></span></span>`,
-        `Lightning, ${s.type === "ground" ? "cloud to ground" : "cloud to cloud"}, ${W.time(s.t)}`,
-        `<p class="popup-title">Lightning</p><p>${s.type === "ground" ? "Cloud to ground" : "Cloud to cloud"}</p><p class="muted">${W.time(s.t)}, ${W.ago(s.t)}</p>`,
+        t(s.type === "ground" ? "map.strike.title-ground" : "map.strike.title-cloud", { time: W.time(s.t) }),
+        `<p class="popup-title">${t("map.strike.popup-title")}</p><p>${t(s.type === "ground" ? "map.strike.ground" : "map.strike.cloud")}</p><p class="muted">${W.time(s.t)}, ${W.ago(s.t)}</p>`,
         "strike-pin"
       ));
     }
   }
 
-  function drawStatus(t) {
+  function drawStatus() {
     const near = nearSg();
     const wanted = radarFor()?.[0];
     const parts = [];
     const s = state.source;
-    if (!s) parts.push("No radar right now");
-    else if (wanted && s !== wanted) parts.push(`${SOURCE_NAMES[wanted]}'s radar isn't answering, so this is ${SOURCE_NAMES[s]}'s`);
-    else if (s === "rainviewer") parts.push("Radar from RainViewer, the last 2 hours");
-    else if (s === "owm" || s === "xweather") parts.push(`RainViewer isn't answering, so this is ${SOURCE_NAMES[s]}'s radar, now only`);
-    else parts.push(`Radar from ${SOURCE_NAMES[s]}`);
+    if (!s) parts.push(t("map.status.none"));
+    else if (wanted && s !== wanted) parts.push(t("map.status.fallback", { wanted: sourceName(wanted), source: sourceName(s) }));
+    else if (s === "rainviewer") parts.push(t("map.status.rainviewer"));
+    else if (s === "owm" || s === "xweather") parts.push(t("map.status.keyed", { source: sourceName(s) }));
+    else parts.push(t("map.status.radar", { source: sourceName(s) }));
 
     // Stations, forecast areas and lightning are NEA's, so away from Singapore
     // their controls step aside rather than showing nothing. The readings stay:
@@ -1126,23 +1141,23 @@
 
     const tl = state.timeline;
     if (near) {
-      if (state.failed.timeline) parts.push("station readings unavailable");
+      if (state.failed.timeline) parts.push(t("map.status.stations-unavailable"));
       // Before the collect cron has stored a few slots, only rainfall goes back.
-      else if (tl?.source === "live" && state.index < state.steps.length - 1) parts.push("earlier times show rainfall only for now");
+      else if (tl?.source === "live" && state.index < state.steps.length - 1) parts.push(t("map.status.earlier-rain-only"));
     } else if (state.gauges && state.metric === "rain") {
-      parts.push("rain gauges from the Environment Agency");
+      parts.push(t("map.status.gauges"));
     } else if (state.failed.gauges) {
-      parts.push("rain gauges unavailable");
+      parts.push(t("map.status.gauges-unavailable"));
     }
 
-    $("#mapStatusText").textContent = `${place.name}. ${parts.join(", ")}.`;
+    $("#mapStatusText").textContent = t("map.status.line", { place: placeName(), parts: parts.join(t("map.status.separator")) });
     // The legend's colours are NEA's, which the DWD images are drawn in too.
     $("#radarLegend").hidden = !["nea", "dwd"].includes(s) || !state.radar;
     $("#forecastNote").hidden = state.metric !== "forecast" || !sg?.forecast2h;
     if (sg?.forecast2h) {
       $("#forecastNote").textContent = state.timeline?.forecasts?.length
-        ? `2-hour forecast as NEA issued it at the time on the scrubber.`
-        : `2-hour forecast, ${sg.forecast2h.valid?.text || "now"}. Forecasts are for now only.`;
+        ? t("map.forecast.note-issued")
+        : t("map.forecast.note-now", { valid: sg.forecast2h.valid?.text || t("map.forecast.now") });
     }
   }
 
@@ -1208,6 +1223,15 @@
   setInterval(() => {
     if (map && document.visibilityState === "visible" && document.body.classList.contains("view-map")) load();
   }, REFRESH_MS);
+
+  // A new language: the scrubber, pins, popups and status are made again from
+  // what is already loaded.
+  onChange(() => {
+    if (!map) return;
+    $("#tlPlay").setAttribute("aria-label", state.playing ? t("map.scrubber.pause") : t("map.scrubber.play"));
+    drawScrubber();
+    drawStep();
+  });
 
   window.UwuMap = { show, hide, setPlace, setSg, setForecast, redraw, refresh: () => load({ force: true }) };
 })();

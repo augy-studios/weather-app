@@ -2,6 +2,8 @@
 
 ## Latest Release
 
+- Offline maps of 20 cities with their buildings in 3D (Taipei, Kyoto, New York City, Vancouver, San Francisco, Paris, Amsterdam, Rome, Kuala Lumpur, Penang, Johor Bahru, Kota Kinabalu, Kuching, Hong Kong, Bangkok, Tokyo, Seoul, London, Barcelona, Sydney)
+- A language switcher in the tray, ready for more languages
 - Redesigned UI with glassmorphism styling and new theme picker
 - Added "Buy Augy a Coffee" donation button in the header
 - Improved service worker caching for faster offline loads

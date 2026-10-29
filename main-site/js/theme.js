@@ -4,16 +4,17 @@
 // Plain script, not a module: everything is published on window.UwuTheme.
 
 (function () {
+  const { t, onChange } = window.UwuI18n;
   const APP_KEY = "uwuweather";
 
   const COLOR_THEMES = [
-    { id: "classic", label: "Classic", hex: "#ccffcc" },
-    { id: "not-green-1", label: "Not green 1", hex: "#ffcccc" },
-    { id: "not-green-2", label: "Not green 2", hex: "#ccccff" },
-    { id: "not-green-3", label: "Not green 3", hex: "#ffffcc" },
-    { id: "not-green-4", label: "Not green 4", hex: "#ffccff" },
-    { id: "not-green-5", label: "Not green 5", hex: "#ccffff" },
-    { id: "really-light-green", label: "Really really light green", hex: "#ffffff" },
+    { id: "classic", get label() { return t("theme.swatch.classic"); }, hex: "#ccffcc" },
+    { id: "not-green-1", get label() { return t("theme.swatch.not-green-1"); }, hex: "#ffcccc" },
+    { id: "not-green-2", get label() { return t("theme.swatch.not-green-2"); }, hex: "#ccccff" },
+    { id: "not-green-3", get label() { return t("theme.swatch.not-green-3"); }, hex: "#ffffcc" },
+    { id: "not-green-4", get label() { return t("theme.swatch.not-green-4"); }, hex: "#ffccff" },
+    { id: "not-green-5", get label() { return t("theme.swatch.not-green-5"); }, hex: "#ccffff" },
+    { id: "really-light-green", get label() { return t("theme.swatch.really-light-green"); }, hex: "#ffffff" },
   ];
 
   const STORAGE_KEY_COLOR = `${APP_KEY}.colorTheme`;
@@ -155,6 +156,17 @@
     // quietly rewrite a stored "time" into "dark" the first evening.
     applyMode(getModePreference());
   }
+
+  // Labels are read when drawn, so a language change redraws the swatches on screen.
+  onChange(() => {
+    document.querySelectorAll("#swatchGrid .swatch[data-theme-id]").forEach((btn) => {
+      const theme = COLOR_THEMES.find((c) => c.id === btn.dataset.themeId);
+      if (!theme) return;
+      btn.setAttribute("aria-label", theme.label);
+      const text = btn.querySelector(".swatch-label");
+      if (text) text.textContent = theme.label;
+    });
+  });
 
   window.UwuTheme = {
     COLOR_THEMES,

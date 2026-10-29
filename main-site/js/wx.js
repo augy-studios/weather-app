@@ -4,6 +4,8 @@
 // Plain script, not a module: published on window.UwuWx.
 
 (function () {
+  const { t } = window.UwuI18n;
+
   // ---------- units ----------
 
   const UNITS_KEY = "uwuweather.units";
@@ -36,8 +38,8 @@
     speed == null || !Number.isFinite(speed) ? "--" : `${Math.round(speed)} ${windUnit()}${dir == null ? "" : ` ${compass(dir)}`}`;
 
   // Meteorological direction (where the wind comes from) as a 16-point compass name.
-  const COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  const compass = (deg) => COMPASS[Math.round((((deg % 360) + 360) % 360) / 22.5) % 16];
+  const COMPASS = ["n", "nne", "ne", "ene", "e", "ese", "se", "sse", "s", "ssw", "sw", "wsw", "w", "wnw", "nw", "nnw"];
+  const compass = (deg) => t(`wx.compass.${COMPASS[Math.round((((deg % 360) + 360) % 360) / 22.5) % 16]}`);
 
   // "72 to 94", or one number when low and high agree.
   const fmtRange = (r) => (!r ? "--" : r.low === r.high ? `${r.low}` : `${r.low}–${r.high}`);
@@ -69,28 +71,20 @@
   const when = (t, tz = zone) => (dateKey(t, tz) === dateKey(Date.now(), tz) ? time(t, tz) : `${dayLabel(t, tz)}, ${time(t, tz)}`);
 
   // "just now", "4 min ago", "2 h ago".
-  function ago(t) {
-    const min = Math.round((Date.now() - new Date(t).getTime()) / 60000);
-    if (min < 1) return "just now";
-    if (min < 60) return `${min} min ago`;
+  function ago(at) {
+    const min = Math.round((Date.now() - new Date(at).getTime()) / 60000);
+    if (min < 1) return t("wx.ago.now");
+    if (min < 60) return t("wx.ago.minutes", { min });
     const h = Math.floor(min / 60);
     const m = min % 60;
-    return m ? `${h} h ${m} min ago` : `${h} h ago`;
+    return m ? t("wx.ago.hours-minutes", { h, m }) : t("wx.ago.hours", { h });
   }
 
   // ---------- what the weather is called, and its icon ----------
 
-  const WMO_TEXT = {
-    0: "Clear", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-    45: "Fog", 48: "Depositing rime fog",
-    51: "Light drizzle", 53: "Drizzle", 55: "Heavy drizzle", 56: "Freezing drizzle", 57: "Freezing drizzle",
-    61: "Light rain", 63: "Rain", 65: "Heavy rain", 66: "Freezing rain", 67: "Freezing rain",
-    71: "Light snow", 73: "Snow", 75: "Heavy snow", 77: "Snow grains",
-    80: "Rain showers", 81: "Rain showers", 82: "Violent rain showers",
-    85: "Snow showers", 86: "Snow showers",
-    95: "Thunderstorm", 96: "Thunderstorm with hail", 99: "Thunderstorm with heavy hail",
-  };
-  const wmoText = (code) => WMO_TEXT[code] || "--";
+  // Codes with a word of their own; the rest are looked up by key at call time.
+  const WMO_CODES = [0, 1, 2, 3, 45, 48, 51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 71, 73, 75, 77, 80, 81, 82, 85, 86, 95, 96, 99];
+  const wmoText = (code) => (WMO_CODES.includes(code) ? t(`wx.code.${code}`) : "--");
 
   function wmoIcon(code, isDay = 1) {
     if (code === 0) return isDay ? "clear" : "clear-night";
@@ -202,30 +196,34 @@
   // the same severity looks alike whichever scale it came from. Always shown
   // beside the band's name, never as colour alone.
 
-  const bandOf = (bands) => (v) => (Number.isFinite(v) ? bands.find((b) => v <= b.max) : null);
+  const bandOf = (bands) => Object.assign((v) => (Number.isFinite(v) ? bands.find((b) => v <= b.max) : null), { all: bands });
 
   // WHO's UV index categories.
+  // `label` is read when shown, so it follows the language; `id` stays put.
+  const uvLevel = (id, max, level) => ({ id, max, level, get label() { return t(`wx.uv.${id}`); } });
   const uvBand = bandOf([
-    { label: "Low", max: 2, level: 1 },
-    { label: "Moderate", max: 5, level: 2 },
-    { label: "High", max: 7, level: 3 },
-    { label: "Very high", max: 10, level: 4 },
-    { label: "Extreme", max: Infinity, level: 5 },
+    uvLevel("low", 2, 1),
+    uvLevel("moderate", 5, 2),
+    uvLevel("high", 7, 3),
+    uvLevel("very-high", 10, 4),
+    uvLevel("extreme", Infinity, 5),
   ]);
-  const UV_ADVICE = {
-    Low: "No protection needed for most people.",
-    Moderate: "Shade around midday, a hat and sunscreen if outdoors for long.",
-    High: "Cover up, sunscreen, and shade between 11am and 3pm.",
-    "Very high": "Avoid the midday sun. Shirt, hat, sunglasses and sunscreen.",
-    Extreme: "Stay out of the sun where you can. Full protection outdoors.",
-  };
+  // Advice by band id, or by the band's shown label (what script.js looks up).
+  const uvAdvice = (band) => (band ? t(`wx.uv-advice.${band.id}`) : "");
+  const UV_ADVICE = new Proxy({}, {
+    get(_, name) {
+      for (const b of uvBand.all) if (b.id === name || b.label === name) return uvAdvice(b);
+      return undefined;
+    },
+  });
 
   // NEA's heat stress bands for WBGT, in °C.
   const HEAT_LEVELS = { Low: 1, Moderate: 2, High: 4 };
+  // Keyed by NEA's English stress names; read at call time.
   const HEAT_ADVICE = {
-    Low: "Normal activity, with water and rest as usual.",
-    Moderate: "Drink more often and take breaks from strenuous activity outdoors.",
-    High: "Cut back strenuous outdoor activity. Rest in the shade and drink water regularly.",
+    get Low() { return t("wx.heat-advice.low"); },
+    get Moderate() { return t("wx.heat-advice.moderate"); },
+    get High() { return t("wx.heat-advice.high"); },
   };
 
   window.UwuWx = {
@@ -235,6 +233,6 @@
     wmoText, wmoIcon, neaIcon, neaText,
     inSingapore, inNeaRadar, NEA_RADAR_BOX, km, nearestStation, regionOf, cap,
     LIGHTNING_COUNTRIES, lightningCountry,
-    uvBand, UV_ADVICE, HEAT_LEVELS, HEAT_ADVICE,
+    uvBand, UV_ADVICE, uvAdvice, HEAT_LEVELS, HEAT_ADVICE,
   };
 })();

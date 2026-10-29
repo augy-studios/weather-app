@@ -9,14 +9,8 @@
 (function () {
   const SW_URL = "/sw.js";
 
-  const STRINGS = {
-    label: "Update",
-    ready: "A new version of UwU Weather is ready.",
-    reload: "Reload",
-    later: "Not now",
-    offlineLabel: "Offline",
-    offline: "You're offline. Showing the last weather saved on this device.",
-  };
+  const { t, onChange } = window.UwuI18n;
+  const { esc } = window.UwuUI;
 
   let registration = null;
   let waitingWorker = null;
@@ -126,15 +120,15 @@
     bar.setAttribute("role", "status");
 
     if (now === "offline") {
-      bar.setAttribute("aria-label", STRINGS.offlineLabel);
-      bar.innerHTML = `<div class="update-notice-inner"><p>${STRINGS.offline}</p></div>`;
+      bar.setAttribute("aria-label", t("update.offline.label"));
+      bar.innerHTML = `<div class="update-notice-inner"><p>${esc(t("update.offline.message"))}</p></div>`;
     } else {
-      bar.setAttribute("aria-label", STRINGS.label);
+      bar.setAttribute("aria-label", t("update.label"));
       bar.innerHTML = `
         <div class="update-notice-inner">
-          <p>${STRINGS.ready}</p>
-          <button type="button" class="btn" data-sw-update>${STRINGS.reload}</button>
-          <button type="button" class="btn secondary" data-sw-later>${STRINGS.later}</button>
+          <p>${esc(t("update.ready"))}</p>
+          <button type="button" class="btn" data-sw-update>${esc(t("update.reload"))}</button>
+          <button type="button" class="btn secondary" data-sw-later>${esc(t("update.later"))}</button>
         </div>
       `;
 
@@ -162,6 +156,12 @@
   });
   window.addEventListener("online", () => {
     offline = false;
+    render();
+  });
+  // A language change draws the bar's words again.
+  onChange(() => {
+    const bar = document.querySelector(".update-notice:not(.is-leaving)");
+    if (bar) delete bar.dataset.state;
     render();
   });
   render();

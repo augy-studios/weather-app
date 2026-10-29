@@ -1,15 +1,17 @@
-// Offline maps: OpenFreeMap's map of Singapore or Malaysia kept on this device,
+// Offline maps: OpenFreeMap's map of a country or a city kept on this device,
 // so the Map page still draws it with no connection. The radar, the readings
 // and the weather over it still need one.
 //
 // - Singapore to zoom 14, with its buildings, and Malaysia to zoom 11, town
-//   level. Their tiles are listed by lib/build-map-packs.mjs, from the country
-//   outlines, and served with the list by /api/maptile.
+//   level, from the country outlines; and cities, Malaysia's and the world's,
+//   to zoom 14 over their centres, so their buildings stand up in 3D, with
+//   their surroundings to zoom 10. Their tiles are listed by
+//   lib/build-map-packs.mjs and served with the list by /api/maptile.
 // - OpenFreeMap allows a download of at most 3,000 tiles or 50 MB, four
 //   requests at a time, each with a User-Agent naming the app
 //   (https://openfreemap.org/tos/). So everything comes through /api/maptile,
 //   which sets one, four at a time, and a download stops at 50 MB.
-// - Each map is a cache of its own (weather-offline-sg, weather-offline-my),
+// - Each map is a cache of its own (weather-offline-sg, weather-offline-paris),
 //   outside the service worker's 400-tile limit. Its vector tiles are kept by
 //   z/x/y with no week in the address, so the service worker serves them
 //   whichever week's tiles OpenFreeMap's tile list names. Both styles (light
@@ -20,13 +22,40 @@
 
 (function () {
   const { esc, hydrateIcons, openModal } = window.UwuUI;
+  const { t, onChange } = window.UwuI18n;
 
   const $ = (sel) => document.querySelector(sel);
 
+  // The packs in lib/map-packs.js, in the order the modal lists them, under
+  // their region. mb is the download's size as lib/build-map-packs.mjs
+  // measured it. Each one's name and area are offline.pack.<id>.name and
+  // .area in the language files.
+  const REGIONS = ["home", "asia", "europe", "north-america", "australia"];
   const PACKS = [
-    { id: "sg", name: "Singapore", about: "a 32 MB download", reach: "down to street level, with the buildings" },
-    { id: "my", name: "Malaysia", about: "a 32 MB download", reach: "Peninsular Malaysia, Sabah and Sarawak, down to town level" },
+    { id: "sg", region: "home", mb: 32 },
+    { id: "my", region: "home", mb: 33 },
+    { id: "kuala-lumpur", region: "home", mb: 35 },
+    { id: "penang", region: "home", mb: 18 },
+    { id: "johor-bahru", region: "home", mb: 21 },
+    { id: "kota-kinabalu", region: "home", mb: 10 },
+    { id: "kuching", region: "home", mb: 10 },
+    { id: "taipei", region: "asia", mb: 30 },
+    { id: "hong-kong", region: "asia", mb: 22 },
+    { id: "bangkok", region: "asia", mb: 20 },
+    { id: "kyoto", region: "asia", mb: 26 },
+    { id: "tokyo", region: "asia", mb: 37 },
+    { id: "seoul", region: "asia", mb: 32 },
+    { id: "london", region: "europe", mb: 40 },
+    { id: "paris", region: "europe", mb: 40 },
+    { id: "amsterdam", region: "europe", mb: 33 },
+    { id: "barcelona", region: "europe", mb: 29 },
+    { id: "rome", region: "europe", mb: 29 },
+    { id: "new-york", region: "north-america", mb: 41 },
+    { id: "vancouver", region: "north-america", mb: 37 },
+    { id: "san-francisco", region: "north-america", mb: 29 },
+    { id: "sydney", region: "australia", mb: 19 },
   ];
+  const packName = (id) => t(`offline.pack.${id}.name`);
 
   const OFM = "https://tiles.openfreemap.org";
   const MAX_TILES = 3000;
@@ -108,7 +137,7 @@
 
       const pack = await getJSON(`/api/maptile?pack=${id}`, signal);
       const count = pack.vector.length + pack.relief.length;
-      if (count > MAX_TILES) throw new Error(`${pack.name} is ${count} tiles, over OpenFreeMap's ${MAX_TILES}`);
+      if (count > MAX_TILES) throw new Error(`${id} is ${count} tiles, over OpenFreeMap's ${MAX_TILES}`);
 
       cache = await caches.open(cacheName(id));
       const before = await readMeta(id);
@@ -203,18 +232,18 @@
         meta.complete = true;
         meta.at = Date.now();
       } else if (failed.length) {
-        notes[id] = { text: `${failed.length} ${failed.length === 1 ? "file" : "files"} didn't come through. Resume tries them again.`, tone: "bad" };
+        notes[id] = { key: "offline.note.failed", params: { count: failed.length }, tone: "bad" };
       }
     } catch (err) {
       if (err.name === "QuotaExceededError") full = true;
       else if (!signal.aborted) {
         console.warn(`offline map ${id} failed:`, err);
-        notes[id] = { text: "Couldn't reach the map server. Try again in a minute.", tone: "bad" };
+        notes[id] = { key: "offline.note.unreachable", tone: "bad" };
       }
     } finally {
-      if (full) notes[id] = { text: "There isn't room for it on this device.", tone: "bad" };
-      else if (tooBig) notes[id] = { text: "Stopped at 50 MB, OpenFreeMap's limit for one download.", tone: "bad" };
-      else if (signal.aborted && !notes[id]) notes[id] = { text: "Paused. Resume carries on where it stopped." };
+      if (full) notes[id] = { key: "offline.note.full", tone: "bad" };
+      else if (tooBig) notes[id] = { key: "offline.note.too-big", tone: "bad" };
+      else if (signal.aborted && !notes[id]) notes[id] = { key: "offline.note.paused" };
       if (cache && meta) await writeMeta(cache, id, meta).catch(() => {});
       delete running[id];
       job.resolve();
@@ -235,14 +264,14 @@
       await job.finished;
     }
     await caches.delete(cacheName(id));
-    notes[id] = { text: "Deleted." };
+    notes[id] = { key: "offline.note.deleted" };
     render();
   }
 
   // ---------- the modal ----------
 
   // In decimal megabytes, as OpenFreeMap's 50 MB is.
-  const mb = (bytes) => `${(bytes / 1e6).toFixed(bytes < 1e7 ? 1 : 0)} MB`;
+  const mb = (bytes) => t("offline.mb", { n: (bytes / 1e6).toFixed(bytes < 1e7 ? 1 : 0) });
   const day = (ms) => new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 
   let drawing = null;
@@ -255,57 +284,63 @@
         row.querySelector("progress").max = job.total || 1;
         row.querySelector("progress").value = job.done;
         row.querySelector(".pack-state").textContent = job.total
-          ? `Downloading, ${job.done} of ${job.total} files, ${mb(job.bytes)}`
-          : "Getting ready";
+          ? t("offline.state.downloading", { done: job.done, total: job.total, size: mb(job.bytes) })
+          : t("offline.state.ready");
       }
     });
+  }
+
+  // One pack's row.
+  function row(p, meta) {
+    const job = running[p.id];
+    let state;
+    let buttons;
+    if (job) {
+      state = t("offline.state.ready");
+      buttons = `<button type="button" class="btn secondary" data-act="cancel">${esc(t("offline.button.cancel"))}</button>`;
+    } else if (meta?.complete) {
+      state = t("offline.state.downloaded", { date: day(meta.at), size: mb(meta.kept || meta.bytes) });
+      buttons = `<button type="button" class="btn secondary" data-act="download">${esc(t("offline.button.update"))}</button><button type="button" class="btn secondary" data-act="delete">${esc(t("offline.button.delete"))}</button>`;
+    } else if (meta) {
+      state = t("offline.state.part", { size: mb(meta.kept || meta.bytes) });
+      buttons = `<button type="button" class="btn" data-act="download">${esc(t("offline.button.resume"))}</button><button type="button" class="btn secondary" data-act="delete">${esc(t("offline.button.delete"))}</button>`;
+    } else {
+      state = t("offline.state.none");
+      buttons = `<button type="button" class="btn" data-act="download"><span data-icon="download"></span><span>${esc(t("offline.button.download"))}</span></button>`;
+    }
+    const note = notes[p.id];
+    const area = t(`offline.pack.${p.id}.area`);
+    const detail = t("offline.pack.detail", { size: mb(p.mb * 1e6), area });
+    return `<li class="pack" data-pack="${p.id}">
+      <div class="pack-text">
+        <strong>${esc(packName(p.id))}</strong>
+        <span class="muted fine">${esc(detail)}</span>
+        <span class="fine pack-state">${esc(state)}</span>
+        <progress max="1" value="0"${job ? "" : " hidden"}></progress>
+        ${note ? `<span class="alerts-note"${note.tone ? ` data-tone="${note.tone}"` : ""}>${esc(t(note.key, note.params))}</span>` : ""}
+      </div>
+      <div class="pack-actions">${buttons}</div>
+    </li>`;
   }
 
   async function render() {
     const list = $("#offlinePacks");
     if (!list) return;
     if (!supported) {
-      list.innerHTML = '<li class="muted">This browser can\'t keep maps for offline use.</li>';
+      list.innerHTML = `<p class="muted">${esc(t("offline.unsupported"))}</p>`;
       return;
     }
-    const metas = await Promise.all(PACKS.map((p) => readMeta(p.id)));
-    list.innerHTML = PACKS.map((p, i) => {
-      const meta = metas[i];
-      const job = running[p.id];
-      let state;
-      let buttons;
-      if (job) {
-        state = "Getting ready";
-        buttons = `<button type="button" class="btn secondary" data-act="cancel">Cancel</button>`;
-      } else if (meta?.complete) {
-        state = `Downloaded ${day(meta.at)}, ${mb(meta.kept || meta.bytes)} on this device`;
-        buttons = `<button type="button" class="btn secondary" data-act="download">Update</button><button type="button" class="btn secondary" data-act="delete">Delete</button>`;
-      } else if (meta) {
-        state = `Part downloaded, ${mb(meta.kept || meta.bytes)} so far`;
-        buttons = `<button type="button" class="btn" data-act="download">Resume</button><button type="button" class="btn secondary" data-act="delete">Delete</button>`;
-      } else {
-        state = "Not downloaded";
-        buttons = `<button type="button" class="btn" data-act="download"><span data-icon="download"></span><span>Download</span></button>`;
-      }
-      const note = notes[p.id];
-      return `<li class="pack" data-pack="${p.id}">
-        <div class="pack-text">
-          <strong>${esc(p.name)}</strong>
-          <span class="muted fine">${esc(p.about)}, ${esc(p.reach)}</span>
-          <span class="fine pack-state">${esc(state)}</span>
-          <progress max="1" value="0"${job ? "" : " hidden"}></progress>
-          ${note ? `<span class="alerts-note"${note.tone ? ` data-tone="${note.tone}"` : ""}>${esc(note.text)}</span>` : ""}
-        </div>
-        <div class="pack-actions">${buttons}</div>
-      </li>`;
-    }).join("");
+    const metas = Object.fromEntries(await Promise.all(PACKS.map(async (p) => [p.id, await readMeta(p.id)])));
+    list.innerHTML = REGIONS.map((r) => `
+      <p class="modal-section-label">${esc(t(`offline.region.${r}`))}</p>
+      <ul class="pack-list">${PACKS.filter((p) => p.region === r).map((p) => row(p, metas[p.id])).join("")}</ul>`).join("");
     hydrateIcons(list);
     progress();
 
     const storage = $("#offlineStorage");
     try {
       const { usage, quota } = await navigator.storage.estimate();
-      storage.textContent = `This site is using ${mb(usage)} of the ${quota > 1e9 ? `${(quota / 1e9).toFixed(1)} GB` : mb(quota)} this browser allows it.`;
+      storage.textContent = t("offline.storage", { used: mb(usage), quota: quota > 1e9 ? t("offline.gb", { n: (quota / 1e9).toFixed(1) }) : mb(quota) });
       storage.hidden = false;
     } catch {
       storage.hidden = true;
@@ -330,6 +365,10 @@
   }
 
   init();
+  // The modal again in the new language, if it's open.
+  onChange(() => {
+    if (!$("#offlineModal")?.classList.contains("hidden")) render();
+  });
 
   window.UwuOffline = { download, cancel, remove, status: readMeta };
 })();
