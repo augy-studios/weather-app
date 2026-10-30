@@ -83,9 +83,9 @@ export const registry = [
   { code: "vi", name: "Tiếng Việt", dir: "ltr", flag: "vn" },
   { code: "fr", name: "Français", dir: "ltr", flag: "fr" },
   { code: "es", name: "Español", dir: "ltr", flag: "es" },
-  { code: "nb", name: "Norsk bokmål", dir: "ltr", flag: "no" },
   // Catalan has no country of its own; es-ct is Catalonia's senyera in flag-icons.
   { code: "ca", name: "Català", dir: "ltr", flag: "es-ct" },
+  { code: "nb", name: "Norsk bokmål", dir: "ltr", flag: "no" },
   { code: "de", name: "Deutsch", dir: "ltr", flag: "de" },
   { code: "it", name: "Italiano", dir: "ltr", flag: "it" },
   { code: "nl", name: "Nederlands", dir: "ltr", flag: "nl" },
