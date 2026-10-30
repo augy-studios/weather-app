@@ -1,7 +1,7 @@
 // Bump on every deploy that changes anything this worker serves. The browser
 // compares this file byte for byte, so an unchanged VERSION means no update
 // reaches anybody and the update bar never appears.
-const VERSION = "v18";
+const VERSION = "v19";
 const CACHE = `weather-${VERSION}`;
 
 // Kept across versions, so an update doesn't throw away what makes the site
@@ -57,6 +57,7 @@ const ASSETS = [
   "/i18n/id.json",
   "/i18n/ta.json",
   "/i18n/zh-TW.json",
+  "/i18n/zh-HK.json",
   "/i18n/ja.json",
   "/i18n/ko.json",
   "/i18n/th.json",
@@ -65,6 +66,14 @@ const ASSETS = [
   "/i18n/fr.json",
   "/i18n/es.json",
   "/i18n/nb.json",
+  "/i18n/ca.json",
+  "/i18n/de.json",
+  "/i18n/it.json",
+  "/i18n/nl.json",
+  "/i18n/pt.json",
+  "/i18n/ru.json",
+  "/i18n/sw.json",
+  "/i18n/eo.json",
   "/i18n/en-pirate.json",
   "/i18n/hnr.json",
   // The switcher's flags (vendor/flags, from flag-icons), one per language in
@@ -75,6 +84,7 @@ const ASSETS = [
   "/vendor/flags/in.svg",
   "/vendor/flags/id.svg",
   "/vendor/flags/tw.svg",
+  "/vendor/flags/hk.svg",
   "/vendor/flags/jp.svg",
   "/vendor/flags/kr.svg",
   "/vendor/flags/th.svg",
@@ -83,6 +93,14 @@ const ASSETS = [
   "/vendor/flags/fr.svg",
   "/vendor/flags/es.svg",
   "/vendor/flags/no.svg",
+  "/vendor/flags/es-ct.svg",
+  "/vendor/flags/de.svg",
+  "/vendor/flags/it.svg",
+  "/vendor/flags/nl.svg",
+  "/vendor/flags/pt.svg",
+  "/vendor/flags/ru.svg",
+  "/vendor/flags/tz.svg",
+  "/vendor/flags/eo.svg",
   "/vendor/maplibre/maplibre-gl.js",
   "/vendor/maplibre/maplibre-gl.css",
   "/vendor/chartjs/chart.umd.min.js",

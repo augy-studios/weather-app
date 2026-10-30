@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="flag-eo" viewBox="0 0 640 480">
+  <!-- Esperanto (not in flag-icons): green field, white canton, green star. Public domain design. -->
+  <path fill="#090" d="M0 0h640v480H0z"/>
+  <path fill="#fff" d="M0 0h240v240H0z"/>
+  <path fill="#090" d="M120.0 33.0L141.6 99.3L211.3 99.3L154.9 140.3L176.4 206.7L120.0 165.7L63.6 206.7L85.1 140.3L28.7 99.3L98.4 99.3z"/>
+</svg>
