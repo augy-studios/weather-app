@@ -34,12 +34,16 @@ export default async function handler(req, res) {
 
   try {
     if (req.query.part == null) {
-      const head = await fetch(urlOf(archive), { method: 'HEAD', headers: { 'User-Agent': USER_AGENT }, signal: AbortSignal.timeout(8000) });
+      // Its first byte, for the size and ETag: GitHub's signed download links
+      // answer HEAD with 401.
+      const head = await fetch(urlOf(archive), { headers: { 'User-Agent': USER_AGENT, Range: 'bytes=0-0' }, signal: AbortSignal.timeout(8000) });
+      await head.body?.cancel();
       if (!head.ok) {
         res.setHeader('Cache-Control', 'no-store');
         return res.status(head.status === 404 ? 404 : 502).json({ error: `The map file answered ${head.status}` });
       }
-      const size = Number(head.headers.get('content-length'));
+      const range = head.headers.get('content-range')?.match(/\/(\d+)$/);
+      const size = Number(range ? range[1] : head.headers.get('content-length'));
       const etag = tagOf(head.headers);
       if (!size || !etag) throw new Error('no size or ETag on the map file');
       // A few minutes, so a rebuild reaches phones the same day.

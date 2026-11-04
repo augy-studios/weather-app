@@ -37,7 +37,7 @@
   // .area in the language files.
   const REGIONS = ["home", "asia", "europe", "north-america", "australia"];
   const PACKS = [
-    { id: "malaysia", region: "home", mb: 250 },
+    { id: "malaysia", region: "home", mb: 232 },
     { id: "taipei", region: "asia", mb: 30 },
     { id: "hong-kong", region: "asia", mb: 22 },
     { id: "bangkok", region: "asia", mb: 20 },
