@@ -41,9 +41,11 @@ jobs:
         run: curl -fsSL -o planetiler.jar "https://github.com/onthegomap/planetiler/releases/download/v${PLANETILER_VERSION}/planetiler.jar"
 
       # The ocean polygons, made by osmdata.openstreetmap.de, which can be slow
-      # or down; www.osmdata.org serves the same files. Fetched here with room
-      # to be slow, from either, and kept between runs: the coastline barely
-      # changes, so an earlier copy stands in when neither answers.
+      # or down. Then, in turn: osmdata.mapki.com, a daily osmcoastline build
+      # of the same file behind Cloudflare, checked against its manifest's
+      # SHA-256; www.osmdata.org, a copy of osmdata's; and FAU Erlangen's
+      # dated snapshots, newest first. Kept between runs too: the coastline
+      # barely changes, so an earlier copy stands in when none answers.
       - name: Ocean polygons from the last run
         uses: actions/cache/restore@v4
         with:
@@ -56,24 +58,31 @@ jobs:
           mkdir -p data/sources
           f=data/sources/water-polygons-split-3857.zip
           got=
-          for url in \
-            https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip \
-            https://www.osmdata.org/download/water-polygons-split-3857.zip; do
-            echo "Trying $url"
-            if curl -fL --retry 3 --retry-all-errors --retry-delay 15 --connect-timeout 30 --max-time 1200 \
-                 -o "$f.new" "$url" && unzip -tq "$f.new"; then
-              mv "$f.new" "$f"
-              got=$url
-              break
-            fi
+          fetch() { # url [sha256]
+            echo "Trying $1"
+            curl -fL --retry 3 --retry-all-errors --retry-delay 15 --connect-timeout 30 --max-time 1200 -o "$f.new" "$1" \
+              && unzip -tq "$f.new" \
+              && { [ -z "$2" ] || echo "$2  $f.new" | sha256sum -c -; } \
+              && mv "$f.new" "$f" && got=$1
             rm -f "$f.new"
-          done
+            [ -n "$got" ]
+          }
+          fau=https://ftp.fau.de/mirrors/openstreetmapdata.com-archive
+          fetch https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip \
+            || { sum=$(curl -fsS --max-time 30 https://osmdata.mapki.com/manifest.json \
+                   | jq -r '.files["water-polygons-split-3857.zip"] | select(.placeholder | not) | .sha256 // empty') \
+                 && [ -n "$sum" ] && fetch https://osmdata.mapki.com/download/water-polygons-split-3857.zip "$sum"; } \
+            || fetch https://www.osmdata.org/download/water-polygons-split-3857.zip \
+            || for d in $(curl -fsS --max-time 30 "$fau/" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}/' | sort -ru | head -4); do
+                 curl -fsI --max-time 30 "$fau/${d}water-polygons-split-3857.zip" >/dev/null \
+                   && fetch "$fau/${d}water-polygons-split-3857.zip" && break
+               done
           if [ -n "$got" ]; then
             echo "Ocean polygons from $got"
           elif [ -s "$f" ]; then
-            echo "::warning::Neither osmdata host answered; using the copy from an earlier run"
+            echo "::warning::No source answered; using the copy from an earlier run"
           else
-            echo "::error::No ocean polygons: neither osmdata host answered and there is no earlier copy"
+            echo "::error::No ocean polygons: no source answered and there is no earlier copy"
             exit 1
           fi
           ls -la "$f"
