@@ -1,7 +1,7 @@
 // Bump on every deploy that changes anything this worker serves. The browser
 // compares this file byte for byte, so an unchanged VERSION means no update
 // reaches anybody and the update bar never appears.
-const VERSION = "v21";
+const VERSION = "v22";
 const CACHE = `weather-${VERSION}`;
 
 // Kept across versions, so an update doesn't throw away what makes the site
@@ -318,6 +318,13 @@ async function archived(url) {
       if (!a) continue;
       const { header } = a;
       if (z < header.minZoom || z > header.maxZoom) continue;
+      // Not this archive's: the tile is outside its bounds.
+      const n = 2 ** z;
+      const west = (x / n) * 360 - 180;
+      const east = ((x + 1) / n) * 360 - 180;
+      const north = (Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) * 180) / Math.PI;
+      const south = (Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / n))) * 180) / Math.PI;
+      if (east < header.west || west > header.east || north < header.south || south > header.north) continue;
       const data = await findTile(a, z, x, y);
       if (data) return new Response(data, { headers: { "Content-Type": "application/x-protobuf" } });
     } catch (err) {
@@ -327,13 +334,22 @@ async function archived(url) {
   return null;
 }
 
-// The archive a pack's cache holds, if it is all there.
+// The archive a pack's cache holds, if it is all there. Its metadata is read
+// again at most every few seconds, not for every tile.
+const metas = new Map(); // cache name -> { at, info }
 async function archiveOf(name) {
   const id = name.slice(PACK_PREFIX.length);
+  const seen = metas.get(name);
+  if (seen && Date.now() - seen.at < 5000) {
+    if (!seen.info?.complete) return null;
+    const a = archives.get(name);
+    if (a && a.etag === seen.info.etag) return Object.assign(a, await a.ready);
+  }
   const cache = await caches.open(name);
   const res = await cache.match(`${self.location.origin}/offline-maps/${id}.json`);
   const meta = res && (await res.json());
   const info = meta?.archive;
+  metas.set(name, { at: Date.now(), info });
   if (!info?.complete) {
     archives.delete(name);
     return null;
@@ -361,6 +377,8 @@ async function readHeader(a) {
     leafOffset: u64(40), dataOffset: u64(56),
     internalCompression: v.getUint8(97), tileCompression: v.getUint8(98),
     minZoom: v.getUint8(100), maxZoom: v.getUint8(101),
+    west: v.getInt32(102, true) / 1e7, south: v.getInt32(106, true) / 1e7,
+    east: v.getInt32(110, true) / 1e7, north: v.getInt32(114, true) / 1e7,
   };
   const rootBytes = header.rootOffset + header.rootLength <= buf.byteLength
     ? buf.slice(header.rootOffset, header.rootOffset + header.rootLength)

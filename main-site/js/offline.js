@@ -36,22 +36,42 @@
   // measured it. Each one's name and area are offline.pack.<id>.name and
   // .area in the language files.
   const REGIONS = ["home", "asia", "europe", "north-america", "australia"];
+  // full: one of our own archives of a whole country or region, which says
+  // so (offline.pack.full.area) rather than naming its area; its sizes are
+  // estimates until its first build.
   const PACKS = [
-    { id: "malaysia", region: "home", mb: 232 },
+    { id: "malaysia", region: "home", mb: 243 },
+    { id: "taiwan", region: "asia", mb: 250, full: true },
     { id: "taipei", region: "asia", mb: 30 },
+    { id: "hong-kong-sar", region: "asia", mb: 50, full: true },
     { id: "hong-kong", region: "asia", mb: 22 },
+    { id: "thailand", region: "asia", mb: 290, full: true },
     { id: "bangkok", region: "asia", mb: 20 },
-    { id: "kyoto", region: "asia", mb: 26 },
-    { id: "tokyo", region: "asia", mb: 37 },
+    { id: "south-korea", region: "asia", mb: 210, full: true },
     { id: "seoul", region: "asia", mb: 32 },
+    { id: "japan", region: "asia", mb: 2200, full: true },
+    { id: "tokyo", region: "asia", mb: 37 },
+    { id: "kyoto", region: "asia", mb: 26 },
+    { id: "indonesia", region: "asia", mb: 1500, full: true },
+    { id: "philippines", region: "asia", mb: 560, full: true },
+    { id: "vietnam", region: "asia", mb: 250, full: true },
+    { id: "greater-london", region: "europe", mb: 130, full: true },
     { id: "london", region: "europe", mb: 40 },
+    { id: "ile-de-france", region: "europe", mb: 310, full: true },
     { id: "paris", region: "europe", mb: 40 },
+    { id: "netherlands", region: "europe", mb: 1260, full: true },
     { id: "amsterdam", region: "europe", mb: 33 },
+    { id: "catalonia", region: "europe", mb: 250, full: true },
     { id: "barcelona", region: "europe", mb: 29 },
+    { id: "lazio", region: "europe", mb: 110, full: true },
     { id: "rome", region: "europe", mb: 29 },
+    { id: "new-york-state", region: "north-america", mb: 430, full: true },
     { id: "new-york", region: "north-america", mb: 41 },
-    { id: "vancouver", region: "north-america", mb: 37 },
+    { id: "northern-california", region: "north-america", mb: 460, full: true },
     { id: "san-francisco", region: "north-america", mb: 29 },
+    { id: "british-columbia", region: "north-america", mb: 1020, full: true },
+    { id: "vancouver", region: "north-america", mb: 37 },
+    { id: "new-south-wales", region: "australia", mb: 250, full: true },
     { id: "sydney", region: "australia", mb: 19 },
   ];
   // Downloads from before the Malaysia archive replaced them. A device that
@@ -367,7 +387,9 @@
   // ---------- the modal ----------
 
   // In decimal megabytes, as OpenFreeMap's 50 MB is.
-  const mb = (bytes) => t("offline.mb", { n: (bytes / 1e6).toFixed(bytes < 1e7 ? 1 : 0) });
+  const mb = (bytes) => (bytes >= 1e9
+    ? t("offline.gb", { n: (bytes / 1e9).toFixed(1) })
+    : t("offline.mb", { n: (bytes / 1e6).toFixed(bytes < 1e7 ? 1 : 0) }));
   const day = (ms) => new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 
   let drawing = null;
@@ -415,7 +437,7 @@
       <div class="pack-actions">${meta ? `<button type="button" class="btn secondary" data-act="delete">${esc(t("offline.button.delete"))}</button>` : ""}</div>
     </li>`;
     }
-    const area = t(`offline.pack.${p.id}.area`);
+    const area = p.full ? t("offline.pack.full.area") : t(`offline.pack.${p.id}.area`);
     const detail = t("offline.pack.detail", { size: mb(p.mb * 1e6), area });
     return `<li class="pack" data-pack="${p.id}">
       <div class="pack-text">
@@ -451,7 +473,7 @@
     const storage = $("#offlineStorage");
     try {
       const { usage, quota } = await navigator.storage.estimate();
-      storage.textContent = t("offline.storage", { used: mb(usage), quota: quota > 1e9 ? t("offline.gb", { n: (quota / 1e9).toFixed(1) }) : mb(quota) });
+      storage.textContent = t("offline.storage", { used: mb(usage), quota: mb(quota) });
       storage.hidden = false;
     } catch {
       storage.hidden = true;

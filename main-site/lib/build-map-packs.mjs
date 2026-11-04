@@ -55,8 +55,30 @@ const PACKS = [
   // of Geofabrik's extract: OpenFreeMap to zoom 7, then the archive.
   {
     id: 'malaysia', codes: ['MY', 'SG', 'BN'], name: 'Malaysia, Singapore and Brunei', maxzoom: 7, margin: 0.15,
-    archive: { file: 'malaysia.pmtiles', minzoom: 8, maxzoom: 14 }
+    archive: { minzoom: 8, maxzoom: 14 }
   },
+  // Whole countries and regions, the same way, each beside the city packs in
+  // it, which stay as the lighter download. A region by its outline (codes),
+  // or by a box where the outline isn't a country's (bbox, with area: true).
+  // Each has its line in the workflow's matrix too.
+  { id: 'taiwan', codes: ['TW'], name: 'Taiwan', maxzoom: 7, margin: 0.15, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'hong-kong-sar', codes: ['HK'], name: 'Hong Kong (all)', maxzoom: 7, margin: 0.1, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'thailand', codes: ['TH'], name: 'Thailand', maxzoom: 7, margin: 0.15, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'south-korea', codes: ['KR'], name: 'South Korea', maxzoom: 7, margin: 0.15, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'japan', codes: ['JP'], name: 'Japan', maxzoom: 7, margin: 0.15, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'indonesia', codes: ['ID'], name: 'Indonesia', maxzoom: 7, margin: 0.15, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'philippines', codes: ['PH'], name: 'Philippines', maxzoom: 7, margin: 0.15, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'vietnam', codes: ['VN'], name: 'Vietnam', maxzoom: 7, margin: 0.15, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'greater-london', area: true, bbox: [-0.56, 51.25, 0.34, 51.72], name: 'Greater London', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'ile-de-france', area: true, bbox: [1.4, 48.1, 3.6, 49.25], name: 'Île-de-France', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
+  // By a box: the Netherlands' outline takes in the Caribbean islands.
+  { id: 'netherlands', area: true, bbox: [3.2, 50.7, 7.3, 53.7], name: 'Netherlands', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'catalonia', area: true, bbox: [0.15, 40.5, 3.35, 42.9], name: 'Catalonia', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'lazio', area: true, bbox: [11.4, 40.7, 14.05, 42.85], name: 'Lazio', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'new-york-state', area: true, bbox: [-79.8, 40.45, -71.8, 45.05], name: 'New York State', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'northern-california', area: true, bbox: [-124.6, 35.7, -117.6, 42.05], name: 'Northern California', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'british-columbia', area: true, bbox: [-139.1, 48.2, -114.0, 60.05], name: 'British Columbia', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
+  { id: 'new-south-wales', area: true, bbox: [140.9, -37.6, 153.7, -28.1], name: 'New South Wales', maxzoom: 7, archive: { minzoom: 8, maxzoom: 14 } },
   // Asia.
   { id: 'taipei', name: 'Taipei', bbox: [121.4, 24.95, 121.66, 25.15] },
   { id: 'hong-kong', name: 'Hong Kong', bbox: [114.1, 22.24, 114.27, 22.4] },
@@ -234,6 +256,10 @@ for (const p of PACKS.filter((k) => !only.length || only.includes(k.id))) {
     vector = tilesFor(polygons, [w, s, e, n], p.margin, maxzoom);
     relief = tilesFor(polygons, [w, s, e, n], p.margin, RELIEF_MAX_ZOOM);
     bbox = [w - p.margin, s - p.margin, e + p.margin, n + p.margin];
+  } else if (p.area) {
+    vector = tilesIn(p.bbox, 0, maxzoom);
+    relief = tilesIn(p.bbox, 0, RELIEF_MAX_ZOOM);
+    bbox = p.bbox;
   } else {
     vector = cityTiles(p.bbox, maxzoom);
     relief = tilesIn(p.bbox, 0, RELIEF_MAX_ZOOM);

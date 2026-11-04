@@ -18,7 +18,7 @@ Live at **[weather.uwuapps.org](https://weather.uwuapps.org)** · Android build 
 - **Unit toggle** — metric (°C, km/h) ⇄ imperial (°F, mph)
 - **7 themes** — glassmorphism UI with a swatch picker; applied before first paint so there's no flash
 - **Share card** — render the current conditions to an image, or share to Telegram / X / WhatsApp / Facebook
-- **Offline maps** — all of Malaysia, Singapore and Brunei at street level with 3D buildings (built monthly from OpenStreetMap), and 15 cities at street level with 3D buildings, from the tray's download button
+- **Offline maps** — whole countries and regions at street level with 3D buildings (Malaysia with Singapore and Brunei, Taiwan, Japan, Thailand, the Netherlands, New York State and more, built monthly from OpenStreetMap), and 15 lighter city maps, from the tray's download button
 - **Languages** — a language switcher in the tray; English only for now, with `i18n/en.json` ready for more
 - **Installable PWA** — offline-capable service worker, app shortcuts for London, Paris, and Tokyo
 
