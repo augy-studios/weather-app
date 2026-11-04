@@ -93,15 +93,77 @@ jobs:
           path: data/sources/water-polygons-split-3857.zip
           key: water-polygons-${{ github.run_id }}
 
-      # --area names a Geofabrik extract, which --download fetches along with
-      # Natural Earth and the lake centre lines; the ocean polygons are already
-      # here, and a file already here isn't fetched again. Zoom 14, as
-      # OpenFreeMap's, with the buildings at 14.
+      # Planetiler's other inputs, Natural Earth and the lake centre lines,
+      # fetched here rather than by Planetiler, which gives a slow server about
+      # ten seconds to say how big a file is. They change once in years, so
+      # they're kept between runs and only fetched when missing.
+      - name: Natural Earth and lake centre lines from the last run
+        id: aux
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/sources/natural_earth_vector.sqlite.zip
+            data/sources/lake_centerline.shp.zip
+          key: planetiler-aux-v1
+
+      - name: Natural Earth and lake centre lines
+        if: steps.aux.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p data/sources
+          get() { curl -fL --retry 5 --retry-all-errors --retry-delay 15 --connect-timeout 30 --max-time 1200 -o "$1" "$2" && unzip -tq "$1"; }
+          get data/sources/natural_earth_vector.sqlite.zip https://naciscdn.org/naturalearth/packages/natural_earth_vector.sqlite.zip
+          get data/sources/lake_centerline.shp.zip https://github.com/acalcutt/osm-lakelines/releases/download/v12/lake_centerline.shp.zip
+
+      - name: Keep Natural Earth and lake centre lines
+        if: steps.aux.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/sources/natural_earth_vector.sqlite.zip
+            data/sources/lake_centerline.shp.zip
+          key: planetiler-aux-v1
+
+      # This month's OpenStreetMap: Geofabrik's malaysia-singapore-brunei
+      # extract, checked against its MD5; or, when Geofabrik doesn't answer,
+      # openstreetmap.fr's Malaysia, Singapore and Brunei, each checked against
+      # its MD5, merged into one with osmium, one version of each object.
+      - name: OpenStreetMap extract
+        run: |
+          set -eo pipefail
+          mkdir -p data/sources
+          out=data/sources/$AREA.osm.pbf
+          get() { # file url: the file and its .md5, and the two must agree
+            echo "Trying $2"
+            curl -fL --retry 3 --retry-all-errors --retry-delay 15 --connect-timeout 30 --max-time 1800 -o "$1" "$2" \
+              && sum=$(curl -fsSL --retry 3 --retry-all-errors --max-time 60 "$2.md5" | cut -d' ' -f1) \
+              && [ -n "$sum" ] && echo "$sum  $1" | md5sum -c -
+          }
+          if get "$out" "https://download.geofabrik.de/asia/$AREA-latest.osm.pbf"; then
+            echo "From Geofabrik"
+          else
+            echo "::warning::Geofabrik didn't answer; merging openstreetmap.fr's extracts"
+            rm -f "$out"
+            fr=https://download.openstreetmap.fr/extracts/asia
+            for c in malaysia singapore brunei; do get "data/sources/fr-$c.osm.pbf" "$fr/$c.osm.pbf"; done
+            sudo apt-get update -qq && sudo apt-get install -y -qq osmium-tool >/dev/null
+            # Where the three overlap at the borders, an object can come in two
+            # versions; time-filter keeps the one in force now.
+            osmium merge data/sources/fr-*.osm.pbf -o data/sources/fr-merged.osm.pbf --overwrite
+            osmium time-filter data/sources/fr-merged.osm.pbf -o "$out" --overwrite
+            rm -f data/sources/fr-*.osm.pbf
+          fi
+          ls -la "$out"
+
+      # Everything is here, so --download fetches nothing. The bounds are the
+      # extract's box, given outright so the ocean stops at its edges whatever
+      # the file's header says. Zoom 14, as OpenFreeMap's, with the buildings
+      # at 14.
       - name: Build
         run: |
           java -Xmx10g -jar planetiler.jar \
             --download \
-            --area="$AREA" \
+            --osm-path="data/sources/$AREA.osm.pbf" \
+            --bounds=99.0,0.7,119.5,7.6 \
             --maxzoom=14 \
             --output="$OUTPUT" \
             --force
