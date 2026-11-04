@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -40,9 +40,43 @@ jobs:
       - name: Planetiler
         run: curl -fsSL -o planetiler.jar "https://github.com/onthegomap/planetiler/releases/download/v${PLANETILER_VERSION}/planetiler.jar"
 
+      # The ocean polygons, from osmdata.openstreetmap.de, which can be slow
+      # enough to time out Planetiler's own download. Fetched here with room
+      # to be slow, and kept between runs: the coastline barely changes, so
+      # last month's copy stands in when the server doesn't answer.
+      - name: Ocean polygons from the last run
+        uses: actions/cache/restore@v4
+        with:
+          path: data/sources/water-polygons-split-3857.zip
+          key: water-polygons-${{ github.run_id }}
+          restore-keys: water-polygons-
+
+      - name: Ocean polygons
+        run: |
+          mkdir -p data/sources
+          f=data/sources/water-polygons-split-3857.zip
+          if curl -fL --retry 5 --retry-all-errors --retry-delay 20 --connect-timeout 60 --max-time 1200 \
+               -o "$f.new" https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip \
+             && unzip -tq "$f.new"; then
+            mv "$f.new" "$f"
+          elif [ -s "$f" ]; then
+            echo "::warning::osmdata.openstreetmap.de didn't answer; using the copy from an earlier run"
+          else
+            echo "::error::No ocean polygons: osmdata.openstreetmap.de didn't answer and there is no earlier copy"
+            exit 1
+          fi
+          ls -la "$f"
+
+      - name: Keep the ocean polygons
+        uses: actions/cache/save@v4
+        with:
+          path: data/sources/water-polygons-split-3857.zip
+          key: water-polygons-${{ github.run_id }}
+
       # --area names a Geofabrik extract, which --download fetches along with
-      # the ocean polygons, Natural Earth and the lake centre lines. Zoom 14,
-      # as OpenFreeMap's, with the buildings at 14.
+      # Natural Earth and the lake centre lines; the ocean polygons are already
+      # here, and a file already here isn't fetched again. Zoom 14, as
+      # OpenFreeMap's, with the buildings at 14.
       - name: Build
         run: |
           java -Xmx10g -jar planetiler.jar \
