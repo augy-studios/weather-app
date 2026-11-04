@@ -171,11 +171,43 @@ jobs:
             sources: |
               https://download.geofabrik.de/asia/japan-latest.osm.pbf
               https://download.openstreetmap.fr/extracts/asia/japan.osm.pbf
-          - id: indonesia
-            bounds: 94.9,-11.1,141.1,6.1
+          # Indonesia by island group, as Geofabrik cuts it; openstreetmap.fr
+          # has it by province, merged.
+          - id: java
+            bounds: 105.0,-8.9,116.3,-5.0
             sources: |
-              https://download.geofabrik.de/asia/indonesia-latest.osm.pbf
-              https://download.openstreetmap.fr/extracts/asia/indonesia.osm.pbf
+              https://download.geofabrik.de/asia/indonesia/java-latest.osm.pbf
+              https://download.openstreetmap.fr/extracts/asia/indonesia/banten.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/jakarta.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/west_java.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/central_java.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/yogyakarta.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/east_java.osm.pbf
+          - id: sumatra
+            bounds: 94.9,-6.2,109.3,6.1
+            sources: |
+              https://download.geofabrik.de/asia/indonesia/sumatra-latest.osm.pbf
+              https://download.openstreetmap.fr/extracts/asia/indonesia/aceh.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/north_sumatra.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/west_sumatra.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/riau.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/riau_islands.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/jambi.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/bengkulu.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/south_sumatra.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/bangka_belitung_islands.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/lampung.osm.pbf
+          - id: kalimantan
+            bounds: 108.5,-4.3,119.1,4.5
+            sources: |
+              https://download.geofabrik.de/asia/indonesia/kalimantan-latest.osm.pbf
+              https://download.openstreetmap.fr/extracts/asia/indonesia/west_kalimantan.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/central_kalimantan.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/south_kalimantan.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/east_kalimantan.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/north_kalimantan.osm.pbf
+          - id: sulawesi
+            bounds: 118.7,-7.6,127.0,5.6
+            sources: |
+              https://download.geofabrik.de/asia/indonesia/sulawesi-latest.osm.pbf
+              https://download.openstreetmap.fr/extracts/asia/indonesia/north_sulawesi.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/gorontalo.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/central_sulawesi.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/west_sulawesi.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/south_sulawesi.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/southeast_sulawesi.osm.pbf
+          - id: bali-nusa-tenggara
+            bounds: 114.3,-11.1,125.3,-7.9
+            sources: |
+              https://download.geofabrik.de/asia/indonesia/nusa-tenggara-latest.osm.pbf
+              https://download.openstreetmap.fr/extracts/asia/indonesia/bali.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/west_nusa_tenggara.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/east_nusa_tenggara.osm.pbf
+          - id: maluku
+            bounds: 124.2,-8.4,135.8,3.0
+            sources: |
+              https://download.geofabrik.de/asia/indonesia/maluku-latest.osm.pbf
+              https://download.openstreetmap.fr/extracts/asia/indonesia/maluku.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/north_maluku.osm.pbf
+          - id: papua
+            bounds: 129.3,-9.2,141.1,1.2
+            sources: |
+              https://download.geofabrik.de/asia/indonesia/papua-latest.osm.pbf
+              https://download.openstreetmap.fr/extracts/asia/indonesia/papua.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/west_papua.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/southwest_papua.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/central_papua.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/highland_papua.osm.pbf https://download.openstreetmap.fr/extracts/asia/indonesia/south_papua.osm.pbf
           - id: philippines
             bounds: 116.8,4.5,126.8,21.2
             sources: |
