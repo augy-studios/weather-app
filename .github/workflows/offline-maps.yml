@@ -1,0 +1,74 @@
+# Builds the offline map of Malaysia, Singapore and Brunei that the Map page can
+# keep (main-site/js/offline.js), from Geofabrik's OpenStreetMap extract, with
+# Planetiler's OpenMapTiles profile: the same schema as OpenFreeMap's tiles, so
+# its Liberty and Dark styles draw it as they are. The archive goes on the
+# `offline-maps` release as malaysia.pmtiles, which /api/mappack hands out in
+# pieces (GitHub's downloads don't answer a browser on another site).
+#
+# Runs on the 1st of each month, and from the Actions tab (Run workflow).
+
+name: Offline maps
+
+on:
+  schedule:
+    - cron: "17 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: offline-maps
+  cancel-in-progress: false
+
+env:
+  PLANETILER_VERSION: "0.9.3"
+  AREA: malaysia-singapore-brunei
+  OUTPUT: malaysia.pmtiles
+  TAG: offline-maps
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Planetiler
+        run: curl -fsSL -o planetiler.jar "https://github.com/onthegomap/planetiler/releases/download/v${PLANETILER_VERSION}/planetiler.jar"
+
+      # --area names a Geofabrik extract, which --download fetches along with
+      # the ocean polygons, Natural Earth and the lake centre lines. Zoom 14,
+      # as OpenFreeMap's, with the buildings at 14.
+      - name: Build
+        run: |
+          java -Xmx10g -jar planetiler.jar \
+            --download \
+            --area="$AREA" \
+            --maxzoom=14 \
+            --output="$OUTPUT" \
+            --force
+          ls -la "$OUTPUT"
+
+      - name: Check
+        run: |
+          head -c 7 "$OUTPUT" | grep -q PMTiles
+          size=$(stat -c %s "$OUTPUT")
+          echo "size $size"
+          test "$size" -gt 50000000
+
+      # A fixed tag and file name, so the address never changes; the file is
+      # replaced in place, and phones see the new one by its ETag.
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
+            --title "Offline maps" \
+            --notes "The offline map of Malaysia, Singapore and Brunei that the Map page keeps, rebuilt monthly from OpenStreetMap by .github/workflows/offline-maps.yml. Data © OpenStreetMap contributors (ODbL), tiles in the OpenMapTiles schema." \
+            --prerelease --latest=false
+          gh release upload "$TAG" "$OUTPUT" --clobber

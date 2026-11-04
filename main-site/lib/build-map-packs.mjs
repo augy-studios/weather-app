@@ -1,13 +1,17 @@
 // Builds lib/map-packs.js, the tiles in each offline map the Map page can keep:
-// Singapore to zoom 14 and Malaysia to zoom 11, from the country outlines in
-// lib/countries.js with a margin round them, and a city's centre to zoom 14,
-// from a box, so its buildings stand up in 3D. Run it by hand when the
+// Malaysia, Singapore and Brunei from our own archive, and a city's centre to
+// zoom 14, from a box, so its buildings stand up in 3D. Run it by hand when the
 // outlines or the packs change; nothing runs it at deploy time. It needs a
 // connection: it asks OpenFreeMap how big every tile is.
 //
 //   node lib/build-map-packs.mjs              every pack, into lib/map-packs.js
 //   node lib/build-map-packs.mjs paris rome   just those, measured and printed,
 //                                             to try a box; nothing is written
+//   node lib/build-map-packs.mjs --update malaysia
+//                                             just those, written into
+//                                             lib/map-packs.js with the rest
+//                                             kept as they are; a pack no
+//                                             longer in PACKS is dropped
 //
 // The tiles are OpenFreeMap's: its vector tiles, 512 px on the XYZ grid, which
 // stop at zoom 14, and Liberty's shaded relief under them, 256 px, which stops
@@ -17,6 +21,14 @@
 // is over the count, or over MAX_MB with its fonts and icons; /api/maptile and
 // the page stop at 50 MB. Each pack's size goes in the file, and in the list
 // it prints for js/offline.js's PACKS.
+//
+// A pack with an `archive` takes only its wide zooms from OpenFreeMap, to
+// `maxzoom`, so the neighbours across the border and the water still show when
+// zoomed out; from the archive's `minzoom` down to street level its tiles come
+// from the archive, our own build of OpenStreetMap
+// (.github/workflows/offline-maps.yml), served by /api/mappack. That's how
+// Malaysia gets its buildings everywhere: all of it at zoom 14 is about 220 MB,
+// far over OpenFreeMap's 50 MB.
 
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -39,15 +51,12 @@ const AROUND_MAX_ZOOM = 9;
 // A city: its centre as a box [w, s, e, n], the built-up core, sized to stay
 // well under 50 MB at zoom 14 (dense centres run to 150-300 KB a tile).
 const PACKS = [
-  { id: 'sg', code: 'SG', name: 'Singapore', maxzoom: 14, margin: 0.1 },
-  { id: 'my', code: 'MY', name: 'Malaysia', maxzoom: 11, margin: 0.15 },
-  // Malaysia's cities, with their buildings, which the country's own pack can't
-  // reach: all of it at zoom 14 is about 220 MB.
-  { id: 'kuala-lumpur', name: 'Kuala Lumpur', bbox: [101.45, 2.95, 101.8, 3.28] },
-  { id: 'penang', name: 'Penang', bbox: [100.17, 5.15, 100.55, 5.55] },
-  { id: 'johor-bahru', name: 'Johor Bahru', bbox: [103.55, 1.4, 103.95, 1.65] },
-  { id: 'kota-kinabalu', name: 'Kota Kinabalu', bbox: [116.02, 5.88, 116.18, 6.08] },
-  { id: 'kuching', name: 'Kuching', bbox: [110.25, 1.45, 110.45, 1.63] },
+  // Malaysia (Peninsular, Sabah and Sarawak), Singapore and Brunei, the area
+  // of Geofabrik's extract: OpenFreeMap to zoom 7, then the archive.
+  {
+    id: 'malaysia', codes: ['MY', 'SG', 'BN'], name: 'Malaysia, Singapore and Brunei', maxzoom: 7, margin: 0.15,
+    archive: { file: 'malaysia.pmtiles', minzoom: 8, maxzoom: 14 }
+  },
   // Asia.
   { id: 'taipei', name: 'Taipei', bbox: [121.4, 24.95, 121.66, 25.15] },
   { id: 'hong-kong', name: 'Hong Kong', bbox: [114.1, 22.24, 114.27, 22.4] },
@@ -205,7 +214,12 @@ const shared = await totalOf([
   ...FONTS.flatMap((f) => GLYPHS.map((r) => `/fonts/${encodeURIComponent(f)}/${r}.pbf`))
 ]);
 
-const only = process.argv.slice(2);
+const fail = (msg) => {
+  throw new Error(msg);
+};
+const update = process.argv[2] === '--update';
+const only = process.argv.slice(update ? 3 : 2);
+if (update && !only.length) throw new Error('--update needs the packs to measure');
 const packs = {};
 const over = [];
 for (const p of PACKS.filter((k) => !only.length || only.includes(k.id))) {
@@ -213,12 +227,12 @@ for (const p of PACKS.filter((k) => !only.length || only.includes(k.id))) {
   let vector;
   let relief;
   let bbox;
-  if (p.code) {
-    const c = countries.find((k) => k.code === p.code);
-    if (!c) throw new Error(`No outline for ${p.code}`);
-    vector = tilesFor(c.polygons, c.bbox, p.margin, maxzoom);
-    relief = tilesFor(c.polygons, c.bbox, p.margin, RELIEF_MAX_ZOOM);
-    const [w, s, e, n] = c.bbox;
+  if (p.codes) {
+    const cs = p.codes.map((code) => countries.find((k) => k.code === code) || fail(`No outline for ${code}`));
+    const polygons = cs.flatMap((c) => c.polygons);
+    const [w, s, e, n] = [0, 1, 2, 3].map((i) => (i < 2 ? Math.min : Math.max)(...cs.map((c) => c.bbox[i])));
+    vector = tilesFor(polygons, [w, s, e, n], p.margin, maxzoom);
+    relief = tilesFor(polygons, [w, s, e, n], p.margin, RELIEF_MAX_ZOOM);
     bbox = [w - p.margin, s - p.margin, e + p.margin, n + p.margin];
   } else {
     vector = cityTiles(p.bbox, maxzoom);
@@ -237,19 +251,27 @@ for (const p of PACKS.filter((k) => !only.length || only.includes(k.id))) {
     bbox: bbox.map((v) => Math.round(v * 100) / 100),
     mb: Math.round(bytes / 1e6),
     vector,
-    relief
+    relief,
+    ...(p.archive ? { archive: p.archive } : {})
   };
   const z14 = vector.filter((t) => t.startsWith(`${maxzoom}/`)).length;
   console.log(`${p.name}: ${vector.length} vector tiles to zoom ${maxzoom} (${z14} at ${maxzoom}), ${relief.length} relief tiles, ${count} in all, ${(bytes / 1e6).toFixed(1)} MB`);
 }
 
 if (over.length) throw new Error(`Make these smaller:\n${over.join('\n')}`);
-if (only.length) process.exit(0);
+if (only.length && !update) process.exit(0);
+
+// --update: the others as they were, in PACKS's order.
+let out = packs;
+if (update) {
+  const { default: before } = await import('./map-packs.js');
+  out = Object.fromEntries(PACKS.filter((p) => packs[p.id] || before[p.id]).map((p) => [p.id, packs[p.id] || before[p.id]]));
+}
 
 const header = `// Generated by lib/build-map-packs.mjs from lib/countries.js and its city boxes,
-// with OpenFreeMap's tiles of ${week}. Do not edit by hand.
-// { id: { name, maxzoom, bbox: [w, s, e, n], mb, vector: ["z/x/y"], relief: ["z/x/y"] } }
+// with OpenFreeMap's tiles of ${update ? `${week} (the packs ${only.join(', ')}; the rest measured earlier)` : week}. Do not edit by hand.
+// { id: { name, maxzoom, bbox: [w, s, e, n], mb, vector: ["z/x/y"], relief: ["z/x/y"], archive? } }
 `;
-writeFileSync(fileURLToPath(new URL('./map-packs.js', import.meta.url)), `${header}export default ${JSON.stringify(packs)};\n`);
+writeFileSync(fileURLToPath(new URL('./map-packs.js', import.meta.url)), `${header}export default ${JSON.stringify(out)};\n`);
 console.log('\nFor js/offline.js PACKS, the sizes:');
-console.log(Object.entries(packs).map(([id, p]) => `${id}: ${p.mb}`).join(', '));
+console.log(Object.entries(out).map(([id, p]) => `${id}: ${p.mb}`).join(', '));

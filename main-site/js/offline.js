@@ -2,11 +2,16 @@
 // so the Map page still draws it with no connection. The radar, the readings
 // and the weather over it still need one.
 //
-// - Singapore to zoom 14, with its buildings, and Malaysia to zoom 11, town
-//   level, from the country outlines; and cities, Malaysia's and the world's,
-//   to zoom 14 over their centres, so their buildings stand up in 3D, with
-//   their surroundings to zoom 10. Their tiles are listed by
-//   lib/build-map-packs.mjs and served with the list by /api/maptile.
+// - Malaysia, Singapore and Brunei, all of it to zoom 14 with the buildings,
+//   from our own archive; and the world's cities to zoom 14 over their
+//   centres, so their buildings stand up in 3D, with their surroundings to
+//   zoom 9. Their tiles are listed by lib/build-map-packs.mjs and served with
+//   the list by /api/maptile.
+// - The archive: one PMTiles file, our own build of OpenStreetMap in
+//   OpenFreeMap's schema (.github/workflows/offline-maps.yml), fetched in
+//   pieces through /api/mappack and kept as those pieces; the service worker
+//   reads tiles out of them when the network can't answer. Its wide zooms,
+//   styles, fonts and icons still come from OpenFreeMap like a city's.
 // - OpenFreeMap allows a download of at most 3,000 tiles or 50 MB, four
 //   requests at a time, each with a User-Agent naming the app
 //   (https://openfreemap.org/tos/). So everything comes through /api/maptile,
@@ -32,13 +37,7 @@
   // .area in the language files.
   const REGIONS = ["home", "asia", "europe", "north-america", "australia"];
   const PACKS = [
-    { id: "sg", region: "home", mb: 32 },
-    { id: "my", region: "home", mb: 33 },
-    { id: "kuala-lumpur", region: "home", mb: 35 },
-    { id: "penang", region: "home", mb: 18 },
-    { id: "johor-bahru", region: "home", mb: 21 },
-    { id: "kota-kinabalu", region: "home", mb: 10 },
-    { id: "kuching", region: "home", mb: 10 },
+    { id: "malaysia", region: "home", mb: 250 },
     { id: "taipei", region: "asia", mb: 30 },
     { id: "hong-kong", region: "asia", mb: 22 },
     { id: "bangkok", region: "asia", mb: 20 },
@@ -55,6 +54,9 @@
     { id: "san-francisco", region: "north-america", mb: 29 },
     { id: "sydney", region: "australia", mb: 19 },
   ];
+  // Downloads from before the Malaysia archive replaced them. A device that
+  // still has one is shown it, to delete; the service worker still serves it.
+  const RETIRED = ["sg", "my", "kuala-lumpur", "penang", "johor-bahru", "kota-kinabalu", "kuching"];
   const packName = (id) => t(`offline.pack.${id}.name`);
 
   const OFM = "https://tiles.openfreemap.org";
@@ -69,6 +71,8 @@
   // A vector tile with no week in its address. Keep in step with packKey in sw.js.
   const tileKey = (t) => `${OFM}/planet/any/${t}.pbf`;
   const via = (path) => `/api/maptile?path=${encodeURIComponent(path)}`;
+  // An archive's pieces. Keep in step with readBytes in sw.js.
+  const pieceKey = (id, etag, n) => `${location.origin}/offline-maps/${id}/${etag}/${n}`;
 
   const supported = "caches" in window && "serviceWorker" in navigator;
   const running = {}; // id -> { abort, done, total, bytes }
@@ -158,8 +162,10 @@
       // A new week's tiles replace the old.
       const keep = before?.week === week;
       job.bytes += keep ? before.bytes || 0 : 0;
-      job.kept += keep ? before.kept || 0 : 0;
-      meta = { week, complete: false, tiles: count, bytes: job.bytes, kept: job.kept, at: before?.at || null };
+      // kept counts the archive too; job.kept is OpenFreeMap's files only.
+      job.kept += keep ? (before.kept || 0) - (before.archive?.have || 0) : 0;
+      // The archive as it was, so the map keeps working while this runs.
+      meta = { week, complete: false, tiles: count, bytes: job.bytes, kept: job.kept, at: before?.at || null, archive: before?.archive };
       await writeMeta(cache, id, meta);
 
       // The tile list, the styles, and from the styles their icons.
@@ -226,9 +232,14 @@
         failed = await run(failed);
       }
 
+      // The archive, after OpenFreeMap's files, piece by piece.
+      if (pack.archive && !signal.aborted && !failed.length) {
+        failed = await fetchArchive(id, cache, before, meta, job, signal);
+      }
+
       meta.bytes = job.bytes;
-      meta.kept = job.kept;
-      if (!signal.aborted && !failed.length) {
+      meta.kept = job.kept + (meta.archive?.have || 0);
+      if (!signal.aborted && !failed.length && (!pack.archive || meta.archive?.complete)) {
         meta.complete = true;
         meta.at = Date.now();
       } else if (failed.length) {
@@ -236,6 +247,7 @@
       }
     } catch (err) {
       if (err.name === "QuotaExceededError") full = true;
+      else if (err.rebuilt) notes[id] = { key: "offline.note.rebuilt" };
       else if (!signal.aborted) {
         console.warn(`offline map ${id} failed:`, err);
         notes[id] = { key: "offline.note.unreachable", tone: "bad" };
@@ -248,6 +260,90 @@
       delete running[id];
       job.resolve();
       render();
+    }
+  }
+
+  // The archive's pieces through /api/mappack, four at a time, into the pack.
+  // Pieces of the same file already here stay; a rebuilt file replaces them.
+  // Returns the pieces that didn't come through.
+  async function fetchArchive(id, cache, before, meta, job, signal) {
+    const info = await getJSON(`/api/mappack?id=${id}`, signal);
+    const old = before?.archive;
+    if (old && old.etag !== info.etag) {
+      for (let n = 0; n < old.parts; n++) await cache.delete(pieceKey(id, old.etag, n));
+    }
+    const same = old?.etag === info.etag;
+    // Room for it, or say so now rather than 200 MB in.
+    try {
+      const { usage, quota } = await navigator.storage.estimate();
+      const have = same ? old.have || 0 : 0;
+      if (quota && quota - usage < info.size - have) {
+        const err = new Error("not enough room");
+        err.name = "QuotaExceededError";
+        throw err;
+      }
+    } catch (err) {
+      if (err.name === "QuotaExceededError") throw err;
+    }
+    meta.archive = { etag: info.etag, size: info.size, part: info.part, parts: info.parts, complete: false, have: 0 };
+    await writeMeta(cache, id, meta);
+
+    job.total += info.parts;
+    progress();
+    const failed = [];
+    let next = 0;
+    const worker = async () => {
+      while (next < info.parts && !signal.aborted) {
+        const n = next++;
+        const key = pieceKey(id, info.etag, n);
+        let hit = same && (await cache.match(key));
+        let size = hit ? Number(hit.headers.get("content-length")) || 0 : 0;
+        if (!hit) {
+          try {
+            size = await savePiece(cache, id, info, n, key, signal);
+          } catch (err) {
+            if (err.name === "QuotaExceededError" || err.rebuilt) {
+              job.abort.abort();
+              throw err;
+            }
+            if (!signal.aborted) failed.push(n);
+          }
+        }
+        job.archive = (job.archive || 0) + size;
+        job.done++;
+        progress();
+      }
+    };
+    const results = await Promise.allSettled(Array.from({ length: AT_ONCE }, worker));
+    const thrown = results.find((r) => r.status === "rejected");
+    if (thrown) throw thrown.reason;
+
+    meta.archive.have = job.archive || 0;
+    meta.kept = job.kept + meta.archive.have;
+    meta.archive.complete = !signal.aborted && !failed.length;
+    await writeMeta(cache, id, meta);
+    return failed;
+  }
+
+  async function savePiece(cache, id, info, n, key, signal) {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const res = await fetch(`/api/mappack?id=${id}&part=${n}&v=${encodeURIComponent(info.etag)}`, { signal, cache: "no-store" });
+        if (res.status === 409) {
+          const err = new Error("the map was rebuilt");
+          err.rebuilt = true;
+          throw err;
+        }
+        if (!res.ok) throw new Error(`piece ${n} replied ${res.status}`);
+        const body = await res.arrayBuffer();
+        const want = n === info.parts - 1 ? info.size - n * info.part : info.part;
+        if (body.byteLength !== want) throw new Error(`piece ${n} is ${body.byteLength} bytes, not ${want}`);
+        await cache.put(key, new Response(body, { headers: { "Content-Type": "application/octet-stream", "Content-Length": String(want) } }));
+        return want;
+      } catch (err) {
+        if (signal.aborted || err.rebuilt || err.name === "QuotaExceededError" || attempt >= TRIES) throw err;
+        await new Promise((r) => setTimeout(r, 1000 * 3 ** (attempt - 1)));
+      }
     }
   }
 
@@ -284,7 +380,7 @@
         row.querySelector("progress").max = job.total || 1;
         row.querySelector("progress").value = job.done;
         row.querySelector(".pack-state").textContent = job.total
-          ? t("offline.state.downloading", { done: job.done, total: job.total, size: mb(job.bytes) })
+          ? t("offline.state.downloading", { done: job.done, total: job.total, size: mb(job.bytes + (job.archive || 0)) })
           : t("offline.state.ready");
       }
     });
@@ -309,6 +405,16 @@
       buttons = `<button type="button" class="btn" data-act="download"><span data-icon="download"></span><span>${esc(t("offline.button.download"))}</span></button>`;
     }
     const note = notes[p.id];
+    if (p.retired) {
+      return `<li class="pack" data-pack="${p.id}">
+      <div class="pack-text">
+        <strong>${esc(packName(p.id))}</strong>
+        ${meta ? `<span class="fine pack-state">${esc(t("offline.note.replaced"))}</span>` : ""}
+        ${note ? `<span class="alerts-note"${note.tone ? ` data-tone="${note.tone}"` : ""}>${esc(t(note.key, note.params))}</span>` : ""}
+      </div>
+      <div class="pack-actions">${meta ? `<button type="button" class="btn secondary" data-act="delete">${esc(t("offline.button.delete"))}</button>` : ""}</div>
+    </li>`;
+    }
     const area = t(`offline.pack.${p.id}.area`);
     const detail = t("offline.pack.detail", { size: mb(p.mb * 1e6), area });
     return `<li class="pack" data-pack="${p.id}">
@@ -331,9 +437,14 @@
       return;
     }
     const metas = Object.fromEntries(await Promise.all(PACKS.map(async (p) => [p.id, await readMeta(p.id)])));
+    const retired = (await Promise.all(RETIRED.map(async (id) => [id, await readMeta(id)])))
+      .filter(([id, meta]) => meta || notes[id]);
     list.innerHTML = REGIONS.map((r) => `
       <p class="modal-section-label">${esc(t(`offline.region.${r}`))}</p>
-      <ul class="pack-list">${PACKS.filter((p) => p.region === r).map((p) => row(p, metas[p.id])).join("")}</ul>`).join("");
+      <ul class="pack-list">${PACKS.filter((p) => p.region === r).map((p) => row(p, metas[p.id])).join("")}</ul>`).join("")
+      + (retired.length ? `
+      <p class="modal-section-label">${esc(t("offline.region.retired"))}</p>
+      <ul class="pack-list">${retired.map(([id, meta]) => row({ id, retired: true }, meta)).join("")}</ul>` : "");
     hydrateIcons(list);
     progress();
 

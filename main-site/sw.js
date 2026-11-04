@@ -1,7 +1,7 @@
 // Bump on every deploy that changes anything this worker serves. The browser
 // compares this file byte for byte, so an unchanged VERSION means no update
 // reaches anybody and the update bar never appears.
-const VERSION = "v19";
+const VERSION = "v20";
 const CACHE = `weather-${VERSION}`;
 
 // Kept across versions, so an update doesn't throw away what makes the site
@@ -230,7 +230,7 @@ self.addEventListener("fetch", (event) => {
     // An offline map's copy first, online or not: it is the same map, and
     // spares OpenFreeMap the request.
     else if (isMapStatic(url)) event.respondWith(packed(request, url).then((r) => r || cacheFirst(request, MAP_CACHE)));
-    else if (isTile(url)) event.respondWith(packed(request, url).then((r) => r || capped(event, request, TILE_CACHE, MAX_TILES)));
+    else if (isTile(url)) event.respondWith(tile(event, request, url));
     else if (isGeoMet(url)) event.respondWith(capped(event, request, RADAR_CACHE, MAX_FRAMES));
     // RainViewer, analytics and ads go straight to the network, untouched.
     return;
@@ -270,6 +270,216 @@ async function packed(request, url) {
     if (!name.startsWith(PACK_PREFIX)) continue;
     const hit = await (await caches.open(name)).match(key || request);
     if (hit) return hit;
+  }
+  return null;
+}
+
+// A map tile: an offline map's copy, else the network (kept like the radar's),
+// else, when the network can't answer, an offline map's archive. The archive
+// only stands in offline: it is cut at its borders, so online OpenFreeMap's
+// own tiles, which show the neighbours too, come first.
+async function tile(event, request, url) {
+  const hit = await packed(request, url);
+  if (hit) return hit;
+  if (self.navigator.onLine === false) {
+    const a = await archived(url);
+    if (a) return a;
+  }
+  try {
+    const response = await capped(event, request, TILE_CACHE, MAX_TILES);
+    if (response.ok || response.type === "opaque") return response;
+    return (await archived(url)) || response;
+  } catch (err) {
+    const a = await archived(url);
+    if (a) return a;
+    throw err;
+  }
+}
+
+/* -- Offline map archives --
+   A pack with an archive (js/offline.js, from /api/mappack) keeps one PMTiles
+   v3 file (https://github.com/protomaps/PMTiles/blob/main/spec/v3/spec.md) in
+   its cache, in pieces of 4 MiB under /offline-maps/<id>/<etag>/<n>. A tile is
+   found from the header and the directories, read out of the pieces it spans,
+   and sent unzipped, as OpenFreeMap's arrive. */
+
+const archives = new Map(); // cache name -> { etag, ready: Promise<{ header, root }> }
+const pieces = new Map(); // piece key -> Blob, a handle on the cache's copy, not the bytes
+const leaves = new Map(); // etag:offset -> parsed leaf directory
+
+async function archived(url) {
+  const m = url.hostname === OFM && url.pathname.match(VECTOR_TILE);
+  if (!m) return null;
+  const [z, x, y] = m[1].split("/").map(Number);
+  for (const name of await caches.keys()) {
+    if (!name.startsWith(PACK_PREFIX)) continue;
+    try {
+      const a = await archiveOf(name);
+      if (!a) continue;
+      const { header } = a;
+      if (z < header.minZoom || z > header.maxZoom) continue;
+      const data = await findTile(a, z, x, y);
+      if (data) return new Response(data, { headers: { "Content-Type": "application/x-protobuf" } });
+    } catch (err) {
+      console.warn("offline map archive:", err);
+    }
+  }
+  return null;
+}
+
+// The archive a pack's cache holds, if it is all there.
+async function archiveOf(name) {
+  const id = name.slice(PACK_PREFIX.length);
+  const cache = await caches.open(name);
+  const res = await cache.match(`${self.location.origin}/offline-maps/${id}.json`);
+  const meta = res && (await res.json());
+  const info = meta?.archive;
+  if (!info?.complete) {
+    archives.delete(name);
+    return null;
+  }
+  let a = archives.get(name);
+  if (!a || a.etag !== info.etag) {
+    a = { etag: info.etag, cache, id, part: info.part, ready: null };
+    a.ready = readHeader(a).catch((err) => {
+      archives.delete(name);
+      throw err;
+    });
+    archives.set(name, a);
+  }
+  return Object.assign(a, await a.ready);
+}
+
+async function readHeader(a) {
+  const buf = await readBytes(a, 0, 16384);
+  const v = new DataView(buf);
+  const magic = new TextDecoder().decode(new Uint8Array(buf, 0, 7));
+  if (magic !== "PMTiles" || v.getUint8(7) !== 3) throw new Error("not a PMTiles v3 file");
+  const u64 = (o) => v.getUint32(o, true) + v.getUint32(o + 4, true) * 2 ** 32;
+  const header = {
+    rootOffset: u64(8), rootLength: u64(16),
+    leafOffset: u64(40), dataOffset: u64(56),
+    internalCompression: v.getUint8(97), tileCompression: v.getUint8(98),
+    minZoom: v.getUint8(100), maxZoom: v.getUint8(101),
+  };
+  const rootBytes = header.rootOffset + header.rootLength <= buf.byteLength
+    ? buf.slice(header.rootOffset, header.rootOffset + header.rootLength)
+    : await readBytes(a, header.rootOffset, header.rootLength);
+  const root = parseDirectory(await unpack(rootBytes, header.internalCompression));
+  return { header, root };
+}
+
+// Bytes offset .. offset+length from the pieces they span.
+async function readBytes(a, offset, length) {
+  const P = a.part;
+  const first = Math.floor(offset / P);
+  const last = Math.floor((offset + length - 1) / P);
+  const parts = [];
+  for (let i = first; i <= last; i++) {
+    const key = `${self.location.origin}/offline-maps/${a.id}/${a.etag}/${i}`;
+    let blob = pieces.get(key);
+    if (!blob) {
+      const res = await a.cache.match(key);
+      if (!res) throw new Error(`piece ${i} is missing`);
+      blob = await res.blob();
+      if (pieces.size > 256) pieces.clear();
+      pieces.set(key, blob);
+    }
+    parts.push(blob.slice(i === first ? offset - i * P : 0, i === last ? offset + length - i * P : P));
+  }
+  return new Blob(parts).arrayBuffer();
+}
+
+async function unpack(buf, compression) {
+  if (compression === 0 || compression === 1) return buf; // unknown, none
+  if (compression !== 2) throw new Error(`compression ${compression} isn't supported`);
+  return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+}
+
+// A directory: n entries of tile id, run length, length and offset, as
+// varints, each column in turn.
+function parseDirectory(buf) {
+  const bytes = new Uint8Array(buf);
+  let pos = 0;
+  const varint = () => {
+    let value = 0;
+    let scale = 1;
+    for (;;) {
+      const b = bytes[pos++];
+      value += (b & 0x7f) * scale;
+      if (b < 0x80) return value;
+      scale *= 128;
+    }
+  };
+  const n = varint();
+  const ids = new Array(n);
+  const runs = new Array(n);
+  const lengths = new Array(n);
+  const offsets = new Array(n);
+  let last = 0;
+  for (let i = 0; i < n; i++) ids[i] = last += varint();
+  for (let i = 0; i < n; i++) runs[i] = varint();
+  for (let i = 0; i < n; i++) lengths[i] = varint();
+  for (let i = 0; i < n; i++) {
+    const o = varint();
+    offsets[i] = o === 0 && i > 0 ? offsets[i - 1] + lengths[i - 1] : o - 1;
+  }
+  return { ids, runs, lengths, offsets };
+}
+
+// The tile id: the tiles in every zoom above, then the Hilbert curve's index.
+function tileId(z, x, y) {
+  let acc = 0;
+  for (let i = 0; i < z; i++) acc += 4 ** i;
+  let d = 0;
+  for (let s = 2 ** (z - 1); s >= 1; s /= 2) {
+    const rx = (x & s) > 0 ? 1 : 0;
+    const ry = (y & s) > 0 ? 1 : 0;
+    d += s * s * ((3 * rx) ^ ry);
+    if (ry === 0) {
+      if (rx === 1) {
+        x = s - 1 - x;
+        y = s - 1 - y;
+      }
+      [x, y] = [y, x];
+    }
+  }
+  return acc + d;
+}
+
+async function findTile(a, z, x, y) {
+  const { header } = a;
+  const id = tileId(z, x, y);
+  let dir = a.root;
+  for (let depth = 0; depth < 4; depth++) {
+    // The last entry at or before the id.
+    let lo = 0;
+    let hi = dir.ids.length - 1;
+    let at = -1;
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (dir.ids[mid] <= id) {
+        at = mid;
+        lo = mid + 1;
+      } else hi = mid - 1;
+    }
+    if (at < 0) return null;
+    if (dir.runs[at] === 0) {
+      // A leaf directory.
+      const key = `${a.etag}:${dir.offsets[at]}`;
+      let leaf = leaves.get(key);
+      if (!leaf) {
+        const raw = await readBytes(a, header.leafOffset + dir.offsets[at], dir.lengths[at]);
+        leaf = parseDirectory(await unpack(raw, header.internalCompression));
+        if (leaves.size > 64) leaves.clear();
+        leaves.set(key, leaf);
+      }
+      dir = leaf;
+      continue;
+    }
+    if (id - dir.ids[at] >= dir.runs[at]) return null;
+    const raw = await readBytes(a, header.dataOffset + dir.offsets[at], dir.lengths[at]);
+    return unpack(raw, header.tileCompression);
   }
   return null;
 }
