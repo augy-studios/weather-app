@@ -40,10 +40,10 @@ jobs:
       - name: Planetiler
         run: curl -fsSL -o planetiler.jar "https://github.com/onthegomap/planetiler/releases/download/v${PLANETILER_VERSION}/planetiler.jar"
 
-      # The ocean polygons, from osmdata.openstreetmap.de, which can be slow
-      # enough to time out Planetiler's own download. Fetched here with room
-      # to be slow, and kept between runs: the coastline barely changes, so
-      # last month's copy stands in when the server doesn't answer.
+      # The ocean polygons, made by osmdata.openstreetmap.de, which can be slow
+      # or down; www.osmdata.org serves the same files. Fetched here with room
+      # to be slow, from either, and kept between runs: the coastline barely
+      # changes, so an earlier copy stands in when neither answers.
       - name: Ocean polygons from the last run
         uses: actions/cache/restore@v4
         with:
@@ -55,14 +55,25 @@ jobs:
         run: |
           mkdir -p data/sources
           f=data/sources/water-polygons-split-3857.zip
-          if curl -fL --retry 5 --retry-all-errors --retry-delay 20 --connect-timeout 60 --max-time 1200 \
-               -o "$f.new" https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip \
-             && unzip -tq "$f.new"; then
-            mv "$f.new" "$f"
+          got=
+          for url in \
+            https://osmdata.openstreetmap.de/download/water-polygons-split-3857.zip \
+            https://www.osmdata.org/download/water-polygons-split-3857.zip; do
+            echo "Trying $url"
+            if curl -fL --retry 3 --retry-all-errors --retry-delay 15 --connect-timeout 30 --max-time 1200 \
+                 -o "$f.new" "$url" && unzip -tq "$f.new"; then
+              mv "$f.new" "$f"
+              got=$url
+              break
+            fi
+            rm -f "$f.new"
+          done
+          if [ -n "$got" ]; then
+            echo "Ocean polygons from $got"
           elif [ -s "$f" ]; then
-            echo "::warning::osmdata.openstreetmap.de didn't answer; using the copy from an earlier run"
+            echo "::warning::Neither osmdata host answered; using the copy from an earlier run"
           else
-            echo "::error::No ocean polygons: osmdata.openstreetmap.de didn't answer and there is no earlier copy"
+            echo "::error::No ocean polygons: neither osmdata host answered and there is no earlier copy"
             exit 1
           fi
           ls -la "$f"
