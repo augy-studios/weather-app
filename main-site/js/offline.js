@@ -35,50 +35,118 @@
   // their region. mb is the download's size as lib/build-map-packs.mjs
   // measured it. Each one's name and area are offline.pack.<id>.name and
   // .area in the language files.
-  const REGIONS = ["home", "asia", "europe", "north-america", "australia"];
+  const REGIONS = ["home", "asia", "middle-east", "africa", "europe", "north-america", "south-america", "oceania"];
+  // cc: its countries, so a country's name finds it, in the page's language
+  // and in English, from the browser's own list of country names.
+  // city: a city by its centre, fitted by lib/build-map-packs.mjs, which says
+  // so (offline.pack.city.area) rather than naming its districts.
   // full: one of our own archives of a whole country or region, which says
-  // so (offline.pack.full.area) rather than naming its area; its sizes are
-  // estimates until its first build.
+  // so (offline.pack.full.area) rather than naming its area. Its mb is the
+  // archive (its <id>.json on the release) and its OpenFreeMap part.
   const PACKS = [
-    { id: "malaysia", region: "home", mb: 243 },
-    { id: "taiwan", region: "asia", mb: 250, full: true },
-    { id: "taipei", region: "asia", mb: 30 },
-    { id: "hong-kong-sar", region: "asia", mb: 50, full: true },
-    { id: "hong-kong", region: "asia", mb: 22 },
-    { id: "thailand", region: "asia", mb: 290, full: true },
-    { id: "bangkok", region: "asia", mb: 20 },
-    { id: "south-korea", region: "asia", mb: 210, full: true },
-    { id: "seoul", region: "asia", mb: 32 },
-    { id: "japan", region: "asia", mb: 2200, full: true },
-    { id: "tokyo", region: "asia", mb: 37 },
-    { id: "kyoto", region: "asia", mb: 26 },
-    { id: "java", region: "asia", mb: 710, full: true },
-    { id: "sumatra", region: "asia", mb: 320, full: true },
-    { id: "kalimantan", region: "asia", mb: 160, full: true },
-    { id: "sulawesi", region: "asia", mb: 190, full: true },
-    { id: "bali-nusa-tenggara", region: "asia", mb: 110, full: true },
-    { id: "maluku", region: "asia", mb: 40, full: true },
-    { id: "papua", region: "asia", mb: 70, full: true },
-    { id: "philippines", region: "asia", mb: 560, full: true },
-    { id: "vietnam", region: "asia", mb: 250, full: true },
-    { id: "greater-london", region: "europe", mb: 130, full: true },
-    { id: "london", region: "europe", mb: 40 },
-    { id: "ile-de-france", region: "europe", mb: 310, full: true },
-    { id: "paris", region: "europe", mb: 40 },
-    { id: "netherlands", region: "europe", mb: 1260, full: true },
-    { id: "amsterdam", region: "europe", mb: 33 },
-    { id: "catalonia", region: "europe", mb: 250, full: true },
-    { id: "barcelona", region: "europe", mb: 29 },
-    { id: "lazio", region: "europe", mb: 110, full: true },
-    { id: "rome", region: "europe", mb: 29 },
-    { id: "new-york-state", region: "north-america", mb: 430, full: true },
-    { id: "new-york", region: "north-america", mb: 41 },
-    { id: "northern-california", region: "north-america", mb: 460, full: true },
-    { id: "san-francisco", region: "north-america", mb: 29 },
-    { id: "british-columbia", region: "north-america", mb: 1020, full: true },
-    { id: "vancouver", region: "north-america", mb: 37 },
-    { id: "new-south-wales", region: "australia", mb: 250, full: true },
-    { id: "sydney", region: "australia", mb: 19 },
+    { id: "malaysia", region: "home", mb: 243, cc: "MY SG BN" },
+    { id: "taiwan", region: "asia", mb: 213, full: true, cc: "TW" },
+    { id: "taipei", region: "asia", mb: 30, cc: "TW" },
+    { id: "hong-kong-sar", region: "asia", mb: 33, full: true, cc: "HK" },
+    { id: "hong-kong", region: "asia", mb: 22, cc: "HK" },
+    { id: "thailand", region: "asia", mb: 409, full: true, cc: "TH" },
+    { id: "bangkok", region: "asia", mb: 20, cc: "TH" },
+    { id: "south-korea", region: "asia", mb: 383, full: true, cc: "KR" },
+    { id: "seoul", region: "asia", mb: 32, cc: "KR" },
+    { id: "japan", region: "asia", mb: 1721, full: true, cc: "JP" },
+    { id: "tokyo", region: "asia", mb: 37, cc: "JP" },
+    { id: "kyoto", region: "asia", mb: 26, cc: "JP" },
+    { id: "java", region: "asia", mb: 520, full: true, cc: "ID" },
+    { id: "sumatra", region: "asia", mb: 273, full: true, cc: "ID" },
+    { id: "kalimantan", region: "asia", mb: 152, full: true, cc: "ID" },
+    { id: "sulawesi", region: "asia", mb: 135, full: true, cc: "ID" },
+    { id: "bali-nusa-tenggara", region: "asia", mb: 125, full: true, cc: "ID" },
+    { id: "maluku", region: "asia", mb: 52, full: true, cc: "ID" },
+    { id: "papua", region: "asia", mb: 75, full: true, cc: "ID" },
+    { id: "philippines", region: "asia", mb: 481, full: true, cc: "PH" },
+    { id: "vietnam", region: "asia", mb: 330, full: true, cc: "VN" },
+    { id: "greater-london", region: "europe", mb: 78, full: true, cc: "GB" },
+    { id: "london", region: "europe", mb: 40, cc: "GB" },
+    { id: "ile-de-france", region: "europe", mb: 168, full: true, cc: "FR" },
+    { id: "paris", region: "europe", mb: 40, cc: "FR" },
+    { id: "netherlands", region: "europe", mb: 690, full: true, cc: "NL" },
+    { id: "amsterdam", region: "europe", mb: 33, cc: "NL" },
+    { id: "catalonia", region: "europe", mb: 198, full: true, cc: "ES" },
+    { id: "barcelona", region: "europe", mb: 29, cc: "ES" },
+    { id: "lazio", region: "europe", mb: 99, full: true, cc: "IT" },
+    { id: "rome", region: "europe", mb: 29, cc: "IT" },
+    { id: "new-york-state", region: "north-america", mb: 365, full: true, cc: "US" },
+    { id: "new-york", region: "north-america", mb: 41, cc: "US" },
+    { id: "northern-california", region: "north-america", mb: 454, full: true, cc: "US" },
+    { id: "san-francisco", region: "north-america", mb: 29, cc: "US" },
+    { id: "british-columbia", region: "north-america", mb: 1150, full: true, cc: "CA" },
+    { id: "vancouver", region: "north-america", mb: 37, cc: "CA" },
+    { id: "new-south-wales", region: "oceania", mb: 345, full: true, cc: "AU" },
+    { id: "sydney", region: "oceania", mb: 19, cc: "AU" },
+    // The rest of the world's major cities, each fitted round its centre.
+    { id: "beijing", region: "asia", mb: 23, city: true, cc: "CN" },
+    { id: "shanghai", region: "asia", mb: 24, city: true, cc: "CN" },
+    { id: "guangzhou", region: "asia", mb: 21, city: true, cc: "CN" },
+    { id: "shenzhen", region: "asia", mb: 27, city: true, cc: "CN" },
+    { id: "osaka", region: "asia", mb: 40, city: true, cc: "JP" },
+    { id: "busan", region: "asia", mb: 17, city: true, cc: "KR" },
+    { id: "manila", region: "asia", mb: 36, city: true, cc: "PH" },
+    { id: "ho-chi-minh-city", region: "asia", mb: 22, city: true, cc: "VN" },
+    { id: "hanoi", region: "asia", mb: 22, city: true, cc: "VN" },
+    { id: "jakarta", region: "asia", mb: 44, city: true, cc: "ID" },
+    { id: "mumbai", region: "asia", mb: 18, city: true, cc: "IN" },
+    { id: "delhi", region: "asia", mb: 27, city: true, cc: "IN" },
+    { id: "bengaluru", region: "asia", mb: 32, city: true, cc: "IN" },
+    { id: "kathmandu", region: "asia", mb: 25, city: true, cc: "NP" },
+    { id: "dubai", region: "middle-east", mb: 22, city: true, cc: "AE" },
+    { id: "abu-dhabi", region: "middle-east", mb: 14, city: true, cc: "AE" },
+    { id: "doha", region: "middle-east", mb: 18, city: true, cc: "QA" },
+    { id: "istanbul", region: "middle-east", mb: 39, city: true, cc: "TR" },
+    { id: "tel-aviv", region: "middle-east", mb: 25, city: true, cc: "IL" },
+    { id: "riyadh", region: "middle-east", mb: 18, city: true, cc: "SA" },
+    { id: "tehran", region: "middle-east", mb: 25, city: true, cc: "IR" },
+    { id: "cairo", region: "africa", mb: 28, city: true, cc: "EG" },
+    { id: "marrakesh", region: "africa", mb: 14, city: true, cc: "MA" },
+    { id: "casablanca", region: "africa", mb: 14, city: true, cc: "MA" },
+    { id: "lagos", region: "africa", mb: 20, city: true, cc: "NG" },
+    { id: "nairobi", region: "africa", mb: 21, city: true, cc: "KE" },
+    { id: "johannesburg", region: "africa", mb: 20, city: true, cc: "ZA" },
+    { id: "cape-town", region: "africa", mb: 20, city: true, cc: "ZA" },
+    { id: "addis-ababa", region: "africa", mb: 14, city: true, cc: "ET" },
+    { id: "berlin", region: "europe", mb: 43, city: true, cc: "DE" },
+    { id: "munich", region: "europe", mb: 42, city: true, cc: "DE" },
+    { id: "madrid", region: "europe", mb: 40, city: true, cc: "ES" },
+    { id: "lisbon", region: "europe", mb: 33, city: true, cc: "PT" },
+    { id: "vienna", region: "europe", mb: 41, city: true, cc: "AT" },
+    { id: "prague", region: "europe", mb: 44, city: true, cc: "CZ" },
+    { id: "zurich", region: "europe", mb: 44, city: true, cc: "CH" },
+    { id: "copenhagen", region: "europe", mb: 33, city: true, cc: "DK" },
+    { id: "stockholm", region: "europe", mb: 36, city: true, cc: "SE" },
+    { id: "dublin", region: "europe", mb: 33, city: true, cc: "IE" },
+    { id: "edinburgh", region: "europe", mb: 31, city: true, cc: "GB" },
+    { id: "athens", region: "europe", mb: 34, city: true, cc: "GR" },
+    { id: "warsaw", region: "europe", mb: 43, city: true, cc: "PL" },
+    { id: "budapest", region: "europe", mb: 37, city: true, cc: "HU" },
+    { id: "moscow", region: "europe", mb: 43, city: true, cc: "RU" },
+    { id: "los-angeles", region: "north-america", mb: 41, city: true, cc: "US" },
+    { id: "chicago", region: "north-america", mb: 36, city: true, cc: "US" },
+    { id: "washington", region: "north-america", mb: 41, city: true, cc: "US" },
+    { id: "boston", region: "north-america", mb: 37, city: true, cc: "US" },
+    { id: "miami", region: "north-america", mb: 26, city: true, cc: "US" },
+    { id: "toronto", region: "north-america", mb: 37, city: true, cc: "CA" },
+    { id: "montreal", region: "north-america", mb: 43, city: true, cc: "CA" },
+    { id: "mexico-city", region: "north-america", mb: 28, city: true, cc: "MX" },
+    { id: "honolulu", region: "north-america", mb: 12, city: true, cc: "US" },
+    { id: "sao-paulo", region: "south-america", mb: 41, city: true, cc: "BR" },
+    { id: "rio-de-janeiro", region: "south-america", mb: 20, city: true, cc: "BR" },
+    { id: "buenos-aires", region: "south-america", mb: 25, city: true, cc: "AR" },
+    { id: "lima", region: "south-america", mb: 21, city: true, cc: "PE" },
+    { id: "bogota", region: "south-america", mb: 23, city: true, cc: "CO" },
+    { id: "santiago", region: "south-america", mb: 28, city: true, cc: "CL" },
+    { id: "melbourne", region: "oceania", mb: 37, city: true, cc: "AU" },
+    { id: "brisbane", region: "oceania", mb: 25, city: true, cc: "AU" },
+    { id: "perth", region: "oceania", mb: 23, city: true, cc: "AU" },
+    { id: "auckland", region: "oceania", mb: 33, city: true, cc: "NZ" },
   ];
   // Downloads from before the Malaysia archive replaced them. A device that
   // still has one is shown it, to delete; the service worker still serves it.
@@ -443,9 +511,9 @@
       <div class="pack-actions">${meta ? `<button type="button" class="btn secondary" data-act="delete">${esc(t("offline.button.delete"))}</button>` : ""}</div>
     </li>`;
     }
-    const area = p.full ? t("offline.pack.full.area") : t(`offline.pack.${p.id}.area`);
+    const area = p.full ? t("offline.pack.full.area") : p.city ? t("offline.pack.city.area") : t(`offline.pack.${p.id}.area`);
     const detail = t("offline.pack.detail", { size: mb(p.mb * 1e6), area });
-    return `<li class="pack" data-pack="${p.id}">
+    return `<li class="pack" data-pack="${p.id}" data-search="${esc(searchText(p, area))}">
       <div class="pack-text">
         <strong>${esc(packName(p.id))}</strong>
         <span class="muted fine">${esc(detail)}</span>
@@ -467,14 +535,16 @@
     const metas = Object.fromEntries(await Promise.all(PACKS.map(async (p) => [p.id, await readMeta(p.id)])));
     const retired = (await Promise.all(RETIRED.map(async (id) => [id, await readMeta(id)])))
       .filter(([id, meta]) => meta || notes[id]);
+    await englishNames();
     list.innerHTML = REGIONS.map((r) => `
-      <p class="modal-section-label">${esc(t(`offline.region.${r}`))}</p>
-      <ul class="pack-list">${PACKS.filter((p) => p.region === r).map((p) => row(p, metas[p.id])).join("")}</ul>`).join("")
+      <p class="modal-section-label" data-region="${r}">${esc(t(`offline.region.${r}`))}</p>
+      <ul class="pack-list" data-region="${r}" data-search="${esc(fold(`${t(`offline.region.${r}`)} ${english[`offline.region.${r}`] || ""}`))}">${PACKS.filter((p) => p.region === r).map((p) => row(p, metas[p.id])).join("")}</ul>`).join("")
       + (retired.length ? `
       <p class="modal-section-label">${esc(t("offline.region.retired"))}</p>
       <ul class="pack-list">${retired.map(([id, meta]) => row({ id, retired: true }, meta)).join("")}</ul>` : "");
     hydrateIcons(list);
     progress();
+    filter();
 
     const storage = $("#offlineStorage");
     try {
@@ -486,6 +556,57 @@
     }
   }
 
+  // ---------- search ----------
+
+  // Lower case, accents off, so "sao" finds São Paulo and "zurich" Zürich.
+  const fold = (s) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+  // The English names too, so a name typed in English finds the pack in any
+  // language. From the language file the service worker already keeps.
+  let english = {};
+  let englishLoaded = null;
+  function englishNames() {
+    englishLoaded ??= fetch("/i18n/en.json").then((r) => r.json()).then((j) => (english = j)).catch(() => {});
+    return englishLoaded;
+  }
+  function countryNames(codes) {
+    const out = [];
+    for (const lang of [window.UwuI18n.getLocale?.(), "en"]) {
+      try {
+        const names = new Intl.DisplayNames([lang || "en", "en"], { type: "region" });
+        for (const cc of codes.split(" ")) out.push(names.of(cc));
+      } catch {}
+    }
+    return out.join(" ");
+  }
+  const searchText = (p, area) => fold(`${packName(p.id)} ${english[`offline.pack.${p.id}.name`] || ""} ${area} ${p.cc ? countryNames(p.cc) : ""}`);
+
+  // Rows that match every word typed, in their name, area or region; a
+  // region with none is hidden whole.
+  function filter() {
+    const list = $("#offlinePacks");
+    const input = $("#offlineSearch");
+    const none = $("#offlineNone");
+    if (!list || !input) return;
+    const words = fold(input.value).split(/\s+/).filter(Boolean);
+    let shown = 0;
+    for (const ul of list.querySelectorAll(".pack-list")) {
+      let inRegion = 0;
+      for (const li of ul.querySelectorAll(".pack")) {
+        const hay = `${li.dataset.search || ""} ${ul.dataset.search || ""}`;
+        const match = words.every((w) => hay.includes(w));
+        li.hidden = !match;
+        if (match) inRegion++;
+      }
+      ul.hidden = !inRegion;
+      const label = ul.previousElementSibling;
+      if (label?.classList.contains("modal-section-label")) label.hidden = !inRegion;
+      shown += inRegion;
+    }
+    none.hidden = shown > 0 || !words.length;
+    none.textContent = none.hidden ? "" : t("offline.search.none", { q: input.value.trim() });
+  }
+
   function init() {
     const btn = $("#offlineBtn");
     if (!btn) return;
@@ -493,6 +614,7 @@
       openModal("offlineModal");
       render();
     });
+    $("#offlineSearch")?.addEventListener("input", filter);
     $("#offlinePacks").addEventListener("click", (e) => {
       const act = e.target.closest("[data-act]")?.dataset.act;
       const id = e.target.closest("[data-pack]")?.dataset.pack;

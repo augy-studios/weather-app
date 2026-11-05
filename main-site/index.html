@@ -548,8 +548,11 @@
         </button>
       </div>
       <p class="muted" data-i18n="offline.intro">Keep a country's map, or a city's with its buildings in 3D, on this device, so the Map page still shows it with no connection. The radar, the readings and the weather on it still need one.</p>
+      <input id="offlineSearch" class="pack-search" type="search" autocomplete="off" spellcheck="false" enterkeyhint="search"
+        data-i18n-attr="placeholder:offline.search.placeholder, aria-label:offline.search.placeholder" placeholder="Search: a city, country or region" aria-label="Search: a city, country or region" />
       <!-- js/offline.js fills it: the countries, then the cities, each under its own label. -->
       <div id="offlinePacks"></div>
+      <p class="muted" id="offlineNone" hidden></p>
       <p class="muted fine" id="offlineStorage" hidden></p>
       <p class="muted fine"><span data-i18n="offline.source.before">From</span> <a class="link" href="https://openfreemap.org/" target="_blank" rel="noreferrer" data-i18n="footer.link.openfreemap">OpenFreeMap</a><span data-i18n="offline.source.after">, &copy; OpenMapTiles, data &copy; OpenStreetMap contributors.</span></p>
     </div>

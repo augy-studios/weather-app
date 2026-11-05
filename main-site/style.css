@@ -1350,6 +1350,24 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ---- offline maps modal ---- */
+.pack-search {
+  width: 100%;
+  margin: 4px 0 2px;
+  padding: 11px 16px;
+  border-radius: var(--radius-sm);
+  outline: none;
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.pack-search:focus {
+  border-color: var(--brand-ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-ink) 25%, transparent);
+}
+.pack-search::placeholder { color: var(--muted-strong); opacity: 1; }
 .pack-list { display: flex; flex-direction: column; gap: 8px; }
 .pack {
   display: flex;

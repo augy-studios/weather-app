@@ -44,6 +44,10 @@ const RELIEF_MAX_ZOOM = 6;
 // big city runs to 5-8 MB.
 const AROUND = 0.5;
 const AROUND_MAX_ZOOM = 9;
+// A city by its centre starts from a box this many degrees each way (east
+// and west widened for its latitude, so every box starts about 40 km by 30 km
+// on the ground), and shrinks to fit.
+const FIT_START = [0.18, 0.13];
 
 // A country: its outline, with a margin in degrees that catches what the 1:50m
 // outlines leave off: small islands, the coast's own detail, and a little of
@@ -104,7 +108,72 @@ const PACKS = [
   { id: 'vancouver', name: 'Vancouver', bbox: [-123.27, 49.1, -122.75, 49.38] },
   { id: 'san-francisco', name: 'San Francisco', bbox: [-122.53, 37.7, -122.17, 37.9] },
   // Australia.
-  { id: 'sydney', name: 'Sydney', bbox: [151.1, -33.95, 151.3, -33.8] }
+  { id: 'sydney', name: 'Sydney', bbox: [151.1, -33.95, 151.3, -33.8] },
+  // The rest of the world's major cities, each by its centre: the build fits
+  // the biggest box round it within OpenFreeMap's limits.
+  { id: 'beijing', name: 'Beijing', center: [116.397, 39.909] },
+  { id: 'shanghai', name: 'Shanghai', center: [121.474, 31.23] },
+  { id: 'guangzhou', name: 'Guangzhou', center: [113.264, 23.129] },
+  { id: 'shenzhen', name: 'Shenzhen', center: [114.058, 22.543] },
+  { id: 'osaka', name: 'Osaka', center: [135.5, 34.69] },
+  { id: 'busan', name: 'Busan', center: [129.06, 35.15] },
+  { id: 'manila', name: 'Manila', center: [121.02, 14.58] },
+  { id: 'ho-chi-minh-city', name: 'Ho Chi Minh City', center: [106.7, 10.776] },
+  { id: 'hanoi', name: 'Hanoi', center: [105.848, 21.028] },
+  { id: 'jakarta', name: 'Jakarta', center: [106.828, -6.2] },
+  { id: 'mumbai', name: 'Mumbai', center: [72.85, 19.02] },
+  { id: 'delhi', name: 'Delhi', center: [77.215, 28.615] },
+  { id: 'bengaluru', name: 'Bengaluru', center: [77.594, 12.972] },
+  { id: 'kathmandu', name: 'Kathmandu', center: [85.32, 27.705] },
+  { id: 'dubai', name: 'Dubai', center: [55.23, 25.17] },
+  { id: 'abu-dhabi', name: 'Abu Dhabi', center: [54.37, 24.47] },
+  { id: 'doha', name: 'Doha', center: [51.52, 25.3] },
+  { id: 'istanbul', name: 'Istanbul', center: [28.99, 41.025] },
+  { id: 'tel-aviv', name: 'Tel Aviv', center: [34.78, 32.075] },
+  { id: 'riyadh', name: 'Riyadh', center: [46.69, 24.7] },
+  { id: 'tehran', name: 'Tehran', center: [51.4, 35.71] },
+  { id: 'cairo', name: 'Cairo', center: [31.24, 30.045] },
+  { id: 'marrakesh', name: 'Marrakesh', center: [-7.99, 31.63] },
+  { id: 'casablanca', name: 'Casablanca', center: [-7.61, 33.58] },
+  { id: 'lagos', name: 'Lagos', center: [3.41, 6.45] },
+  { id: 'nairobi', name: 'Nairobi', center: [36.815, -1.285] },
+  { id: 'johannesburg', name: 'Johannesburg', center: [28.045, -26.15] },
+  { id: 'cape-town', name: 'Cape Town', center: [18.44, -33.93] },
+  { id: 'addis-ababa', name: 'Addis Ababa', center: [38.76, 9.01] },
+  { id: 'berlin', name: 'Berlin', center: [13.4, 52.515] },
+  { id: 'munich', name: 'Munich', center: [11.575, 48.14] },
+  { id: 'madrid', name: 'Madrid', center: [-3.7, 40.42] },
+  { id: 'lisbon', name: 'Lisbon', center: [-9.15, 38.72] },
+  { id: 'vienna', name: 'Vienna', center: [16.37, 48.208] },
+  { id: 'prague', name: 'Prague', center: [14.43, 50.08] },
+  { id: 'zurich', name: 'Zurich', center: [8.54, 47.375] },
+  { id: 'copenhagen', name: 'Copenhagen', center: [12.57, 55.68] },
+  { id: 'stockholm', name: 'Stockholm', center: [18.065, 59.33] },
+  { id: 'dublin', name: 'Dublin', center: [-6.265, 53.345] },
+  { id: 'edinburgh', name: 'Edinburgh', center: [-3.195, 55.95] },
+  { id: 'athens', name: 'Athens', center: [23.73, 37.98] },
+  { id: 'warsaw', name: 'Warsaw', center: [21.01, 52.23] },
+  { id: 'budapest', name: 'Budapest', center: [19.05, 47.5] },
+  { id: 'moscow', name: 'Moscow', center: [37.62, 55.75] },
+  { id: 'los-angeles', name: 'Los Angeles', center: [-118.31, 34.06] },
+  { id: 'chicago', name: 'Chicago', center: [-87.635, 41.88] },
+  { id: 'washington', name: 'Washington, D.C.', center: [-77.03, 38.9] },
+  { id: 'boston', name: 'Boston', center: [-71.07, 42.355] },
+  { id: 'miami', name: 'Miami', center: [-80.2, 25.78] },
+  { id: 'toronto', name: 'Toronto', center: [-79.385, 43.655] },
+  { id: 'montreal', name: 'Montreal', center: [-73.575, 45.505] },
+  { id: 'mexico-city', name: 'Mexico City', center: [-99.15, 19.42] },
+  { id: 'honolulu', name: 'Honolulu', center: [-157.84, 21.295] },
+  { id: 'sao-paulo', name: 'São Paulo', center: [-46.65, -23.56] },
+  { id: 'rio-de-janeiro', name: 'Rio de Janeiro', center: [-43.19, -22.94] },
+  { id: 'buenos-aires', name: 'Buenos Aires', center: [-58.41, -34.6] },
+  { id: 'lima', name: 'Lima', center: [-77.035, -12.09] },
+  { id: 'bogota', name: 'Bogotá', center: [-74.065, 4.65] },
+  { id: 'santiago', name: 'Santiago', center: [-70.62, -33.43] },
+  { id: 'melbourne', name: 'Melbourne', center: [144.965, -37.815] },
+  { id: 'brisbane', name: 'Brisbane', center: [153.025, -27.47] },
+  { id: 'perth', name: 'Perth', center: [115.86, -31.955] },
+  { id: 'auckland', name: 'Auckland', center: [174.765, -36.855] }
 ];
 
 const HOST = 'https://tiles.openfreemap.org';
@@ -201,7 +270,15 @@ function cityTiles(bbox, maxzoom) {
 // What OpenFreeMap sends for a file, gzipped, which is what the page counts
 // against the 50 MB. Its tiles say in Content-Length; its fonts don't, so the
 // page counts them unpacked, and so does this.
-async function sizeOf(path, method = 'HEAD') {
+// Each file's size, once: a city's box is fitted by trying smaller boxes over
+// the same tiles.
+const sizes = new Map();
+function sizeOf(path) {
+  if (!sizes.has(path)) sizes.set(path, measure(path));
+  return sizes.get(path);
+}
+
+async function measure(path, method = 'HEAD') {
   for (let attempt = 1; ; attempt++) {
     try {
       const res = await fetch(HOST + path, { method, headers: { 'User-Agent': USER_AGENT } });
@@ -209,7 +286,7 @@ async function sizeOf(path, method = 'HEAD') {
       if (!res.ok) throw new Error(`${path} replied ${res.status}`);
       const length = Number(res.headers.get('content-length'));
       if (length) return length;
-      return method === 'HEAD' ? sizeOf(path, 'GET') : (await res.arrayBuffer()).byteLength;
+      return method === 'HEAD' ? measure(path, 'GET') : (await res.arrayBuffer()).byteLength;
     } catch (err) {
       if (attempt >= 3) throw err;
       await new Promise((r) => setTimeout(r, 1000 * attempt));
@@ -267,6 +344,22 @@ for (const p of PACKS.filter((k) => !only.length || only.includes(k.id))) {
     vector = tilesIn(p.bbox, 0, maxzoom);
     relief = tilesIn(p.bbox, 0, RELIEF_MAX_ZOOM);
     bbox = p.bbox;
+  } else if (p.center) {
+    // A city by its centre: the biggest box round it, from FIT_START down a
+    // tenth at a time, that keeps the pack within the tile count and MAX_MB.
+    const [lon, lat] = p.center;
+    const cos = Math.cos((lat * Math.PI) / 180);
+    for (let scale = 1; ; scale *= 0.9) {
+      const hw = (FIT_START[0] * scale) / cos;
+      const hh = FIT_START[1] * scale;
+      bbox = [lon - hw, lat - hh, lon + hw, lat + hh];
+      vector = cityTiles(bbox, maxzoom);
+      relief = tilesIn(bbox, 0, RELIEF_MAX_ZOOM);
+      const size = shared
+        + (await totalOf(vector.map((t) => `/planet/${week}/${t}.pbf`)))
+        + (await totalOf(relief.map((t) => `/natural_earth/ne2sr/${t}.png`)));
+      if ((size <= MAX_MB * 1e6 && vector.length + relief.length <= MAX_TILES) || scale < 0.2) break;
+    }
   } else {
     vector = cityTiles(p.bbox, maxzoom);
     relief = tilesIn(p.bbox, 0, RELIEF_MAX_ZOOM);

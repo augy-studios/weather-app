@@ -2,6 +2,7 @@
 
 ## Latest Release
 
+- Offline maps of 63 more cities on every continent, from Beijing and Dubai to Cairo, São Paulo and Auckland, and a search box in the offline maps window
 - Offline maps of whole countries and regions, to street level with the buildings in 3D: Taiwan, Hong Kong, Thailand, South Korea, Japan, Indonesia by island group (Java, Sumatra, Kalimantan, Sulawesi, Bali and Nusa Tenggara, Maluku, Papua), the Philippines, Vietnam, Greater London, Île-de-France, the Netherlands, Catalonia, Lazio, New York State, Northern California, British Columbia and New South Wales, beside the city maps
 - One offline map of all of Malaysia, Singapore and Brunei down to street level with the buildings in 3D, built from OpenStreetMap each month; it replaces the Singapore, Malaysia, Kuala Lumpur, Penang, Johor Bahru, Kota Kinabalu and Kuching maps
 - Offline maps of 15 cities with their buildings in 3D (Taipei, Kyoto, New York City, Vancouver, San Francisco, Paris, Amsterdam, Rome, Hong Kong, Bangkok, Tokyo, Seoul, London, Barcelona, Sydney)
